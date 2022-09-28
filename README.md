@@ -12,9 +12,9 @@ make run -C ./rtl
 ## ディレクトリ構成
 ```
 .
-├── obj_dir 		# verilatorの出力ファイル類
-├── rtl					# HDLファイル。コアの設計
+├── obj_dir     # verilatorの出力ファイル類
+├── rtl	        # HDLファイル。コアの設計
 ├── sample_src  # コア上で実行するプログラム
-└── test 			  # シミュレーション（verilator）のためのc++のプログラム
+└── test        # シミュレーション（verilator）のためのc++のプログラム
 ```
 
