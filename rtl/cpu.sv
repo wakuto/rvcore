@@ -20,6 +20,12 @@ module cpu(
   logic [31:0] reg_pc;
   logic [31:0] registers [0:31];
 
+  // data_output
+  logic [31:0] data_out;
+  logic data_out_enable;
+  assign write_data = data_out;
+  assign write_enable = data_out_enable;
+
   // instruction fields
   logic [6:0] opcode;
   logic [4:0] rd, rs1, rs2, shamt;
@@ -44,8 +50,8 @@ module cpu(
   initial begin
     reg_pc = 32'h0;
     address = 32'h0;
-    write_data = 32'h0;
-    write_enable = 1'b0;
+    data_out = 32'h0;
+    data_out_enable = 1'b0;
     for(int i = 0; i < 32; i++)
       registers[i] = 32'h0;
   end
@@ -78,8 +84,16 @@ module cpu(
 
     // chose operation_type
     casez(instruction)
-      riscv_instr::ADD, riscv_instr::ADDI, riscv_instr::AUIPC: operation_type = ADD;
+      riscv_instr::ADD, riscv_instr::ADDI, riscv_instr::AUIPC,
+        riscv_instr::LB, riscv_instr::LBU, riscv_instr::LH, 
+        riscv_instr::LHU, riscv_instr::LW: operation_type = ADD;
+      riscv_instr::SUB: operation_type = SUB;
+      riscv_instr::XOR, riscv_instr::XORI: operation_type = XOR;
+      riscv_instr::OR, riscv_instr::ORI: operation_type = OR;
       riscv_instr::AND, riscv_instr::ANDI: operation_type = AND;
+      riscv_instr::SRL, riscv_instr::SRLI: operation_type = SRL;
+      riscv_instr::SRA, riscv_instr::SRAI: operation_type = SRA;
+      riscv_instr::SLL, riscv_instr::SLLI: operation_type = SLL;
       riscv_instr::BEQ: operation_type = EQ;
       default: operation_type = ADD;
     endcase
@@ -105,6 +119,14 @@ module cpu(
 
     case(operation_type)
       ADD: alu_out = op1 + op2;
+      SUB: alu_out = op1 - op2;
+      XOR: alu_out = op1 ^ op2;
+      OR:  alu_out = op1 | op2;
+      AND: alu_out = op1 & op2;
+      SRL: alu_out = op1 >> op2;
+      SRA: alu_out = op1 >>> op2;
+      SLL: alu_out = op1 << op2;
+      EQ:  alu_out = {31'h0, op1 == op2};
       default: alu_out = 32'h0;
     endcase
   end
@@ -120,7 +142,7 @@ module cpu(
       reg_pc <= reg_pc + 32'h4;
       // write back
       case(opcode)
-        // R-Type, I-Type
+        // R-Type, I-Type(not load instruction)
         7'b0110011, 7'b0010011: begin
           registers[rd] <= alu_out;
         end
