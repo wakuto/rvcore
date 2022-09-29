@@ -1,7 +1,8 @@
+SVFILE=./cpu.sv ./decoder.sv ./execute.sv
 all: build
 
 build:
-	verilator -cc ./cpu.sv -exe ../test/cpu_test.cpp --Mdir ../obj_dir
+	verilator -cc $(SVFILE) -exe ../test/cpu_test.cpp --Mdir ../obj_dir
 
 run: build
 	make -C ../obj_dir -f Vcpu.mk
