@@ -11,9 +11,11 @@ module cpu(
   // memory data
   output logic [31:0] address,
   input  logic [31:0] read_data,
-  input  logic read_enable,
+  output logic read_enable,       // データを読むときにアサート
+  input  logic read_valid,        // 読み込んだデータが有効かを表すフラグ
   output logic [31:0] write_data,
-  output logic write_enable,
+  output logic write_enable,      // データを書くときにアサート
+  output logic write_wstrb,       // 書き込むデータの幅
   output logic debug_ebreak,
   output logic [31:0] debug_reg [0:31]
 );
@@ -54,6 +56,7 @@ module cpu(
     .reset,
     .instruction,
     .alu_ops(operation_type),
+    .access_type,
     .op1,
     .op2,
     .regfile,
@@ -77,6 +80,34 @@ module cpu(
     for(int i = 0; i < 32; i++)
       debug_reg[i] = regfile[i];
     pc = reg_pc;
+
+    // mem access
+    //typedef enum logic [3:0] {LB, LH, LW, LBU, LHU, SB, SH, SW, NONE} mem_access_type;
+    address = alu_out;
+    begin
+      import common::*;
+      case(access_type)
+        LB, LH, LW, LBU, LHU: begin
+          read_enable = 1'b1;
+          write_enable = 1'b0;
+          // stall_flag = !read_valid
+        end
+        SB, SH, SW: begin
+          read_enable = 1'b0;
+          write_enable = 1'b1;
+          if(access_type == SB)
+            write_data = 32'h000000FF & regfile[rs2];
+          else if(access_type == SH)
+            write_data = 32'h0000FFFF & regfile[rs2];
+          else
+            write_data = regfile[rs2];
+        end
+        default: begin
+          read_enable = 1'b0;
+          write_enable = 1'b0;
+        end
+      endcase
+    end
   end
 
   always_ff @(posedge clock or posedge reset) begin

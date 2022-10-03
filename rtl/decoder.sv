@@ -12,7 +12,7 @@ module decoder(
   output logic [3:0] alu_ops,
 // output instruction type
   //output logic [2:0] inst_type,
-// output mem_access_type
+ output access_type
 // output wb_type
 // output op1, op2
   output logic [31:0] op1,
@@ -52,7 +52,7 @@ module decoder(
   common::instr_type instruction_type;
   //assign inst_type = instruction_type;
   common::mem_access_type _access_type;
-  //assign access_type = _access_type;
+  assign access_type = _access_type;
 
   always_comb begin
     // chose _alu_ops
@@ -69,6 +69,17 @@ module decoder(
       riscv_instr::SLL, riscv_instr::SLLI: _alu_ops = common::SLL;
       riscv_instr::BEQ: _alu_ops = common::EQ;
       default: _alu_ops = common::ADD;
+    endcase
+    casez(instruction)
+      riscv_instr::LB:  _access_type = common::LB;
+      riscv_instr::LH:  _access_type = common::LH;
+      riscv_instr::LW:  _access_type = common::LW;
+      riscv_instr::LBU: _access_type = common::LBU;
+      riscv_instr::LHU: _access_type = common::LHU;
+      riscv_instr::SB:  _access_type = common::SB;
+      riscv_instr::SH:  _access_type = common::SH;
+      riscv_instr::SW:  _access_type = common::SW;
+      default: _access_type = common::NONE;
     endcase
 
     // chose op1, op2
