@@ -2,32 +2,34 @@
 `include "./riscv_instr.sv"
 `include "./common.sv"
 
-module cpu(
-  input  logic clock,
-  input  logic reset,
-  // instruction data
-  output logic [31:0] pc,
-  input  logic [31:0] instruction,
-  // memory data
-  output logic [31:0] address,
-  input  logic [31:0] read_data,
-  output logic read_enable,       // データを読むときにアサート
-  input  logic read_valid,        // 読み込んだデータが有効かを表すフラグ
-  output logic [31:0] write_data,
-  output logic write_enable,      // データを書くときにアサート
-  output logic write_wstrb,       // 書き込むデータの幅
-  output logic debug_ebreak,
-  output logic [31:0] debug_reg [0:31]
+module cpu (
+    input logic clock,
+    input logic reset,
+    // instruction data
+    output logic [31:0] pc,
+    input logic [31:0] instruction,
+    // memory data
+    output logic [31:0] address,
+    input logic [31:0] read_data,
+    output logic read_enable,  // データを読むときにアサート
+    input logic mem_valid,  // response signal
+    output logic [31:0] write_data,
+    output logic write_enable,  // データを書くときにアサート->request signal
+    output logic write_wstrb,  // 書き込むデータの幅
+    output logic debug_ebreak,
+    output logic [31:0] debug_reg[0:31]
 );
   // regfile
   logic [31:0] reg_pc;
-  logic [31:0] regfile [0:31];
+  logic [31:0] regfile[0:31];
 
   // data_output
   logic [31:0] data_out;
   logic data_out_enable;
-  assign write_data = data_out;
+  assign write_data   = data_out;
   assign write_enable = data_out_enable;
+
+  logic mem_stall_flag;
 
   // instruction fields
   logic [6:0] opcode;
@@ -47,27 +49,27 @@ module cpu(
     address = 32'h0;
     data_out = 32'h0;
     data_out_enable = 1'b0;
-    for(int i = 0; i < 32; i++)
-      regfile[i] = 32'h0;
+    for (int i = 0; i < 32; i++) regfile[i] = 32'h0;
+    mem_stall_flag = 1'b0;
   end
 
-  decoder decoder(
-    .clock,
-    .reset,
-    .instruction,
-    .alu_ops(operation_type),
-    .access_type,
-    .op1,
-    .op2,
-    .regfile,
-    .pc(reg_pc)
+  decoder decoder (
+      .clock,
+      .reset,
+      .instruction,
+      .alu_ops(operation_type),
+      .access_type,
+      .op1,
+      .op2,
+      .regfile,
+      .pc(reg_pc)
   );
 
-  execute execute(
-    .op1,
-    .op2,
-    .alu_ops(operation_type),
-    .alu_out
+  execute execute (
+      .op1,
+      .op2,
+      .alu_ops(operation_type),
+      .alu_out
   );
 
 
@@ -77,8 +79,7 @@ module cpu(
   always_comb begin
     // debug output
     debug_ebreak = instruction == riscv_instr::EBREAK;
-    for(int i = 0; i < 32; i++)
-      debug_reg[i] = regfile[i];
+    for (int i = 0; i < 32; i++) debug_reg[i] = regfile[i];
     pc = reg_pc;
 
     // mem access
@@ -86,24 +87,22 @@ module cpu(
     address = alu_out;
     begin
       import common::*;
-      case(access_type)
+      case (access_type)
         LB, LH, LW, LBU, LHU: begin
           read_enable = 1'b1;
           write_enable = 1'b0;
+          address = alu_out;
           // stall_flag = !read_valid
         end
         SB, SH, SW: begin
-          read_enable = 1'b0;
+          read_enable  = 1'b0;
           write_enable = 1'b1;
-          if(access_type == SB)
-            write_data = 32'h000000FF & regfile[rs2];
-          else if(access_type == SH)
-            write_data = 32'h0000FFFF & regfile[rs2];
-          else
-            write_data = regfile[rs2];
+          if (access_type == SB) write_data = 32'h000000FF & regfile[rs2];
+          else if (access_type == SH) write_data = 32'h0000FFFF & regfile[rs2];
+          else write_data = regfile[rs2];
         end
         default: begin
-          read_enable = 1'b0;
+          read_enable  = 1'b0;
           write_enable = 1'b0;
         end
       endcase
@@ -111,14 +110,13 @@ module cpu(
   end
 
   always_ff @(posedge clock or posedge reset) begin
-    if(reset) begin
-      reg_pc <= 32'h0;
+    if (reset) begin
+      reg_pc  <= 32'h0;
       address <= 32'h0;
-    end
-    else begin
+    end else begin
       reg_pc <= reg_pc + 32'h4;
       // write back
-      case(opcode)
+      case (opcode)
         // R-Type, I-Type(not load instruction)
         7'b0110011, 7'b0010011: begin
           regfile[rd] <= alu_out;
@@ -126,7 +124,7 @@ module cpu(
         // load instruction
         //7'b0000011: regfile[rd] = 
         // other
-        default:;
+        default: ;
       endcase
     end
   end
