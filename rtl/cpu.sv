@@ -11,25 +11,17 @@ module cpu (
     // memory data
     output logic [31:0] address,
     input logic [31:0] read_data,
-    output logic read_enable,  // データを読むときにアサート
-    input logic mem_valid,  // response signal
+    //output logic read_enable,  // データを読むときにアサート
+    //input logic mem_valid,  // response signal
     output logic [31:0] write_data,
     output logic write_enable,  // データを書くときにアサート->request signal
-    output logic write_wstrb,  // 書き込むデータの幅
+    output logic [1:0] write_wstrb,  // 書き込むデータの幅
     output logic debug_ebreak,
     output logic [31:0] debug_reg[0:31]
 );
   // regfile
   logic [31:0] reg_pc;
   logic [31:0] regfile[0:31];
-
-  // data_output
-  logic [31:0] data_out;
-  logic data_out_enable;
-  assign write_data   = data_out;
-  assign write_enable = data_out_enable;
-
-  logic mem_stall_flag;
 
   // instruction fields
   logic [6:0] opcode;
@@ -43,19 +35,19 @@ module cpu (
   common::alu_cmd operation_type;
   common::mem_access_type access_type;
 
+  // memory access
+  logic [31:0] wb_mask;
+  logic mem_stall_flag;
+
   // <= だとwarning出るけどなんで？
   initial begin
-    reg_pc = 32'h0;
+    reg_pc  = 32'h0;
     address = 32'h0;
-    data_out = 32'h0;
-    data_out_enable = 1'b0;
     for (int i = 0; i < 32; i++) regfile[i] = 32'h0;
     mem_stall_flag = 1'b0;
   end
 
   decoder decoder (
-      .clock,
-      .reset,
       .instruction,
       .alu_ops(operation_type),
       .access_type,
@@ -72,6 +64,12 @@ module cpu (
       .alu_out
   );
 
+  memory_access memory_access (
+      .access_type,
+      .write_wstrb,
+      .write_enable,
+      .wb_mask
+  );
 
   assign opcode = instruction[6:0];
   assign rd = instruction[11:7];
@@ -81,48 +79,22 @@ module cpu (
     debug_ebreak = instruction == riscv_instr::EBREAK;
     for (int i = 0; i < 32; i++) debug_reg[i] = regfile[i];
     pc = reg_pc;
-
-    // mem access
-    //typedef enum logic [3:0] {LB, LH, LW, LBU, LHU, SB, SH, SW, NONE} mem_access_type;
     address = alu_out;
-    begin
-      import common::*;
-      case (access_type)
-        LB, LH, LW, LBU, LHU: begin
-          read_enable = 1'b1;
-          write_enable = 1'b0;
-          address = alu_out;
-          // stall_flag = !read_valid
-        end
-        SB, SH, SW: begin
-          read_enable  = 1'b0;
-          write_enable = 1'b1;
-          if (access_type == SB) write_data = 32'h000000FF & regfile[rs2];
-          else if (access_type == SH) write_data = 32'h0000FFFF & regfile[rs2];
-          else write_data = regfile[rs2];
-        end
-        default: begin
-          read_enable  = 1'b0;
-          write_enable = 1'b0;
-        end
-      endcase
-    end
   end
 
   always_ff @(posedge clock or posedge reset) begin
+    $display("alu_out  :%h", alu_out);
+    $display("read_data:%h", read_data);
+    $display("wb_mask  :%h", wb_mask);
     if (reset) begin
-      reg_pc  <= 32'h0;
-      address <= 32'h0;
+      reg_pc <= 32'h0;
     end else begin
       reg_pc <= reg_pc + 32'h4;
       // write back
       case (opcode)
-        // R-Type, I-Type(not load instruction)
-        7'b0110011, 7'b0010011: begin
-          regfile[rd] <= alu_out;
-        end
-        // load instruction
-        //7'b0000011: regfile[rd] = 
+        // R-Type, I-Type
+        7'b0110011, 7'b0010011: regfile[rd] <= alu_out;
+        7'b0000011: regfile[rd] <= read_data & wb_mask;
         // other
         default: ;
       endcase

@@ -2,32 +2,30 @@
 `include "./riscv_instr.sv"
 `include "./common.sv"
 
-module decoder(
-  input logic clock,
-  input logic reset,
-// if/id
-  input logic [31:0] instruction,
-// id/ex
-// output _alu_ops
-  output logic [3:0] alu_ops,
-// output instruction type
-  //output logic [2:0] inst_type,
- output access_type
-// output wb_type
-// output op1, op2
-  output logic [31:0] op1,
-  output logic [31:0] op2,
-// other
-// regfile
-  input logic [31:0] regfile [0:31],
-  input logic [31:0] pc
-  
+module decoder (
+    // if/id
+    input logic [31:0] instruction,
+    // id/ex
+    // output _alu_ops
+    output logic [3:0] alu_ops,
+    // output instruction type
+    //output logic [2:0] inst_type,
+    output [3:0] access_type,
+    // output wb_type
+    // output op1, op2
+    output logic [31:0] op1,
+    output logic [31:0] op2,
+    // other
+    // regfile
+    input logic [31:0] regfile[0:31],
+    input logic [31:0] pc
+
 );
   // instruction fields
   logic [6:0] opcode;
   logic [4:0] rd, rs1, rs2, shamt;
-  logic [2:0] funct3;
-  logic [6:0] funct7;
+  logic [ 2:0] funct3;
+  logic [ 6:0] funct7;
   logic [11:0] imm_i;
   logic [11:0] imm_s;
   logic [12:0] imm_b;
@@ -56,34 +54,33 @@ module decoder(
 
   always_comb begin
     // chose _alu_ops
-    casez(instruction)
-      riscv_instr::ADD, riscv_instr::ADDI, riscv_instr::AUIPC,
-        riscv_instr::LB, riscv_instr::LBU, riscv_instr::LH, 
-        riscv_instr::LHU, riscv_instr::LW: _alu_ops = common::ADD;
-      riscv_instr::SUB: _alu_ops = common::SUB;
-      riscv_instr::XOR, riscv_instr::XORI: _alu_ops = common::XOR;
-      riscv_instr::OR, riscv_instr::ORI: _alu_ops = common::OR;
-      riscv_instr::AND, riscv_instr::ANDI: _alu_ops = common::AND;
-      riscv_instr::SRL, riscv_instr::SRLI: _alu_ops = common::SRL;
-      riscv_instr::SRA, riscv_instr::SRAI: _alu_ops = common::SRA;
-      riscv_instr::SLL, riscv_instr::SLLI: _alu_ops = common::SLL;
-      riscv_instr::BEQ: _alu_ops = common::EQ;
+    import riscv_instr::*;
+    casez (instruction)
+      ADD, ADDI, AUIPC, LB, LBU, LH, LHU, LW: _alu_ops = common::ADD;
+      SUB: _alu_ops = common::SUB;
+      XOR, XORI: _alu_ops = common::XOR;
+      OR, ORI: _alu_ops = common::OR;
+      AND, ANDI: _alu_ops = common::AND;
+      SRL, SRLI: _alu_ops = common::SRL;
+      SRA, SRAI: _alu_ops = common::SRA;
+      SLL, SLLI: _alu_ops = common::SLL;
+      BEQ: _alu_ops = common::EQ;
       default: _alu_ops = common::ADD;
     endcase
-    casez(instruction)
-      riscv_instr::LB:  _access_type = common::LB;
-      riscv_instr::LH:  _access_type = common::LH;
-      riscv_instr::LW:  _access_type = common::LW;
-      riscv_instr::LBU: _access_type = common::LBU;
-      riscv_instr::LHU: _access_type = common::LHU;
-      riscv_instr::SB:  _access_type = common::SB;
-      riscv_instr::SH:  _access_type = common::SH;
-      riscv_instr::SW:  _access_type = common::SW;
+    casez (instruction)
+      LB: _access_type = common::LB;
+      LH: _access_type = common::LH;
+      LW: _access_type = common::LW;
+      LBU: _access_type = common::LBU;
+      LHU: _access_type = common::LHU;
+      SB: _access_type = common::SB;
+      SH: _access_type = common::SH;
+      SW: _access_type = common::SW;
       default: _access_type = common::NONE;
     endcase
 
     // chose op1, op2
-    case(opcode)
+    case (opcode)
       // R-Type
       7'b0110011: begin
         op1 = regfile[rs1];
