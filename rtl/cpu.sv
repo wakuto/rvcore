@@ -11,7 +11,7 @@ module cpu (
     // memory data
     output logic [31:0] address,
     input logic [31:0] read_data,
-    //output logic read_enable,  // データを読むときにアサート
+    output logic read_enable,  // データを読むときにアサート
     //input logic mem_valid,  // response signal
     output logic [31:0] write_data,
     output logic write_enable,  // データを書くときにアサート->request signal
@@ -68,6 +68,7 @@ module cpu (
       .access_type,
       .write_wstrb,
       .write_enable,
+      .read_enable,
       .wb_mask
   );
 
@@ -84,6 +85,7 @@ module cpu (
 
   always_ff @(posedge clock or posedge reset) begin
     $display("alu_out  :%h", alu_out);
+    $display("address  :%h", address);
     $display("read_data:%h", read_data);
     $display("wb_mask  :%h", wb_mask);
     if (reset) begin
@@ -94,6 +96,7 @@ module cpu (
       case (opcode)
         // R-Type, I-Type
         7'b0110011, 7'b0010011: regfile[rd] <= alu_out;
+        // load instruction
         7'b0000011: regfile[rd] <= read_data & wb_mask;
         // other
         default: ;

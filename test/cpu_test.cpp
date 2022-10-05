@@ -83,10 +83,13 @@ int main(int argc, char **argv) {
     //  Assert start flag
 
     top->instruction = fetch_4byte(program, 0x1000, top->pc);
-    top->read_data = fetch_4byte(memory, 0x1000, top->address);
-    if (top->write_enable)
+    if (top->read_enable)
+      top->read_data = fetch_4byte(memory, 0x1000, top->address);
+    if (top->write_enable) {
       mem_write(memory, 0x1000, top->address, top->write_data,
                 top->write_wstrb);
+      std::cout << fetch_4byte(memory, 0x1000, top->address) << std::endl;
+    }
 
     top->eval(); // Evaluate model
 
