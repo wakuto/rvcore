@@ -106,6 +106,7 @@ int main(int argc, char **argv) {
       std::cout << "x" << std::dec << i << ": ";
       std::cout << std::hex << top->debug_reg[i] << std::endl;
     }
+    std::cout << std::hex << fetch_4byte(memory, 0x1000, 0x14) << std::endl;
 
     if (top->debug_ebreak) {
       std::cout << "EBREAK!!!!!!!" << std::endl;

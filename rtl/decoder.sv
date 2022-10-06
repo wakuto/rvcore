@@ -56,7 +56,7 @@ module decoder (
     // chose _alu_ops
     import riscv_instr::*;
     casez (instruction)
-      ADD, ADDI, AUIPC, LB, LBU, LH, LHU, LW: _alu_ops = common::ADD;
+      ADD, ADDI, AUIPC, LB, LBU, LH, LHU, LW, LUI, SW, SH, SB: _alu_ops = common::ADD;
       SUB: _alu_ops = common::SUB;
       XOR, XORI: _alu_ops = common::XOR;
       OR, ORI: _alu_ops = common::OR;
@@ -67,6 +67,7 @@ module decoder (
       BEQ: _alu_ops = common::EQ;
       default: _alu_ops = common::ADD;
     endcase
+    // memory access type
     casez (instruction)
       LB: _access_type = common::LB;
       LH: _access_type = common::LH;

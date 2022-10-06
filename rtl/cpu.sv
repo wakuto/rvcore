@@ -26,6 +26,8 @@ module cpu (
   // instruction fields
   logic [6:0] opcode;
   logic [4:0] rd;
+  logic [4:0] rs1;
+  logic [4:0] rs2;
 
   logic [31:0] op1;
   logic [31:0] op2;
@@ -74,6 +76,8 @@ module cpu (
 
   assign opcode = instruction[6:0];
   assign rd = instruction[11:7];
+  assign rs1 = instruction[19:15];
+  assign rs2 = instruction[24:20];
 
   always_comb begin
     // debug output
@@ -81,6 +85,7 @@ module cpu (
     for (int i = 0; i < 32; i++) debug_reg[i] = regfile[i];
     pc = reg_pc;
     address = alu_out;
+    write_data = regfile[rs2];
   end
 
   always_ff @(posedge clock or posedge reset) begin
@@ -94,8 +99,8 @@ module cpu (
       reg_pc <= reg_pc + 32'h4;
       // write back
       case (opcode)
-        // R-Type, I-Type
-        7'b0110011, 7'b0010011: regfile[rd] <= alu_out;
+        // R-Type, I-Type, lui
+        7'b0110011, 7'b0010011, 7'b0110111: regfile[rd] <= alu_out;
         // load instruction
         7'b0000011: regfile[rd] <= read_data & wb_mask;
         // other
