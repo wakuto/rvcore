@@ -93,6 +93,7 @@ module cpu (
     $display("address  :%h", address);
     $display("read_data:%h", read_data);
     $display("wb_mask  :%h", wb_mask);
+    $display("wstrb    :%h", write_wstrb);
     if (reset) begin
       reg_pc <= 32'h0;
     end else begin

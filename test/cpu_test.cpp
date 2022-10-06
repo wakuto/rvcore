@@ -47,10 +47,17 @@ void mem_write(uint8_t *memory, size_t size, uint32_t addr, uint32_t data,
     std::cerr << std::noshowbase;
     exit(1);
   }
-  memory[addr + 0] = data & 0x000000FF;
-  memory[addr + 1] = (data & 0x0000FF00) >> 8;
-  memory[addr + 2] = (data & 0x00FF0000) >> 16;
-  memory[addr + 3] = (data & 0xFF000000) >> 24;
+  switch (write_size) {
+  case 4:
+    memory[addr + 2] = (data & 0x00FF0000) >> 16;
+    memory[addr + 3] = (data & 0xFF000000) >> 24;
+  case 2:
+    memory[addr + 1] = (data & 0x0000FF00) >> 8;
+  case 1:
+    memory[addr + 0] = data & 0x000000FF;
+  default:
+    break;
+  }
 }
 
 int main(int argc, char **argv) {
