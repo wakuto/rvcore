@@ -65,6 +65,11 @@ module decoder (
       SRA, SRAI: _alu_ops = common::SRA;
       SLL, SLLI: _alu_ops = common::SLL;
       BEQ: _alu_ops = common::EQ;
+      BNE: _alu_ops = common::NE;
+      BLT: _alu_ops = common::LT;
+      BGE: _alu_ops = common::GE;
+      BLTU: _alu_ops = common::LTU;
+      BGEU: _alu_ops = common::GEU;
       default: _alu_ops = common::ADD;
     endcase
     // memory access type

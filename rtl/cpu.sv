@@ -21,6 +21,12 @@ module cpu (
 );
   // regfile
   logic [31:0] reg_pc;
+  enum logic [1:0] {
+    BRANCH,
+    JAL,
+    JALR,
+    PCNEXT
+  } pc_sel;
   logic [31:0] regfile[0:31];
 
   // instruction fields
@@ -28,6 +34,9 @@ module cpu (
   logic [4:0] rd;
   logic [4:0] rs1;
   logic [4:0] rs2;
+  logic [11:0] imm_i;
+  logic [12:0] imm_b;
+  logic [20:0] imm_j;
 
   logic [31:0] op1;
   logic [31:0] op2;
@@ -78,11 +87,23 @@ module cpu (
   assign rd = instruction[11:7];
   assign rs1 = instruction[19:15];
   assign rs2 = instruction[24:20];
+  assign imm_i = instruction[31:20];
+  assign imm_b = {instruction[31], instruction[7], instruction[30:25], instruction[11:8], 1'b0};
+  assign imm_j = {instruction[31], instruction[19:12], instruction[20], instruction[30:21], 1'b0};
 
   always_comb begin
     // debug output
     debug_ebreak = instruction == riscv_instr::EBREAK;
     for (int i = 0; i < 32; i++) debug_reg[i] = regfile[i];
+    case (opcode)
+      7'b1100011: begin
+        if (alu_out[0]) pc_sel = BRANCH;
+        else pc_sel = PCNEXT;
+      end
+      7'b1100111: pc_sel = JAL;
+      7'b1101111: pc_sel = JALR;
+      default: pc_sel = PCNEXT;
+    endcase
     pc = reg_pc;
     address = alu_out;
     write_data = regfile[rs2];
@@ -90,14 +111,16 @@ module cpu (
 
   always_ff @(posedge clock or posedge reset) begin
     $display("alu_out  :%h", alu_out);
-    $display("address  :%h", address);
-    $display("read_data:%h", read_data);
-    $display("wb_mask  :%h", wb_mask);
-    $display("wstrb    :%h", write_wstrb);
+    $display("branch   :%h", reg_pc + 32'(signed'(imm_b)));
     if (reset) begin
       reg_pc <= 32'h0;
     end else begin
-      reg_pc <= reg_pc + 32'h4;
+      case (pc_sel)
+        BRANCH: reg_pc <= reg_pc + 32'(signed'(imm_b));
+        JAL: reg_pc <= regfile[rs1] + 32'(signed'(imm_i));
+        JALR: reg_pc <= reg_pc + 32'(signed'(imm_j));
+        PCNEXT: reg_pc <= reg_pc + 32'h4;
+      endcase
       // write back
       case (opcode)
         // R-Type, I-Type, lui
