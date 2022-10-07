@@ -22,28 +22,20 @@ module decoder (
 
 );
   // instruction fields
-  logic [6:0] opcode;
-  logic [4:0] rd, rs1, rs2, shamt;
-  logic [ 2:0] funct3;
-  logic [ 6:0] funct7;
-  logic [11:0] imm_i;
-  logic [11:0] imm_s;
-  logic [12:0] imm_b;
-  logic [31:0] imm_u;
-  logic [20:0] imm_j;
+  common::instr_filed field;
   // decode
-  assign opcode = instruction[6:0];
-  assign rd = instruction[11:7];
-  assign rs1 = instruction[19:15];
-  assign rs2 = instruction[24:20];
-  assign shamt = instruction[24:20];
-  assign funct3 = instruction[14:12];
-  assign funct7 = instruction[31:25];
-  assign imm_i = instruction[31:20];
-  assign imm_s = {instruction[31:25], instruction[11:7]};
-  assign imm_b = {instruction[31], instruction[7], instruction[30:25], instruction[11:8], 1'b0};
-  assign imm_u = {instruction[31:12], 12'h0};
-  assign imm_j = {instruction[31], instruction[19:12], instruction[20], instruction[30:21], 1'b0};
+  assign field.opcode = instruction[6:0];
+  assign field.rd = instruction[11:7];
+  assign field.rs1 = instruction[19:15];
+  assign field.rs2 = instruction[24:20];
+  assign field.shamt = instruction[24:20];
+  assign field.funct3 = instruction[14:12];
+  assign field.funct7 = instruction[31:25];
+  assign field.imm_i = instruction[31:20];
+  assign field.imm_s = {instruction[31:25], instruction[11:7]};
+  assign field.imm_b = {instruction[31], instruction[7], instruction[30:25], instruction[11:8], 1'b0};
+  assign field.imm_u = {instruction[31:12], 12'h0};
+  assign field.imm_j = {instruction[31], instruction[19:12], instruction[20], instruction[30:21], 1'b0};
 
   common::alu_cmd _alu_ops;
   assign alu_ops = _alu_ops;
@@ -86,40 +78,40 @@ module decoder (
     endcase
 
     // chose op1, op2
-    case (opcode)
+    case (field.opcode)
       // R-Type
       7'b0110011: begin
-        op1 = regfile[rs1];
-        op2 = regfile[rs2];
+        op1 = regfile[field.rs1];
+        op2 = regfile[field.rs2];
       end
       // I-Type
       7'b0010011, 7'b0000011: begin
-        op1 = regfile[rs1];
-        op2 = 32'(signed'(imm_i));
+        op1 = regfile[field.rs1];
+        op2 = 32'(signed'(field.imm_i));
       end
       // S-Type
       7'b0100011: begin
-        op1 = regfile[rs1];
-        op2 = 32'(signed'(imm_s));
+        op1 = regfile[field.rs1];
+        op2 = 32'(signed'(field.imm_s));
       end
       // B-Type
       7'b1100011: begin
-        op1 = regfile[rs1];
-        op2 = regfile[rs2];
+        op1 = regfile[field.rs1];
+        op2 = regfile[field.rs2];
       end
       // U-Type(lui)
       7'b0110111: begin
-        op1 = imm_u;
+        op1 = field.imm_u;
         op2 = 32'h00000000;
       end
       // U-Type(auipc)
       7'b0010111: begin
-        op1 = imm_u;
+        op1 = field.imm_u;
         op2 = pc;
       end
       // J-Type
       7'b1101111: begin
-        op1 = 32'(signed'(imm_j));
+        op1 = 32'(signed'(field.imm_j));
         op2 = pc;
       end
       // other

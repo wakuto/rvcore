@@ -122,14 +122,18 @@ module cpu (
         PCNEXT: reg_pc <= reg_pc + 32'h4;
       endcase
       // write back
-      case (opcode)
-        // R-Type, I-Type, lui
-        7'b0110011, 7'b0010011, 7'b0110111: regfile[rd] <= alu_out;
-        // load instruction
-        7'b0000011: regfile[rd] <= read_data & wb_mask;
-        // other
-        default: ;
-      endcase
+      if(rd != 5'h0) begin
+        case (opcode)
+          // R-Type, I-Type, lui
+          7'b0110011, 7'b0010011, 7'b0110111: regfile[rd] <= alu_out;
+          // load instruction
+          7'b0000011: regfile[rd] <= read_data & wb_mask;
+          // JAL, JALR
+          7'b1100111, 7'b1101111: regfile[rd] <= reg_pc + 32'h4;
+          // other
+          default: ;
+        endcase
+      end
     end
   end
 endmodule

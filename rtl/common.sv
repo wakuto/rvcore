@@ -2,6 +2,12 @@
 `define COMMON_H
 
 package common;
+  typedef struct {
+    logic[7:0]  data;
+    logic[3:0]  addr;
+    logic[7:0]  bit_en;
+    logic       write_en;
+                }  bus_signals;
   typedef enum logic [3:0] {
     ADD,
     SUB,

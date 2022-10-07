@@ -95,7 +95,6 @@ int main(int argc, char **argv) {
     if (top->write_enable) {
       mem_write(memory, 0x1000, top->address, top->write_data,
                 top->write_wstrb);
-      std::cout << fetch_4byte(memory, 0x1000, top->address) << std::endl;
     }
 
     top->eval(); // Evaluate model
@@ -113,7 +112,6 @@ int main(int argc, char **argv) {
       std::cout << "x" << std::dec << i << ": ";
       std::cout << std::hex << top->debug_reg[i] << std::endl;
     }
-    std::cout << std::hex << fetch_4byte(memory, 0x1000, 0x14) << std::endl;
 
     if (top->debug_ebreak) {
       std::cout << "EBREAK!!!!!!!" << std::endl;
