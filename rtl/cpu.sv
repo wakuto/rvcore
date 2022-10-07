@@ -87,11 +87,13 @@ module cpu (
     pc = reg_pc;
     address = alu_out;
     write_data = regfile[field.rs2];
+    $display("reg_next_comb:%h", reg_next);
   end
 
   always_ff @(posedge clock or posedge reset) begin
-    $display("alu_out  :%h", alu_out);
-    $display("branch   :%h", reg_pc + 32'(signed'(field.imm_b)));
+    $display("opcode:%h", field.opcode);
+    $display("reg_next_ff:%h", reg_next);
+    $display("wb_en   :%h", wb_en);
     if (reset) begin
       reg_pc <= 32'h0;
     end else begin

@@ -36,22 +36,34 @@ module write_back (
     if (field.rd != 5'h0) begin
       case (field.opcode)
         // R-Type, I-Type, lui
-        7'b0110011, 7'b0010011, 7'b0110111: reg_next = alu_result;
+        7'b0110011, 7'b0010011, 7'b0110111: begin
+          reg_next = alu_result;
+          wb_en = 1'b1;
+        end
         // load instruction
-        7'b0000011: reg_next = read_data & wb_mask;
+        7'b0000011: begin
+          reg_next = read_data & wb_mask;
+          wb_en = 1'b1;
+        end
         // JAL, JALR
-        7'b1100111, 7'b1101111: reg_next = pc_prev + 32'h4;
+        7'b1100111, 7'b1101111: begin
+          reg_next = pc_prev + 32'h4;
+          wb_en = 1'b1;
+        end
         // other
-        default: reg_next = 32'h0;
-      endcase
-      case (field.opcode)
-        7'b0110011, 7'b0010011, 7'b0110111, 7'b0000011, 7'b1100111, 7'b1101111: wb_en = 1'b1;
-        default: wb_en = 1'b0;
+        default: begin
+          reg_next = 32'hdeadbeef;
+          wb_en = 1'b0;
+        end
       endcase
     end else begin
-      reg_next = 32'h0;
+      reg_next = 32'hdeadbeef;
       wb_en = 1'b0;
     end
+    $display("opcode_wb: %h", field.opcode);
+    $display("reg_next_wb: %h", reg_next);
+    $display("read_data: %h", read_data);
+    $display("wb_mask  : %h", wb_mask);
   end
 endmodule
 
