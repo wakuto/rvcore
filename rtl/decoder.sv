@@ -15,6 +15,7 @@ module decoder (
     // output op1, op2
     output logic [31:0] op1,
     output logic [31:0] op2,
+    output common::instr_field field,
     // other
     // regfile
     input logic [31:0] regfile[0:31],
@@ -22,8 +23,6 @@ module decoder (
 
 );
   // instruction fields
-  common::instr_filed field;
-  // decode
   assign field.opcode = instruction[6:0];
   assign field.rd = instruction[11:7];
   assign field.rs1 = instruction[19:15];
@@ -33,9 +32,13 @@ module decoder (
   assign field.funct7 = instruction[31:25];
   assign field.imm_i = instruction[31:20];
   assign field.imm_s = {instruction[31:25], instruction[11:7]};
-  assign field.imm_b = {instruction[31], instruction[7], instruction[30:25], instruction[11:8], 1'b0};
+  assign field.imm_b = {
+    instruction[31], instruction[7], instruction[30:25], instruction[11:8], 1'b0
+  };
   assign field.imm_u = {instruction[31:12], 12'h0};
-  assign field.imm_j = {instruction[31], instruction[19:12], instruction[20], instruction[30:21], 1'b0};
+  assign field.imm_j = {
+    instruction[31], instruction[19:12], instruction[20], instruction[30:21], 1'b0
+  };
 
   common::alu_cmd _alu_ops;
   assign alu_ops = _alu_ops;
