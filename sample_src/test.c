@@ -7,6 +7,6 @@ int fibonacchi(int max) {
     return fibonacchi(max - 1) + fibonacchi(max - 2);
 }
 int main(void) {
-  int a = fibonacchi(1);
+  int a = fibonacchi(7);
   return a;
 }

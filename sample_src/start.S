@@ -1,7 +1,6 @@
 .section .text.init
 .global _start
 _start:
-  li x10, 0x1000
-  sw x10, 10(x0)
-  lh x15, 10(x0)
+  li sp, 0x4000
+  jal ra, main
   ebreak

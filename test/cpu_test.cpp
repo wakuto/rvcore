@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <verilated.h> // Defines common routines
+#include <verilated_vcd_c.h>  // VCD output
 
 #define MEM_SIZE 0x8000
 
@@ -29,7 +30,7 @@ int read_hexfile(std::string filename, uint8_t *buf) {
 uint32_t fetch_4byte(uint8_t *memory, uint32_t addr) {
   size_t size = MEM_SIZE;
   if (addr + 3 > size) {
-    std::cerr << "Address out of memory:";
+    std::cerr << "Address out of memory(fetch):";
     std::cerr << std::showbase << std::hex;
     std::cerr << addr + 3 << "/" << size << std::endl;
     std::cerr << std::noshowbase;
@@ -45,7 +46,7 @@ void mem_write(uint8_t *memory, uint32_t addr, uint32_t data, uint8_t wstrb) {
   size_t size = MEM_SIZE;
   uint32_t write_size = wstrb + 1;
   if (addr + write_size >= size) {
-    std::cerr << "Address out of memory:";
+    std::cerr << "Address out of memory(write):";
     std::cerr << std::showbase << std::hex;
     std::cerr << addr + 3 << "/" << size << std::endl;
     std::cerr << std::noshowbase;
@@ -69,6 +70,12 @@ int main(int argc, char **argv) {
   Verilated::commandArgs(argc, argv); // Remember args
 
   Vcpu *top = new Vcpu();                   // Create instance
+
+  // Trace DUMP ON
+  Verilated::traceEverOn(true);
+  VerilatedVcdC* tfp = new VerilatedVcdC;
+
+
   uint8_t *program = new uint8_t[MEM_SIZE]; // 4kB instruction memory
   uint8_t *memory = new uint8_t[MEM_SIZE];  // 4kB data memory
   for (int i = 0; i < MEM_SIZE; i++)
@@ -78,20 +85,15 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  top->clock = 0;
-  top->reset = 0; // Set some inputs
+  // initialize
+  top->trace(tfp, 100);
+  tfp->open("cpu_sim.vcd");
+  top->clock = 1;
+  top->reset = 0;
   top->instruction = fetch_4byte(program, top->pc);
   top->read_data = 0;
 
   while (!Verilated::gotFinish()) {
-
-    // if ((main_time % 5) == 0)
-    // top->clock = !top->clock;         // Toggle clock
-    top->clock = !top->clock;
-
-    // if (main_time > 10000)               // Release reset
-    //   top->reset = 1;
-    //  Assert start flag
 
     top->instruction = fetch_4byte(program, top->pc);
     if (top->read_enable) {
@@ -108,17 +110,21 @@ int main(int argc, char **argv) {
                 << std::endl;
     }
 
+    top->eval();
+
+    top->clock = !top->clock;
+
     top->eval(); // Evaluate model
+    tfp->dump(main_time);
 
     // Wait for done
-    if (main_time > 1000)
+    if (main_time > 10000)
       break;
 
     // debug output
     std::cout << std::showbase << std::dec;
     std::cout << "registers: main_time=" << main_time << std::endl;
     std::cout << "pc: " << std::hex << top->pc << std::endl;
-    // for (int i = 0; i < 32; i++)
     for (int i = 0; i < 16; i++) {
       std::cout << "x" << std::dec << i << ": ";
       std::cout << std::hex << top->debug_reg[i] << std::endl;
@@ -132,4 +138,5 @@ int main(int argc, char **argv) {
   }
 
   top->final(); // Done simulating
+  tfp->close();
 }

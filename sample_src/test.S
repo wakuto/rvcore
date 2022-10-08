@@ -53,7 +53,7 @@ main:
 	sw	ra,28(sp)
 	sw	s0,24(sp)
 	addi	s0,sp,32
-	li	a0,1
+	li	a0,7
 	call	fibonacchi
 	sw	a0,-20(s0)
 	lw	a5,-20(s0)

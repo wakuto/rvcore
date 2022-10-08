@@ -14,23 +14,25 @@ module write_back (
     output logic [31:0] reg_next,
     output logic wb_en
 );
-  common::pc_sel_t pc_sel;
+  import common::*;
+  pc_sel_t pc_sel;
 
   always_comb begin
     case (field.opcode)
       7'b1100011: begin
-        if (alu_result[0]) pc_sel = common::BRANCH;
-        else pc_sel = common::PCNEXT;
+        if (alu_result[0]) pc_sel = BRANCH;
+        else pc_sel = PCNEXT;
       end
-      7'b1100111: pc_sel = common::JAL;
-      7'b1101111: pc_sel = common::JALR;
-      default: pc_sel = common::PCNEXT;
+      7'b1100111: pc_sel = JAL;
+      7'b1101111: pc_sel = JALR;
+      default: pc_sel = PCNEXT;
     endcase
     case (pc_sel)
-      common::BRANCH: pc_next = pc_prev + 32'(signed'(field.imm_b));
-      common::JAL: pc_next = reg_data[field.rs1] + 32'(signed'(field.imm_i));
-      common::JALR: pc_next = pc_prev + 32'(signed'(field.imm_j));
-      common::PCNEXT: pc_next = pc_prev + 32'h4;
+      BRANCH: pc_next = pc_prev + 32'(signed'(field.imm_b));
+      JAL: pc_next = reg_data[field.rs1] + 32'(signed'(field.imm_i));
+      JALR: pc_next = pc_prev + 32'(signed'(field.imm_j));
+      PCNEXT: pc_next = pc_prev + 32'h4;
+      default: pc_next = 32'h0;
     endcase
     // write back
     if (field.rd != 5'h0) begin

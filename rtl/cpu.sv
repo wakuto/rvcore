@@ -98,9 +98,10 @@ module cpu (
       reg_pc <= 32'h0;
     end else begin
       reg_pc <= pc_next;
-      if (wb_en) begin
+      if (wb_en)
         regfile[field.rd] <= reg_next;
-      end
+      else
+        regfile[field.rd] <= regfile[field.rd];
     end
   end
 endmodule
