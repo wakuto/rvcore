@@ -28,6 +28,7 @@ package common;
     GE,
     LTU,
     GEU,
+    BIT_C,
     ILL
   } alu_cmd;
   typedef enum logic [2:0] {

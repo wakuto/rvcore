@@ -23,6 +23,7 @@ module decoder (
     output logic [31:0] pc_plus_4,
     output logic [31:0] pc_branch,
     output logic is_jump_instr,
+    input logic [31:0] csr_data,
     // error
     output logic illegal_instruction
 
@@ -56,10 +57,11 @@ module decoder (
     // chose _alu_ops
     import riscv_instr::*;
     casez (instruction)
-      ADD, ADDI, AUIPC, LB, LBU, LH, LHU, LW, LUI, SW, SH, SB, JAL, JALR: _alu_ops = common::ADD;
+      ADD, ADDI, AUIPC, LB, LBU, LH, LHU, LW, LUI, SW, SH, SB, JAL, JALR, CSRRW, CSRRWI:
+      _alu_ops = common::ADD;
       SUB: _alu_ops = common::SUB;
       XOR, XORI: _alu_ops = common::XOR;
-      OR, ORI: _alu_ops = common::OR;
+      OR, ORI, CSRRS, CSRRSI: _alu_ops = common::OR;
       AND, ANDI: _alu_ops = common::AND;
       SRL, SRLI: _alu_ops = common::SRL;
       SRA, SRAI: _alu_ops = common::SRA;
@@ -70,6 +72,7 @@ module decoder (
       BGE: _alu_ops = common::GE;
       BLTU: _alu_ops = common::LTU;
       BGEU: _alu_ops = common::GEU;
+      CSRRC, CSRRCI: _access_type = common::BIT_C;
       default: _alu_ops = common::ILL;
     endcase
     illegal_instruction = _alu_ops == common::ILL;
@@ -86,7 +89,7 @@ module decoder (
       default: _access_type = common::NONE;
     endcase
 
-    // chose op1, op2
+    // operand fetch
     case (field.opcode)
       // R-Type
       7'b0110011: begin
@@ -123,6 +126,18 @@ module decoder (
         op1 = 32'h1;
         op2 = 32'h0;
       end
+      // Zicsr
+      7'b1110011: begin
+        op1 = csr_data;
+        case (field.funct3)
+          // csrrw, csrrwi
+          3'b001, 3'b101: op2 = 32'h0;
+          // csrrsi, csrrci
+          3'b110, 3'b111: op2 = 32'(unsigned'(field.imm_i));
+          // csrrc, csrrs
+          default: op2 = regfile[field.rs1];
+        endcase
+      end
       // other
       default: begin
         op1 = 32'h0;
@@ -132,14 +147,16 @@ module decoder (
     // calc jump addr
     pc_plus_4 = pc + 32'h4;
     case (field.opcode)
-      7'b1100011: pc_branch = pc + 32'(signed'(field.imm_b)); // branch
-      7'b1100111: pc_branch = regfile[field.rs1] + 32'(signed'(field.imm_i)); // jal
-      7'b1101111: pc_branch = pc + 32'(signed'(field.imm_j)); // jalr
+      7'b1100011: pc_branch = pc + 32'(signed'(field.imm_b));  // branch
+      7'b1100111: pc_branch = regfile[field.rs1] + 32'(signed'(field.imm_i));  // jal
+      7'b1101111: pc_branch = pc + 32'(signed'(field.imm_j));  // jalr
       default: pc_branch = 32'h0;
     endcase
     case (field.opcode)
       7'b1100011, 7'b1100111, 7'b1101111: is_jump_instr = 1'b1;
       default: is_jump_instr = 1'b0;
     endcase
+    $display("op1 %h:", op1);
+    $display("op2 %h:", op2);
   end
 endmodule

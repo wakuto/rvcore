@@ -4,7 +4,7 @@
 #include <verilated.h>       // Defines common routines
 #include <verilated_vcd_c.h> // VCD output
 
-#define MEM_SIZE 0x8000
+#define MEM_SIZE 0x20000
 
 unsigned int main_time = 0; // Current simulation time
 

@@ -23,6 +23,9 @@ module cpu (
   // regfile
   logic [31:0] reg_pc;
   logic [31:0] regfile[0:31];
+  logic [31:0] csr_regfile[0:4095];
+  logic [31:0] csr_next;
+  logic csr_wb_en;
 
   // decoded data
   common::alu_cmd operation_type;
@@ -46,6 +49,7 @@ module cpu (
       .pc_plus_4,
       .pc_branch,
       .is_jump_instr,
+      .csr_data(csr_regfile[field.imm_i]),
       .illegal_instruction
   );
 
@@ -79,7 +83,10 @@ module cpu (
       .wb_mask,
       .alu_result(alu_out),
       .reg_next,
-      .wb_en
+      .wb_en,
+      .csr_data  (csr_regfile[field.imm_i]),
+      .csr_next,
+      .csr_wb_en
   );
 
   // <= だとwarning出るけどなんで？
@@ -104,7 +111,7 @@ module cpu (
     end else begin
       reg_pc <= pc_next;
       if (wb_en) regfile[field.rd] <= reg_next;
-      else regfile[field.rd] <= regfile[field.rd];
+      if (csr_wb_en) csr_regfile[field.imm_i] = csr_next;
     end
   end
 endmodule
