@@ -20,6 +20,9 @@ module decoder (
     // regfile
     input logic [31:0] regfile[0:31],
     input logic [31:0] pc,
+    output logic [31:0] pc_plus_4,
+    output logic [31:0] pc_branch,
+    output logic is_jump_instr,
     // error
     output logic illegal_instruction
 
@@ -53,7 +56,7 @@ module decoder (
     // chose _alu_ops
     import riscv_instr::*;
     casez (instruction)
-      ADD, ADDI, AUIPC, LB, LBU, LH, LHU, LW, LUI, SW, SH, SB: _alu_ops = common::ADD;
+      ADD, ADDI, AUIPC, LB, LBU, LH, LHU, LW, LUI, SW, SH, SB, JAL, JALR: _alu_ops = common::ADD;
       SUB: _alu_ops = common::SUB;
       XOR, XORI: _alu_ops = common::XOR;
       OR, ORI: _alu_ops = common::OR;
@@ -115,16 +118,28 @@ module decoder (
         op1 = field.imm_u;
         op2 = pc;
       end
-      // J-Type
-      7'b1101111: begin
-        op1 = 32'(signed'(field.imm_j));
-        op2 = pc;
+      // J-Type, jalr
+      7'b1101111, 7'b1100111: begin
+        op1 = 32'h1;
+        op2 = 32'h0;
       end
       // other
       default: begin
         op1 = 32'h0;
         op2 = 32'h0;
       end
+    endcase
+    // calc jump addr
+    pc_plus_4 = pc + 32'h4;
+    case (field.opcode)
+      7'b1100011: pc_branch = pc + 32'(signed'(field.imm_b)); // branch
+      7'b1100111: pc_branch = regfile[field.rs1] + 32'(signed'(field.imm_i)); // jal
+      7'b1101111: pc_branch = pc + 32'(signed'(field.imm_j)); // jalr
+      default: pc_branch = 32'h0;
+    endcase
+    case (field.opcode)
+      7'b1100011, 7'b1100111, 7'b1101111: is_jump_instr = 1'b1;
+      default: is_jump_instr = 1'b0;
     endcase
   end
 endmodule

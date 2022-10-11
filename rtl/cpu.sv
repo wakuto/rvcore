@@ -31,6 +31,9 @@ module cpu (
   logic [31:0] op1;
   logic [31:0] op2;
   logic [31:0] alu_out;
+  logic [31:0] pc_plus_4;
+  logic [31:0] pc_branch;
+  logic is_jump_instr;
   decoder decoder (
       .instruction,
       .alu_ops(operation_type),
@@ -40,6 +43,9 @@ module cpu (
       .field,
       .regfile,
       .pc(reg_pc),
+      .pc_plus_4,
+      .pc_branch,
+      .is_jump_instr,
       .illegal_instruction
   );
 
@@ -64,9 +70,10 @@ module cpu (
   logic [31:0] reg_next;
   logic wb_en;
   write_back write_back (
-      .pc_prev(reg_pc),
+      .pc_plus_4,
+      .pc_branch,
+      .is_jump_instr,
       .pc_next,
-      .reg_data(regfile),
       .field,
       .read_data,
       .wb_mask,
@@ -89,13 +96,9 @@ module cpu (
     pc = reg_pc;
     address = alu_out;
     write_data = regfile[field.rs2];
-    $display("reg_next_comb:%h", reg_next);
   end
 
   always_ff @(posedge clock or posedge reset) begin
-    $display("opcode:%h", field.opcode);
-    $display("reg_next_ff:%h", reg_next);
-    $display("wb_en   :%h", wb_en);
     if (reset) begin
       reg_pc <= 32'h0;
     end else begin
