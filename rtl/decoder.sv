@@ -19,7 +19,9 @@ module decoder (
     // other
     // regfile
     input logic [31:0] regfile[0:31],
-    input logic [31:0] pc
+    input logic [31:0] pc,
+    // error
+    output logic illegal_instruction
 
 );
   // instruction fields
@@ -65,8 +67,9 @@ module decoder (
       BGE: _alu_ops = common::GE;
       BLTU: _alu_ops = common::LTU;
       BGEU: _alu_ops = common::GEU;
-      default: _alu_ops = common::ADD;
+      default: _alu_ops = common::ILL;
     endcase
+    illegal_instruction = _alu_ops == common::ILL;
     // memory access type
     casez (instruction)
       LB: _access_type = common::LB;

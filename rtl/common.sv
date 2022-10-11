@@ -27,7 +27,8 @@ package common;
     LT,
     GE,
     LTU,
-    GEU
+    GEU,
+    ILL
   } alu_cmd;
   typedef enum logic [2:0] {
     R_TYPE,

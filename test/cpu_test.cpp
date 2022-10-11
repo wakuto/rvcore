@@ -1,8 +1,8 @@
 #include "../obj_dir//Vcpu.h" // From Verilating "../rtl/cpu.sv"
 #include <fstream>
 #include <iostream>
-#include <verilated.h> // Defines common routines
-#include <verilated_vcd_c.h>  // VCD output
+#include <verilated.h>       // Defines common routines
+#include <verilated_vcd_c.h> // VCD output
 
 #define MEM_SIZE 0x8000
 
@@ -69,12 +69,11 @@ int main(int argc, char **argv) {
 
   Verilated::commandArgs(argc, argv); // Remember args
 
-  Vcpu *top = new Vcpu();                   // Create instance
+  Vcpu *top = new Vcpu(); // Create instance
 
   // Trace DUMP ON
   Verilated::traceEverOn(true);
-  VerilatedVcdC* tfp = new VerilatedVcdC;
-
+  VerilatedVcdC *tfp = new VerilatedVcdC;
 
   uint8_t *program = new uint8_t[MEM_SIZE]; // 4kB instruction memory
   uint8_t *memory = new uint8_t[MEM_SIZE];  // 4kB data memory
@@ -130,6 +129,11 @@ int main(int argc, char **argv) {
       std::cout << std::hex << top->debug_reg[i] << std::endl;
     }
 
+    if (top->illegal_instruction) {
+      std::cout << "Illegal Instruction: ";
+      std::cout << "pc: " << std::hex << top->pc;
+      std::cout << "instr: " << std::hex << top->instruction << std::endl;
+    }
     if (top->debug_ebreak) {
       std::cout << "EBREAK!!!!!!!" << std::endl;
       break;

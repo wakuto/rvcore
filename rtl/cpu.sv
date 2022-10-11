@@ -17,7 +17,8 @@ module cpu (
     output logic write_enable,  // データを書くときにアサート->request signal
     output logic [1:0] write_wstrb,  // 書き込むデータの幅
     output logic debug_ebreak,
-    output logic [31:0] debug_reg[0:31]
+    output logic [31:0] debug_reg[0:31],
+    output logic illegal_instruction
 );
   // regfile
   logic [31:0] reg_pc;
@@ -38,7 +39,8 @@ module cpu (
       .op2,
       .field,
       .regfile,
-      .pc(reg_pc)
+      .pc(reg_pc),
+      .illegal_instruction
   );
 
   execute execute (
@@ -98,10 +100,8 @@ module cpu (
       reg_pc <= 32'h0;
     end else begin
       reg_pc <= pc_next;
-      if (wb_en)
-        regfile[field.rd] <= reg_next;
-      else
-        regfile[field.rd] <= regfile[field.rd];
+      if (wb_en) regfile[field.rd] <= reg_next;
+      else regfile[field.rd] <= regfile[field.rd];
     end
   end
 endmodule
