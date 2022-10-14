@@ -4,26 +4,29 @@
 
 module decoder (
     // if/id
-    input logic [31:0] instruction,
+    input wire logic [31:0] instruction,
     // id/ex
     // output _alu_ops
     output logic [3:0] alu_ops,
     // output instruction type
     //output logic [2:0] inst_type,
-    output [3:0] access_type,
+    output logic [3:0] access_type,
     // output wb_type
+    output common::wb_sel_t wb_sel,
     // output op1, op2
     output logic [31:0] op1,
     output logic [31:0] op2,
     output common::instr_field field,
     // other
     // regfile
-    input logic [31:0] regfile[0:31],
-    input logic [31:0] pc,
+    input wire logic [31:0] reg_rs1,
+    input wire logic [31:0] reg_rs2,
+    //input wire logic [31:0] regfile[0:31],
+    input wire logic [31:0] pc,
     output logic [31:0] pc_plus_4,
     output logic [31:0] pc_branch,
     output logic is_jump_instr,
-    input logic [31:0] csr_data,
+    input wire logic [31:0] csr_data,
     // error
     output logic illegal_instruction
 
@@ -72,7 +75,7 @@ module decoder (
       BGE: _alu_ops = common::GE;
       BLTU: _alu_ops = common::LTU;
       BGEU: _alu_ops = common::GEU;
-      CSRRC, CSRRCI: _access_type = common::BIT_C;
+      CSRRC, CSRRCI: _alu_ops = common::BIT_C;
       default: _alu_ops = common::ILL;
     endcase
     illegal_instruction = _alu_ops == common::ILL;
@@ -86,30 +89,30 @@ module decoder (
       SB: _access_type = common::SB;
       SH: _access_type = common::SH;
       SW: _access_type = common::SW;
-      default: _access_type = common::NONE;
+      default: _access_type = common::MEM_NONE;
     endcase
 
     // operand fetch
     case (field.opcode)
       // R-Type
       7'b0110011: begin
-        op1 = regfile[field.rs1];
-        op2 = regfile[field.rs2];
+        op1 = reg_rs1;
+        op2 = reg_rs2;
       end
       // I-Type
       7'b0010011, 7'b0000011: begin
-        op1 = regfile[field.rs1];
+        op1 = reg_rs1;
         op2 = 32'(signed'(field.imm_i));
       end
       // S-Type
       7'b0100011: begin
-        op1 = regfile[field.rs1];
+        op1 = reg_rs1;
         op2 = 32'(signed'(field.imm_s));
       end
       // B-Type
       7'b1100011: begin
-        op1 = regfile[field.rs1];
-        op2 = regfile[field.rs2];
+        op1 = reg_rs1;
+        op2 = reg_rs2;
       end
       // U-Type(lui)
       7'b0110111: begin
@@ -135,7 +138,7 @@ module decoder (
           // csrrsi, csrrci
           3'b110, 3'b111: op2 = 32'(unsigned'(field.imm_i));
           // csrrc, csrrs
-          default: op2 = regfile[field.rs1];
+          default: op2 = reg_rs1;
         endcase
       end
       // other
@@ -148,7 +151,7 @@ module decoder (
     pc_plus_4 = pc + 32'h4;
     case (field.opcode)
       7'b1100011: pc_branch = pc + 32'(signed'(field.imm_b));  // branch
-      7'b1100111: pc_branch = regfile[field.rs1] + 32'(signed'(field.imm_i));  // jal
+      7'b1100111: pc_branch = reg_rs1 + 32'(signed'(field.imm_i));  // jal
       7'b1101111: pc_branch = pc + 32'(signed'(field.imm_j));  // jalr
       default: pc_branch = 32'h0;
     endcase
@@ -156,7 +159,28 @@ module decoder (
       7'b1100011, 7'b1100111, 7'b1101111: is_jump_instr = 1'b1;
       default: is_jump_instr = 1'b0;
     endcase
+
+    // set wb_sel
+    if (field.rd != 5'h0) begin
+      case (field.opcode)
+        // R-Type, I-Type, lui
+        7'b0110011, 7'b0010011, 7'b0110111: wb_sel = common::RI_TYPE_LUI;
+        // load instruction
+        7'b0000011: wb_sel = common::LOAD;
+        // JAL, JALR
+        7'b1100111, 7'b1101111: wb_sel = common::JUMP;
+        // zicsr
+        7'b1110011: begin
+          // if (instruction) is csr_instrs
+          if (field.funct3[1:0] >= 2'd1) wb_sel = common::ZICSR;
+          else wb_sel = common::WB_NONE;
+        end
+        // other
+        default: wb_sel = common::WB_NONE;
+      endcase
+    end else wb_sel = common::WB_NONE;
     $display("op1 %h:", op1);
     $display("op2 %h:", op2);
   end
 endmodule
+`default_nettype wire

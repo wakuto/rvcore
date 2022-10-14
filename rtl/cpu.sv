@@ -3,16 +3,16 @@
 `include "./common.sv"
 
 module cpu (
-    input logic clock,
-    input logic reset,
+    input wire logic clock,
+    input wire logic reset,
     // instruction data
     output logic [31:0] pc,
-    input logic [31:0] instruction,
+    input wire logic [31:0] instruction,
     // memory data
     output logic [31:0] address,
-    input logic [31:0] read_data,
+    input wire logic [31:0] read_data,
     output logic read_enable,  // データを読むときにアサート
-    //input logic mem_valid,  // response signal
+    //input wire logic mem_valid,  // response signal
     output logic [31:0] write_data,
     output logic write_enable,  // データを書くときにアサート->request signal
     output logic [1:0] write_wstrb,  // 書き込むデータの幅
@@ -25,12 +25,14 @@ module cpu (
   logic [31:0] regfile[0:31];
   logic [31:0] csr_regfile[0:4095];
   logic [31:0] csr_next;
+  logic [31:0] csr_data;
   logic csr_wb_en;
 
   // decoded data
   common::alu_cmd operation_type;
   common::mem_access_type access_type;
   common::instr_field field;
+  common::wb_sel_t wb_sel;
   logic [31:0] op1;
   logic [31:0] op2;
   logic [31:0] alu_out;
@@ -41,15 +43,17 @@ module cpu (
       .instruction,
       .alu_ops(operation_type),
       .access_type,
+      .wb_sel,
       .op1,
       .op2,
       .field,
-      .regfile,
+      .reg_rs1(regfile[field.rs1]),
+      .reg_rs2(regfile[field.rs2]),
       .pc(reg_pc),
       .pc_plus_4,
       .pc_branch,
       .is_jump_instr,
-      .csr_data(csr_regfile[field.imm_i]),
+      .csr_data,
       .illegal_instruction
   );
 
@@ -78,13 +82,13 @@ module cpu (
       .pc_branch,
       .is_jump_instr,
       .pc_next,
-      .field,
+      .wb_sel,
       .read_data,
       .wb_mask,
       .alu_result(alu_out),
       .reg_next,
       .wb_en,
-      .csr_data  (csr_regfile[field.imm_i]),
+      .csr_data,
       .csr_next,
       .csr_wb_en
   );
@@ -103,6 +107,7 @@ module cpu (
     pc = reg_pc;
     address = alu_out;
     write_data = regfile[field.rs2];
+    csr_data = csr_regfile[field.imm_i];
   end
 
   always_ff @(posedge clock or posedge reset) begin
@@ -111,7 +116,8 @@ module cpu (
     end else begin
       reg_pc <= pc_next;
       if (wb_en) regfile[field.rd] <= reg_next;
-      if (csr_wb_en) csr_regfile[field.imm_i] = csr_next;
+      if (csr_wb_en) csr_regfile[field.imm_i] <= csr_next;
     end
   end
 endmodule
+`default_nettype wire

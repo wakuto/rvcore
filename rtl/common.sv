@@ -48,8 +48,15 @@ package common;
     SB,
     SH,
     SW,
-    NONE
+    MEM_NONE
   } mem_access_type;
+  typedef enum logic [2:0] {
+    RI_TYPE_LUI,
+    LOAD,
+    JUMP,
+    ZICSR,
+    WB_NONE
+  } wb_sel_t;
   typedef enum logic [1:0] {
     BRANCH,
     JAL,

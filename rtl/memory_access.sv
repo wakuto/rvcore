@@ -3,7 +3,7 @@
 `include "./common.sv"
 
 module memory_access (
-    input logic [3:0] access_type,
+    input wire logic [3:0] access_type,
     output logic [1:0] write_wstrb,  // write $(wstrb+1) bytes
     output logic write_enable,
     output logic read_enable,
@@ -49,3 +49,4 @@ module memory_access (
 
 endmodule
 
+`default_nettype wire
