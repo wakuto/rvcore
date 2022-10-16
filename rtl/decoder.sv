@@ -171,8 +171,8 @@ module decoder (
     // set wb_sel
     if (field.rd != 5'h0) begin
       case (field.opcode)
-        // R-Type, I-Type, lui
-        7'b0110011, 7'b0010011, 7'b0110111: wb_sel = common::RI_TYPE_LUI;
+        // R-Type, I-Type, lui, auipc
+        7'b0110011, 7'b0010011, 7'b0110111, 7'b0010111: wb_sel = common::RI_TYPE_LUI;
         // load instruction
         7'b0000011: wb_sel = common::LOAD;
         // JAL, JALR

@@ -98,10 +98,14 @@ module cpu (
     reg_pc  = 32'h0;
     address = 32'h0;
     for (int i = 0; i < 32; i++) regfile[i] = 32'h0;
-    for (int i = 0; i < 4096; i++) csr_regfile[i] = 32'h1194;
+    for (int i = 0; i < 4096; i++) csr_regfile[i] = 32'h0;
   end
 
+  logic interrupt;
+  logic mstatus_mie, mie_msie, mip_msip;
+
   always_comb begin
+    import riscv_instr::*;
     // debug output
     debug_ebreak = instruction == riscv_instr::EBREAK;
     for (int i = 0; i < 32; i++) debug_reg[i] = regfile[i];
@@ -109,15 +113,42 @@ module cpu (
     address = alu_out;
     write_data = regfile[field.rs2];
     csr_data = csr_regfile[field.imm_i];
+    interrupt = csr_regfile[CSR_MSTATUS][3] & csr_regfile[CSR_MIE][3] & csr_regfile[CSR_MIP][3];
+    mstatus_mie = csr_regfile[CSR_MSTATUS][3];
+    mie_msie = csr_regfile[CSR_MIE][3];
+    mip_msip = csr_regfile[CSR_MIP][3];
   end
 
   always_ff @(posedge clock or posedge reset) begin
     if (reset) begin
       reg_pc <= 32'h0;
     end else begin
-      reg_pc <= pc_next;
-      if (wb_en) regfile[field.rd] <= reg_next;
-      if (csr_wb_en) csr_regfile[field.imm_i] <= csr_next;
+      import riscv_instr::*;
+      int unsigned mstatus = csr_regfile[CSR_MSTATUS];
+      int unsigned mie = csr_regfile[CSR_MIE];
+      int unsigned mip = csr_regfile[CSR_MIP];
+      int unsigned mtvec = csr_regfile[CSR_MTVEC];
+      if (mstatus[3]) begin
+        // software interrupt
+        if(mie[3] & mip[3]) begin
+          csr_regfile[CSR_MSTATUS] <= {mstatus[31:8], mstatus[3], mstatus[6:4], 1'b0, mstatus[2:0]};
+          if(csr_regfile[CSR_MCAUSE][31])
+            csr_regfile[CSR_MEPC] <= reg_pc;
+          else
+            csr_regfile[CSR_MEPC] <= pc_next;
+          reg_pc <= mtvec;
+        end
+        else begin
+          reg_pc <= pc_next;
+          if (wb_en) regfile[field.rd] <= reg_next;
+          if (csr_wb_en) csr_regfile[field.imm_i] <= csr_next;
+        end
+      end
+      else begin
+        reg_pc <= pc_next;
+        if (wb_en) regfile[field.rd] <= reg_next;
+        if (csr_wb_en) csr_regfile[field.imm_i] <= csr_next;
+      end
     end
   end
 endmodule
