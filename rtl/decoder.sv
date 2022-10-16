@@ -17,6 +17,7 @@ module decoder (
     output logic [31:0] op1,
     output logic [31:0] op2,
     output common::instr_field field,
+    output logic [11:0] csr_rd,
     // other
     // regfile
     input wire logic [31:0] reg_rs1,
@@ -26,6 +27,7 @@ module decoder (
     output logic [31:0] pc_plus_4,
     output logic [31:0] pc_branch,
     output logic is_jump_instr,
+    output common::pc_sel_t pc_sel,
     input wire logic [31:0] csr_data,
     // error
     output logic illegal_instruction
@@ -63,7 +65,7 @@ module decoder (
       ADD, ADDI, AUIPC, LB, LBU, LH, LHU, LW, LUI, SW, SH, SB, JAL, JALR, CSRRW, CSRRWI:
       _alu_ops = common::ADD;
       SUB: _alu_ops = common::SUB;
-      XOR, XORI: _alu_ops = common::XOR;
+      XOR, XORI, MRET: _alu_ops = common::XOR;
       OR, ORI, CSRRS, CSRRSI: _alu_ops = common::OR;
       AND, ANDI: _alu_ops = common::AND;
       SRL, SRLI: _alu_ops = common::SRL;
@@ -129,20 +131,29 @@ module decoder (
         op1 = 32'h1;
         op2 = 32'h0;
       end
-      // Zicsr
       7'b1110011: begin
-        case (field.funct3)
+      // Zicsr
+        casez(instruction)
           // csrrw, csrrwi
-          3'b001, 3'b101: begin
+          CSRRW, CSRRWI: begin
             op1 = reg_rs1;
             op2 = 32'h0;
           end
           // csrrsi, csrrci
-          3'b110, 3'b111: begin
+          CSRRSI, CSRRCI: begin
             op1 = csr_data;
             op2 = 32'(unsigned'(field.imm_i));
           end
-          // csrrc, csrrs
+          // csrrs, csrrc
+          CSRRS, CSRRC: begin
+            op1 = csr_data;
+            op2 = reg_rs1;
+          end
+          // mret
+          MRET: begin
+            op1 = csr_data;
+            op2 = 32'b10001000;
+          end
           default: begin
             op1 = csr_data;
             op2 = reg_rs1;
@@ -177,18 +188,38 @@ module decoder (
         7'b0000011: wb_sel = common::LOAD;
         // JAL, JALR
         7'b1100111, 7'b1101111: wb_sel = common::JUMP;
-        // zicsr
         7'b1110011: begin
-          // if (instruction) is csr_instrs
-          if (field.funct3[1:0] >= 2'd1) wb_sel = common::ZICSR;
-          else wb_sel = common::WB_NONE;
+          casez(instruction)
+            // zicsr
+            CSRRW, CSRRWI, CSRRS, CSRRSI, CSRRC, CSRRCI: wb_sel = common::ZICSR;
+            MRET: wb_sel = common::WB_MRET;
+            default: wb_sel = common::WB_NONE;
+          endcase
         end
         // other
         default: wb_sel = common::WB_NONE;
       endcase
-    end else wb_sel = common::WB_NONE;
-    $display("op1 %h:", op1);
-    $display("op2 %h:", op2);
+    end
+    else begin
+      casez(instruction)
+        MRET: wb_sel = common::WB_MRET;
+        default: wb_sel = common::WB_NONE;
+      endcase
+    end
+
+    // set pc_sel
+    casez(instruction)
+      JAL, JALR, BEQ, BNE, BLT, BGE, BLTU, BGEU: pc_sel = common::PC_BRANCH;
+      MRET: pc_sel = common::PC_MRET;
+      default: pc_sel = common::PC_NEXT;
+    endcase
+
+    // set csr_rd
+    casez(instruction)
+      CSRRW, CSRRWI, CSRRS, CSRRSI, CSRRC, CSRRCI: csr_rd = field.imm_i;
+      MRET: csr_rd = 12'h300;
+      default: csr_rd = 12'h0;
+    endcase
   end
 endmodule
 `default_nettype wire

@@ -5,7 +5,9 @@
 module write_back (
     input wire logic [31:0] pc_plus_4,
     input wire logic [31:0] pc_branch,
+    input wire logic [31:0] pc_mepc,
     input wire logic is_jump_instr,
+    input common::pc_sel_t pc_sel,
     output logic [31:0] pc_next,
 
     input common::wb_sel_t wb_sel,
@@ -22,8 +24,15 @@ module write_back (
 
   always_comb begin
     // update pc
-    if (is_jump_instr && alu_result[0]) pc_next = pc_branch;
-    else pc_next = pc_plus_4;
+    case(pc_sel)
+      PC_BRANCH: begin
+        if(alu_result[0]) pc_next = pc_branch;
+        else pc_next = pc_plus_4;
+      end
+      PC_MRET: pc_next = pc_mepc;
+      PC_NEXT: pc_next = pc_plus_4;
+      default: pc_next = 32'h0;
+    endcase
 
     // write back
     case (wb_sel)
@@ -51,6 +60,12 @@ module write_back (
         reg_next = csr_data;
         csr_next = alu_result;
       end
+      WB_MRET: begin
+        wb_en = 1'b0;
+        csr_wb_en = 1'b1;
+        reg_next = 32'h0;
+        csr_next = alu_result;
+      end
       default: begin
         reg_next = 32'hdeadbeef;
         wb_en = 1'b0;
@@ -58,10 +73,6 @@ module write_back (
         csr_next = 32'h0;
       end
     endcase
-    $display("wb_en :%h", wb_en);
-    $display("csr_wb_en :%h", csr_wb_en);
-    $display("csr_next :%h", csr_next);
-    $display("alu_result :%h", alu_result);
   end
 endmodule
 

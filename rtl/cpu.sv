@@ -26,12 +26,14 @@ module cpu (
   logic [31:0] csr_regfile[0:4095];
   logic [31:0] csr_next;
   logic [31:0] csr_data;
+  logic [11:0] csr_rd;
   logic csr_wb_en;
 
   // decoded data
   common::alu_cmd operation_type;
   common::mem_access_type access_type;
   common::instr_field field;
+  common::pc_sel_t pc_sel;
   common::wb_sel_t wb_sel;
   logic [31:0] op1;
   logic [31:0] op2;
@@ -47,12 +49,14 @@ module cpu (
       .op1,
       .op2,
       .field,
+      .csr_rd,
       .reg_rs1(regfile[field.rs1]),
       .reg_rs2(regfile[field.rs2]),
       .pc(reg_pc),
       .pc_plus_4,
       .pc_branch,
       .is_jump_instr,
+      .pc_sel,
       .csr_data,
       .illegal_instruction
   );
@@ -80,7 +84,9 @@ module cpu (
   write_back write_back (
       .pc_plus_4,
       .pc_branch,
+      .pc_mepc(csr_regfile[12'h341]),
       .is_jump_instr,
+      .pc_sel,
       .pc_next,
       .wb_sel,
       .read_data,
@@ -128,26 +134,33 @@ module cpu (
       int unsigned mie = csr_regfile[CSR_MIE];
       int unsigned mip = csr_regfile[CSR_MIP];
       int unsigned mtvec = csr_regfile[CSR_MTVEC];
-      if (mstatus[3]) begin
+      if (mstatus[3]) begin   // mstatus.mie
         // software interrupt
-        if(mie[3] & mip[3]) begin
-          csr_regfile[CSR_MSTATUS] <= {mstatus[31:8], mstatus[3], mstatus[6:4], 1'b0, mstatus[2:0]};
+        if(mie[3] & mip[3]) begin   // mie.msie & mip.msip
+          // mpie = mie
+          // mie = 0
+          //csr_regfile[CSR_MSTATUS] <= {mstatus[31:8], 1'b1, mstatus[6:4], 1'b0, mstatus[2:0]};
+          csr_regfile[CSR_MSTATUS] <= mstatus ^ 32'b10001000;
+          csr_regfile[CSR_MIP][3] <= 1'b0;
           if(csr_regfile[CSR_MCAUSE][31])
             csr_regfile[CSR_MEPC] <= reg_pc;
           else
-            csr_regfile[CSR_MEPC] <= pc_next;
+          // FIXME: incorrect jump address...
+          // implement reg_prev
+            csr_regfile[CSR_MEPC] <= reg_pc;
+          // jump to trap vector
           reg_pc <= mtvec;
         end
         else begin
           reg_pc <= pc_next;
           if (wb_en) regfile[field.rd] <= reg_next;
-          if (csr_wb_en) csr_regfile[field.imm_i] <= csr_next;
+          if (csr_wb_en) csr_regfile[csr_rd] <= csr_next;
         end
       end
       else begin
         reg_pc <= pc_next;
         if (wb_en) regfile[field.rd] <= reg_next;
-        if (csr_wb_en) csr_regfile[field.imm_i] <= csr_next;
+        if (csr_wb_en) csr_regfile[csr_rd] <= csr_next;
       end
     end
   end

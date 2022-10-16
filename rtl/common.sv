@@ -55,13 +55,13 @@ package common;
     LOAD,
     JUMP,
     ZICSR,
+    WB_MRET,
     WB_NONE
   } wb_sel_t;
   typedef enum logic [1:0] {
-    BRANCH,
-    JAL,
-    JALR,
-    PCNEXT
+    PC_BRANCH,
+    PC_MRET,
+    PC_NEXT
   } pc_sel_t;
   // nop(addi x0, x0, 0)
   localparam [31:0] BUBBLE = 32'b000000000000_00000_000_00000_0010011;
