@@ -131,14 +131,22 @@ module decoder (
       end
       // Zicsr
       7'b1110011: begin
-        op1 = csr_data;
         case (field.funct3)
           // csrrw, csrrwi
-          3'b001, 3'b101: op2 = 32'h0;
+          3'b001, 3'b101: begin
+            op1 = reg_rs1;
+            op2 = 32'h0;
+          end
           // csrrsi, csrrci
-          3'b110, 3'b111: op2 = 32'(unsigned'(field.imm_i));
+          3'b110, 3'b111: begin
+            op1 = csr_data;
+            op2 = 32'(unsigned'(field.imm_i));
+          end
           // csrrc, csrrs
-          default: op2 = reg_rs1;
+          default: begin
+            op1 = csr_data;
+            op2 = reg_rs1;
+          end
         endcase
       end
       // other

@@ -98,6 +98,7 @@ module cpu (
     reg_pc  = 32'h0;
     address = 32'h0;
     for (int i = 0; i < 32; i++) regfile[i] = 32'h0;
+    for (int i = 0; i < 4096; i++) csr_regfile[i] = 32'h1194;
   end
 
   always_comb begin
