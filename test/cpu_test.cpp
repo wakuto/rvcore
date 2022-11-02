@@ -97,16 +97,9 @@ int main(int argc, char **argv) {
     top->instruction = fetch_4byte(program, top->pc);
     if (top->read_enable) {
       top->read_data = fetch_4byte(memory, top->address);
-      std::cout << "read  : " << std::hex << top->address;
-      std::cout << " -> " << std::hex << top->read_data << std::endl;
     }
     if (top->write_enable) {
       mem_write(memory, top->address, top->write_data, top->write_wstrb);
-      std::cout << "write : " << std::hex << top->address;
-      std::cout << " -> " << std::hex << top->write_data << std::endl;
-      std::cout << "memory: " << std::hex << top->address;
-      std::cout << " -> " << std::hex << fetch_4byte(memory, top->address)
-                << std::endl;
     }
 
     top->eval();
@@ -124,6 +117,7 @@ int main(int argc, char **argv) {
     std::cout << std::showbase << std::dec;
     std::cout << "registers: main_time=" << main_time << std::endl;
     std::cout << "pc: " << std::hex << top->pc << std::endl;
+    std::cout << "instruction: " << std::hex << top->instruction << std::endl;
     for (int i = 0; i < 16; i++) {
       std::cout << "x" << std::dec << i << ": ";
       std::cout << std::hex << top->debug_reg[i] << std::endl;

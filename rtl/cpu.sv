@@ -28,6 +28,13 @@ module cpu (
   logic [31:0] csr_data;
   logic [11:0] csr_rd;
   logic csr_wb_en;
+    input logic clock,
+    input logic reset,
+    input logic [11:0] csr_addr,
+    input logic [31:0] csr_write_data,
+    input logic csr_wen,
+    output logic [31:0] csr_output
+  csr_reg csr_reg(.clock, .reset, .csr_addr(), .csr_write_data(), .csr_wen(), .csr_output());
 
   // decoded data
   common::alu_cmd operation_type;
@@ -84,7 +91,7 @@ module cpu (
   write_back write_back (
       .pc_plus_4,
       .pc_branch,
-      .pc_mepc(csr_regfile[12'h341]),
+      .pc_mepc(csr_regfile[CSR_MEPC]),
       .is_jump_instr,
       .pc_sel,
       .pc_next,
@@ -134,30 +141,27 @@ module cpu (
       int unsigned mie = csr_regfile[CSR_MIE];
       int unsigned mip = csr_regfile[CSR_MIP];
       int unsigned mtvec = csr_regfile[CSR_MTVEC];
-      if (mstatus[3]) begin   // mstatus.mie
+      if (mstatus[3]) begin  // mstatus.mie
         // software interrupt
-        if(mie[3] & mip[3]) begin   // mie.msie & mip.msip
+        if (mie[3] & mip[3]) begin  // mie.msie & mip.msip
           // mpie = mie
           // mie = 0
           //csr_regfile[CSR_MSTATUS] <= {mstatus[31:8], 1'b1, mstatus[6:4], 1'b0, mstatus[2:0]};
           csr_regfile[CSR_MSTATUS] <= mstatus ^ 32'b10001000;
-          csr_regfile[CSR_MIP][3] <= 1'b0;
-          if(csr_regfile[CSR_MCAUSE][31])
-            csr_regfile[CSR_MEPC] <= reg_pc;
+          csr_regfile[CSR_MIP][3]  <= 1'b0;
+          if (csr_regfile[CSR_MCAUSE][31]) csr_regfile[CSR_MEPC] <= reg_pc;
           else
-          // FIXME: incorrect jump address...
-          // implement reg_prev
+            // FIXME: incorrect jump address...
+            // implement reg_prev
             csr_regfile[CSR_MEPC] <= reg_pc;
           // jump to trap vector
           reg_pc <= mtvec;
-        end
-        else begin
+        end else begin
           reg_pc <= pc_next;
           if (wb_en) regfile[field.rd] <= reg_next;
           if (csr_wb_en) csr_regfile[csr_rd] <= csr_next;
         end
-      end
-      else begin
+      end else begin
         reg_pc <= pc_next;
         if (wb_en) regfile[field.rd] <= reg_next;
         if (csr_wb_en) csr_regfile[csr_rd] <= csr_next;
