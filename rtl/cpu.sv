@@ -18,7 +18,10 @@ module cpu (
     output logic [1:0] write_wstrb,  // 書き込むデータの幅
     output logic debug_ebreak,
     output logic [31:0] debug_reg[0:31],
-    output logic illegal_instruction
+    output logic illegal_instr,
+    input logic timer_int,
+    input logic soft_int,
+    input logic ext_int
 );
   // regfile
   logic [31:0] reg_pc;
@@ -28,13 +31,40 @@ module cpu (
   logic [31:0] csr_data;
   logic [11:0] csr_rd;
   logic csr_wb_en;
-    input logic clock,
-    input logic reset,
-    input logic [11:0] csr_addr,
-    input logic [31:0] csr_write_data,
-    input logic csr_wen,
-    output logic [31:0] csr_output
-  csr_reg csr_reg(.clock, .reset, .csr_addr(), .csr_write_data(), .csr_wen(), .csr_output());
+
+  logic [1:0] csr_instr;
+  logic [11:0] csr_addr;
+  logic [31:0] csr_reg_next;
+  logic [31:0] mtvec;
+  logic interrupt;
+  logic mret_instr;
+  logic env_call;
+  logic break_point;
+
+  csr_reg csr_reg (
+    .clock,
+    .reset,
+
+    .csr_instr,
+    .csr_addr(csr_rd),
+    .csr_instr_src(alu_out),
+    .csr_instr_dst(csr_reg_next),
+
+    .mret_instr,
+
+    .illegal_instr, // <-decoder
+    .env_call,      // <-decoder
+    .load_access,   // <-mem_access
+    .break_point,   // <-decoder
+    .timer_int,
+    .soft_int,
+    .ext_int,
+
+    .data,
+    .pc(reg_pc),
+    .mtvec,
+    .interrupt
+  );
 
   // decoded data
   common::alu_cmd operation_type;
@@ -65,7 +95,10 @@ module cpu (
       .is_jump_instr,
       .pc_sel,
       .csr_data,
-      .illegal_instruction
+      .mret_instr,
+      .illegal_instr,
+      .env_call,
+      .break_point
   );
 
   execute execute (
@@ -114,9 +147,6 @@ module cpu (
     for (int i = 0; i < 4096; i++) csr_regfile[i] = 32'h0;
   end
 
-  logic interrupt;
-  logic mstatus_mie, mie_msie, mip_msip;
-
   always_comb begin
     import riscv_instr::*;
     // debug output
@@ -125,11 +155,17 @@ module cpu (
     pc = reg_pc;
     address = alu_out;
     write_data = regfile[field.rs2];
+    /*
     csr_data = csr_regfile[field.imm_i];
-    interrupt = csr_regfile[CSR_MSTATUS][3] & csr_regfile[CSR_MIE][3] & csr_regfile[CSR_MIP][3];
     mstatus_mie = csr_regfile[CSR_MSTATUS][3];
     mie_msie = csr_regfile[CSR_MIE][3];
     mip_msip = csr_regfile[CSR_MIP][3];
+
+    mstatus = csr_regfile[CSR_MSTATUS];
+    mie = csr_regfile[CSR_MIE];
+    mip = csr_regfile[CSR_MIP];
+    mtvec = csr_regfile[CSR_MTVEC];
+    */
   end
 
   always_ff @(posedge clock or posedge reset) begin
@@ -137,35 +173,8 @@ module cpu (
       reg_pc <= 32'h0;
     end else begin
       import riscv_instr::*;
-      int unsigned mstatus = csr_regfile[CSR_MSTATUS];
-      int unsigned mie = csr_regfile[CSR_MIE];
-      int unsigned mip = csr_regfile[CSR_MIP];
-      int unsigned mtvec = csr_regfile[CSR_MTVEC];
-      if (mstatus[3]) begin  // mstatus.mie
-        // software interrupt
-        if (mie[3] & mip[3]) begin  // mie.msie & mip.msip
-          // mpie = mie
-          // mie = 0
-          //csr_regfile[CSR_MSTATUS] <= {mstatus[31:8], 1'b1, mstatus[6:4], 1'b0, mstatus[2:0]};
-          csr_regfile[CSR_MSTATUS] <= mstatus ^ 32'b10001000;
-          csr_regfile[CSR_MIP][3]  <= 1'b0;
-          if (csr_regfile[CSR_MCAUSE][31]) csr_regfile[CSR_MEPC] <= reg_pc;
-          else
-            // FIXME: incorrect jump address...
-            // implement reg_prev
-            csr_regfile[CSR_MEPC] <= reg_pc;
-          // jump to trap vector
-          reg_pc <= mtvec;
-        end else begin
-          reg_pc <= pc_next;
-          if (wb_en) regfile[field.rd] <= reg_next;
-          if (csr_wb_en) csr_regfile[csr_rd] <= csr_next;
-        end
-      end else begin
-        reg_pc <= pc_next;
-        if (wb_en) regfile[field.rd] <= reg_next;
-        if (csr_wb_en) csr_regfile[csr_rd] <= csr_next;
-      end
+      reg_pc <= interrupt ? mtvec : pc_next;
+      if (wb_en) regfile[field.rd] <= reg_next;
     end
   end
 endmodule

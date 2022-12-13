@@ -30,7 +30,12 @@ module decoder (
     output common::pc_sel_t pc_sel,
     input wire logic [31:0] csr_data,
     // error
-    output logic illegal_instruction
+    
+    output logic mret_instr,
+    
+    output logic illegal_instr,
+    output logic env_call,
+    output logic break_point
 
 );
   // instruction fields
@@ -80,7 +85,30 @@ module decoder (
       CSRRC, CSRRCI: _alu_ops = common::BIT_C;
       default: _alu_ops = common::ILL;
     endcase
-    illegal_instruction = _alu_ops == common::ILL;
+
+    illegal_instr = _alu_ops == common::ILL;
+    casez (instruction) 
+      ECALL: begin
+        env_call = 1'b1;
+        break_point = 1'b0;
+        mret_instr = 1'b0;
+      end
+      EBREAK: begin
+        env_call = 1'b0;
+        break_point = 1'b1;
+        mret_instr = 1'b0;
+      end
+      MRET: begin
+        env_call = 1'b0;
+        break_point = 1'b0;
+        mret_instr = 1'b1;
+      end
+      default: begin
+        env_call = 1'b0;
+        break_point = 1'b0;
+        mret_instr = 1'b0;
+      end
+    endcase
     // memory access type
     casez (instruction)
       LB: _access_type = common::LB;
