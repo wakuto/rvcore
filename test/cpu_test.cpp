@@ -91,6 +91,9 @@ int main(int argc, char **argv) {
   top->reset = 0;
   top->instruction = fetch_4byte(program, top->pc);
   top->read_data = 0;
+  top->timer_int = 0;
+  top->soft_int = 0;
+  top->ext_int = 0;
 
   while (!Verilated::gotFinish()) {
 
