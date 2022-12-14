@@ -35,7 +35,8 @@ module decoder (
     
     output logic illegal_instr,
     output logic env_call,
-    output logic break_point
+    output logic break_point,
+    output logic csr_instr
 
 );
   // instruction fields
@@ -63,11 +64,13 @@ module decoder (
   common::mem_access_type _access_type;
   assign access_type = _access_type;
 
+  assign csr_instr = wb_sel == common::ZICSR;
+
   always_comb begin
     // chose _alu_ops
     import riscv_instr::*;
     casez (instruction)
-      ADD, ADDI, AUIPC, LB, LBU, LH, LHU, LW, LUI, SW, SH, SB, JAL, JALR, CSRRW, CSRRWI:
+      ADD, ADDI, AUIPC, LB, LBU, LH, LHU, LW, LUI, SW, SH, SB, JAL, JALR, CSRRW, CSRRWI, EBREAK:
       _alu_ops = common::ADD;
       SUB: _alu_ops = common::SUB;
       XOR, XORI, MRET: _alu_ops = common::XOR;
@@ -159,28 +162,28 @@ module decoder (
         op1 = 32'h1;
         op2 = 32'h0;
       end
-      7'b1110011: begin
       // Zicsr
+      7'b1110011: begin
         casez(instruction)
-          // csrrw, csrrwi
           CSRRW, CSRRWI: begin
             op1 = reg_rs1;
             op2 = 32'h0;
           end
-          // csrrsi, csrrci
           CSRRSI, CSRRCI: begin
             op1 = csr_data;
-            op2 = 32'(unsigned'(field.imm_i));
+            op2 = 32'(unsigned'(field.rs1));  // uimm
           end
-          // csrrs, csrrc
           CSRRS, CSRRC: begin
             op1 = csr_data;
             op2 = reg_rs1;
           end
-          // mret
           MRET: begin
             op1 = csr_data;
             op2 = 32'b10001000;
+          end
+          EBREAK: begin
+            op1 = 32'h0;
+            op2 = 32'h0;
           end
           default: begin
             op1 = csr_data;

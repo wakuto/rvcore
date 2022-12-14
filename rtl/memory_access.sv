@@ -7,11 +7,13 @@ module memory_access (
     output logic [1:0] write_wstrb,  // write $(wstrb+1) bytes
     output logic write_enable,
     output logic read_enable,
-    output logic [31:0] wb_mask
+    output logic [31:0] wb_mask,
+    output logic load_access  // load access fault
 );
   import common::*;
 
   always_comb begin
+    load_access = 1'b0;
     case (access_type)
       SB, SH, SW: begin
         write_enable = 1'b1;

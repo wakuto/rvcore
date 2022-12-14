@@ -26,20 +26,18 @@ module cpu (
   // regfile
   logic [31:0] reg_pc;
   logic [31:0] regfile[0:31];
-  logic [31:0] csr_regfile[0:4095];
-  logic [31:0] csr_next;
   logic [31:0] csr_data;
   logic [11:0] csr_rd;
-  logic csr_wb_en;
 
-  logic [1:0] csr_instr;
+  logic csr_instr;
   logic [11:0] csr_addr;
-  logic [31:0] csr_reg_next;
   logic [31:0] mtvec;
-  logic interrupt;
+  logic [31:0] mepc;
+  logic csr_pc_sel;
   logic mret_instr;
   logic env_call;
   logic break_point;
+  logic load_access;
 
   csr_reg csr_reg (
     .clock,
@@ -48,7 +46,7 @@ module cpu (
     .csr_instr,
     .csr_addr(csr_rd),
     .csr_instr_src(alu_out),
-    .csr_instr_dst(csr_reg_next),
+    .csr_instr_dst(csr_data),
 
     .mret_instr,
 
@@ -60,10 +58,10 @@ module cpu (
     .soft_int,
     .ext_int,
 
-    .data,
     .pc(reg_pc),
     .mtvec,
-    .interrupt
+    .mepc,
+    .csr_pc_sel
   );
 
   // decoded data
@@ -98,7 +96,8 @@ module cpu (
       .mret_instr,
       .illegal_instr,
       .env_call,
-      .break_point
+      .break_point,
+      .csr_instr
   );
 
   execute execute (
@@ -115,7 +114,8 @@ module cpu (
       .write_wstrb,
       .write_enable,
       .read_enable,
-      .wb_mask
+      .wb_mask,
+      .load_access
   );
 
   logic [31:0] pc_next;
@@ -124,7 +124,6 @@ module cpu (
   write_back write_back (
       .pc_plus_4,
       .pc_branch,
-      .pc_mepc(csr_regfile[CSR_MEPC]),
       .is_jump_instr,
       .pc_sel,
       .pc_next,
@@ -134,9 +133,7 @@ module cpu (
       .alu_result(alu_out),
       .reg_next,
       .wb_en,
-      .csr_data,
-      .csr_next,
-      .csr_wb_en
+      .csr_data
   );
 
   // <= だとwarning出るけどなんで？
@@ -144,7 +141,6 @@ module cpu (
     reg_pc  = 32'h0;
     address = 32'h0;
     for (int i = 0; i < 32; i++) regfile[i] = 32'h0;
-    for (int i = 0; i < 4096; i++) csr_regfile[i] = 32'h0;
   end
 
   always_comb begin
@@ -155,17 +151,6 @@ module cpu (
     pc = reg_pc;
     address = alu_out;
     write_data = regfile[field.rs2];
-    /*
-    csr_data = csr_regfile[field.imm_i];
-    mstatus_mie = csr_regfile[CSR_MSTATUS][3];
-    mie_msie = csr_regfile[CSR_MIE][3];
-    mip_msip = csr_regfile[CSR_MIP][3];
-
-    mstatus = csr_regfile[CSR_MSTATUS];
-    mie = csr_regfile[CSR_MIE];
-    mip = csr_regfile[CSR_MIP];
-    mtvec = csr_regfile[CSR_MTVEC];
-    */
   end
 
   always_ff @(posedge clock or posedge reset) begin
@@ -173,7 +158,19 @@ module cpu (
       reg_pc <= 32'h0;
     end else begin
       import riscv_instr::*;
-      reg_pc <= interrupt ? mtvec : pc_next;
+
+      // set the next pc from csr
+      if (csr_pc_sel) begin
+        // mret
+        if(mret_instr) 
+          reg_pc <= mepc;
+        // interrpt
+        else
+          reg_pc <= mtvec;
+      end
+      else
+        reg_pc <= pc_next;
+
       if (wb_en) regfile[field.rd] <= reg_next;
     end
   end

@@ -5,7 +5,6 @@
 module write_back (
     input wire logic [31:0] pc_plus_4,
     input wire logic [31:0] pc_branch,
-    input wire logic [31:0] pc_mepc,
     input wire logic is_jump_instr,
     input common::pc_sel_t pc_sel,
     output logic [31:0] pc_next,
@@ -16,9 +15,7 @@ module write_back (
     input wire logic [31:0] alu_result,
     output logic [31:0] reg_next,
     output logic wb_en,
-    input wire logic [31:0] csr_data,
-    output logic [31:0] csr_next,
-    output logic csr_wb_en
+    input wire logic [31:0] csr_data
 );
   import common::*;
 
@@ -29,7 +26,6 @@ module write_back (
         if(alu_result[0]) pc_next = pc_branch;
         else pc_next = pc_plus_4;
       end
-      PC_MRET: pc_next = pc_mepc;
       PC_NEXT: pc_next = pc_plus_4;
       default: pc_next = 32'h0;
     endcase
@@ -39,38 +35,26 @@ module write_back (
       RI_TYPE_LUI: begin
         reg_next = alu_result;
         wb_en = 1'b1;
-        csr_wb_en = 1'b0;
-        csr_next = 32'h0;
       end
       LOAD: begin
         reg_next = read_data & wb_mask;
         wb_en = 1'b1;
-        csr_wb_en = 1'b0;
-        csr_next = 32'h0;
       end
       JUMP: begin
         reg_next = pc_plus_4;
         wb_en = 1'b1;
-        csr_wb_en = 1'b0;
-        csr_next = 32'h0;
       end
       ZICSR: begin
         wb_en = 1'b1;
-        csr_wb_en = 1'b1;
         reg_next = csr_data;
-        csr_next = alu_result;
       end
       WB_MRET: begin
         wb_en = 1'b0;
-        csr_wb_en = 1'b1;
         reg_next = 32'h0;
-        csr_next = alu_result;
       end
       default: begin
         reg_next = 32'hdeadbeef;
         wb_en = 1'b0;
-        csr_wb_en = 1'b0;
-        csr_next = 32'h0;
       end
     endcase
   end

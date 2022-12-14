@@ -25,7 +25,8 @@ module csr_reg (
     // interrupt data
     input logic [31:0] pc,
     output logic [31:0] mtvec,
-    output logic interrupt
+    output logic [31:0] mepc,
+    output logic csr_pc_sel
 );
   import riscv_instr::*;
 
@@ -43,7 +44,7 @@ module csr_reg (
   logic [31:0] reg_csr[0:csr_sel.num()-1];
   assign mtvec = reg_csr[MTVEC];
 
-  logic [2:0] flags;
+  logic [6:0] flags;
 
   localparam BIT_ENV = 0;
   localparam BIT_ILL = 1;
@@ -61,7 +62,8 @@ module csr_reg (
     flags[BIT_EXT]  = ext_int;
     flags[BIT_SOFT] = soft_int;
     flags[BIT_TIM]  = timer_int;
-    interrupt = |flags;
+    csr_pc_sel = (|flags & reg_csr[MSTATUS][B_MIE]) | mret_instr;
+    mepc = reg_csr[MEPC];
 
     casez (csr_addr)
       CSR_MSTATUS: csr_sel = MSTATUS;
@@ -83,6 +85,7 @@ module csr_reg (
   localparam B_MEIE = 11;
 
   task set_inter_regs();
+    $display("############# RUNNING TASK!!! ##############");
     reg_csr[MEPC] <= pc;
     reg_csr[MSTATUS][B_MIE] <= 1'b0;
     reg_csr[MSTATUS][B_MPIE] <= 1'b1;
@@ -93,6 +96,8 @@ module csr_reg (
       for (int i = 0; i < csr_sel.num(); i++) reg_csr[i] <= 32'h0;
     end else begin
 
+      $display("############# MIE ##############");
+      $display(reg_csr[MSTATUS][B_MIE]);
       // no interrupt && is csr instruction
       if (~|flags & csr_instr) begin
         csr_instr_dst <= reg_csr[csr_sel];
@@ -100,21 +105,31 @@ module csr_reg (
       end
       // interrupt && interrupt enable
       else if (|flags && reg_csr[MSTATUS][B_MIE]) begin
+        if (csr_pc_sel) begin
+          $display("############# RUNNING TASK!!! ##############");
+          reg_csr[MEPC] <= pc;
+          reg_csr[MSTATUS][B_MIE] <= 1'b0;
+          reg_csr[MSTATUS][B_MPIE] <= 1'b1;
+        end
         if (flags[BIT_TIM] & reg_csr[MIE][B_MTIE]) begin
-          set_inter_regs();
+          // set_inter_regs();
+          // reg_csr[MEPC] <= pc;
           reg_csr[MCAUSE] <= 32'h80000000 | 32'd7;
         end
         else if (flags[BIT_SOFT] & reg_csr[MIE][B_MSIE]) begin
-          set_inter_regs();
+          // set_inter_regs();
+          // reg_csr[MEPC] <= pc;
           reg_csr[MCAUSE] <= 32'h80000000 | 32'd3;
         end
         else if (flags[BIT_EXT] & reg_csr[MIE][B_MEIE]) begin
-          set_inter_regs();
+          // set_inter_regs();
+          // reg_csr[MEPC] <= pc;
           reg_csr[MCAUSE] <= 32'h80000000 | 32'd11;
         end
         // no (timer, software, external) interrupt && has exception
-        else if (~|flags[7:5] & |flags[4:0]) begin
-          set_inter_regs();
+        else if (~|flags[6:4] & |flags[3:0]) begin
+          // set_inter_regs();
+          // reg_csr[MEPC] <= pc;
           if (flags[BIT_BRK])
             reg_csr[MCAUSE] <= 32'h3;
           else if (flags[BIT_LOAD])
@@ -126,7 +141,6 @@ module csr_reg (
         end
       end
       else if (mret_instr) begin
-        pc <= reg_csr[MEPC];
         reg_csr[MSTATUS][B_MIE] <= 1'b1;
         reg_csr[MSTATUS][B_MPIE] <= 1'b0;
       end

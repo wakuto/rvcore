@@ -9,6 +9,8 @@ run: build# program.bin
 	make -C ../obj_dir -f Vcpu.mk
 	../obj_dir/Vcpu
 
-
 program.bin:
 	make -C ../sample_src
+
+clean:
+	rm -rf *.vcd ../obj_dir

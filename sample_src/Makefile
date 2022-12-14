@@ -11,6 +11,9 @@ clang:
 	$(PREFIX)ld ./start.o ./test.o -Tlink.ld -o ./start.elf
 	$(PREFIX)objcopy -O binary ./start.elf ./program.bin
 
+dump:
+	$(PREFIX)objdump -d ./start.elf | less
+
 clean:
 	rm -f *.o *.elf *.bin
 

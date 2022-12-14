@@ -126,9 +126,9 @@ int main(int argc, char **argv) {
       std::cout << std::hex << top->debug_reg[i] << std::endl;
     }
 
-    if (top->illegal_instruction) {
-      std::cout << "Illegal Instruction: ";
-      std::cout << "pc: " << std::hex << top->pc;
+    if (top->illegal_instr) {
+      std::cout << "Illegal Instruction: " << std::endl;
+      std::cout << "pc: " << std::hex << top->pc << std::endl;
       std::cout << "instr: " << std::hex << top->instruction << std::endl;
     }
     if (top->debug_ebreak) {
