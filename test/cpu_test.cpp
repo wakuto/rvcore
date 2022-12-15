@@ -105,6 +105,12 @@ int main(int argc, char **argv) {
       mem_write(memory, top->address, top->write_data, top->write_wstrb);
     }
 
+    int tmp = main_time - 100;
+    if (tmp >= 0 && tmp < 2)
+      top->soft_int = 1;
+    else
+      top->soft_int = 0;
+
     top->eval();
 
     top->clock = !top->clock;

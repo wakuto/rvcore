@@ -12,7 +12,7 @@ clang:
 	$(PREFIX)objcopy -O binary ./start.elf ./program.bin
 
 dump:
-	$(PREFIX)objdump -d ./start.elf | less
+	$(PREFIX)objdump -d -M no-aliases -M numeric ./start.elf | less
 
 clean:
 	rm -f *.o *.elf *.bin
