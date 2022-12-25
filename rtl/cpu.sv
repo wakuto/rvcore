@@ -11,10 +11,10 @@ module cpu (
     // memory data
     output logic [31:0] address,
     input wire logic [31:0] read_data,
-    output logic read_enable,  // データを読むときにアサート
-    //input wire logic mem_valid,  // response signal
+    output logic read_enable,     // データを読むときにアサート
+    input wire logic read_valid,  // メモリ出力の有効フラグ
     output logic [31:0] write_data,
-    output logic write_enable,  // データを書くときにアサート->request signal
+    output logic write_enable,    // データを書くときにアサート->request signal
     output logic [1:0] write_wstrb,  // 書き込むデータの幅
     output logic debug_ebreak,
     output logic [31:0] debug_reg[0:31],
@@ -122,6 +122,7 @@ module cpu (
   logic [31:0] reg_next;
   logic wb_en;
   write_back write_back (
+      .pc(reg_pc),
       .pc_plus_4,
       .pc_branch,
       .is_jump_instr,
@@ -129,6 +130,7 @@ module cpu (
       .pc_next,
       .wb_sel,
       .read_data,
+      .read_valid,
       .wb_mask,
       .alu_result(alu_out),
       .reg_next,

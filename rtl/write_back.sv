@@ -3,6 +3,7 @@
 `include "./common.sv"
 
 module write_back (
+    input wire logic [31:0] pc,
     input wire logic [31:0] pc_plus_4,
     input wire logic [31:0] pc_branch,
     input wire logic is_jump_instr,
@@ -11,6 +12,7 @@ module write_back (
 
     input common::wb_sel_t wb_sel,
     input wire logic [31:0] read_data,
+    input wire logic read_valid,
     input wire logic [31:0] wb_mask,
     input wire logic [31:0] alu_result,
     output logic [31:0] reg_next,
@@ -19,14 +21,24 @@ module write_back (
 );
   import common::*;
 
+  logic mem_stall;
+
   always_comb begin
+    // stall
+    case (wb_sel)
+      LOAD: mem_stall = !read_valid;
+      default: mem_stall = 1'b0;
+    endcase
+
     // update pc
     case(pc_sel)
       PC_BRANCH: begin
         if(alu_result[0]) pc_next = pc_branch;
         else pc_next = pc_plus_4;
       end
-      PC_NEXT: pc_next = pc_plus_4;
+      PC_NEXT: begin
+        pc_next = mem_stall ? pc : pc_plus_4;
+      end
       default: pc_next = 32'h0;
     endcase
 
