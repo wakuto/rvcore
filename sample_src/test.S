@@ -63,4 +63,4 @@ main:
 	addi	sp,sp,32
 	jr	ra
 	.size	main, .-main
-	.ident	"GCC: (g1ea978e3066) 12.1.0"
+	.ident	"GCC: (g2ee5e430018) 12.2.0"

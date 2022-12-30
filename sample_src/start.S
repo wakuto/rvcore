@@ -11,8 +11,8 @@ _start:
 # trap vector configuration
   csrrw t1, mtvec, t0
 
-.L1:
-  j .L1
+# jump to main()
+  jal ra, main
 
   ebreak
 

@@ -39,6 +39,7 @@ module csr_reg (
     MIP,
     CYCLE,
     CYCLEH,
+    MHARTID,
     OTHER
   } csr_sel;
   logic [31:0] reg_csr[0:csr_sel.num()-1];
@@ -81,6 +82,7 @@ module csr_reg (
       CSR_MIP: csr_sel = MIP;
       CSR_CYCLE: csr_sel = CYCLE;
       CSR_CYCLEH: csr_sel = CYCLEH;
+      CSR_MHARTID: csr_sel = MHARTID;
       default: csr_sel = OTHER;
     endcase
 

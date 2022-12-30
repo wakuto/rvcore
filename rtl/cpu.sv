@@ -5,9 +5,11 @@
 module cpu (
     input wire logic clock,
     input wire logic reset,
+
     // instruction data
     output logic [31:0] pc,
     input wire logic [31:0] instruction,
+
     // memory data
     output logic [31:0] address,
     input wire logic [31:0] read_data,
@@ -16,6 +18,7 @@ module cpu (
     output logic [31:0] write_data,
     output logic write_enable,    // データを書くときにアサート->request signal
     output logic [1:0] write_wstrb,  // 書き込むデータの幅
+
     output logic debug_ebreak,
     output logic [31:0] debug_reg[0:31],
     output logic illegal_instr,

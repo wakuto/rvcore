@@ -91,15 +91,26 @@ int main(int argc, char **argv) {
   top->reset = 0;
   top->instruction = fetch_4byte(program, top->pc);
   top->read_data = 0;
+  top->read_valid = 0;
   top->timer_int = 0;
   top->soft_int = 0;
   top->ext_int = 0;
+
+  int access_counter = 0;
 
   while (!Verilated::gotFinish()) {
 
     top->instruction = fetch_4byte(program, top->pc);
     if (top->read_enable) {
-      top->read_data = fetch_4byte(memory, top->address);
+      if (access_counter < 4) {
+        top->read_data = 0xdeadbeef;
+        top->read_valid = 0;
+        access_counter++;
+      } else {
+        top->read_data = fetch_4byte(memory, top->address);
+        top->read_valid = 1;
+        access_counter = 0;
+      }
     }
     if (top->write_enable) {
       mem_write(memory, top->address, top->write_data, top->write_wstrb);
