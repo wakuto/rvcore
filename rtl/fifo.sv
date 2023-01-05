@@ -37,8 +37,8 @@ module bin_gray_counter #(
   logic [ADDR_WIDTH-1:0] bin_next;
 
   always_comb begin
-    gray_next = bin ^ {ADDR_WIDTH{bin >> 1}};
-    bin_next = bin + {ADDR_WIDTH{1'b1}};
+    gray_next = bin ^ {bin >> 1};
+    bin_next = bin + 1;
   end
 
   always_ff @(posedge clk) begin
@@ -65,8 +65,8 @@ module async_fifo(
   output logic [31:0] dout,
   output logic        empty
 );
-  parameter FULL_THRS = 60;
-  parameter EMPTY_THRS = 4;
+  parameter FULL_THRS = 2;
+  parameter EMPTY_THRS = 2;
 
   logic [5:0] w_addr, r_addr;
   logic [5:0] w_addr_gray, r_addr_gray;
@@ -128,12 +128,16 @@ module async_fifo(
   end
 
   logic [6:0] w_addr_diff, r_addr_diff;
+  logic [5:0] w_gray2bin, r_gray2bin;
+  assign w_gray2bin = gray2bin(r_gray_buff2);
+  assign r_gray2bin = gray2bin(w_gray_buff2);
+  assign w_addr_diff = w_addr - w_gray2bin;
+  assign r_addr_diff = r_gray2bin - r_addr;
+  // assign w_addr_diff = w_addr - gray2bin(r_gray_buff2);
+  // assign r_addr_diff = gray2bin(w_gray_buff2) - r_addr;
 
-  assign w_addr_diff = w_addr - gray2bin(r_gray_buff2);
-  assign r_addr_diff = gray2bin(w_gray_buff2) - r_addr;
-
-  assign full  = w_addr_diff > FULL_THRS;
-  assign empty = r_addr_diff < EMPTY_THRS;
+  assign full  = w_addr_diff[6] ? 0 : w_addr_diff[5:0] > FULL_THRS;
+  assign empty = r_addr_diff[6] ? 0 : r_addr_diff[5:0] < EMPTY_THRS;
 
 endmodule
 `default_nettype wire

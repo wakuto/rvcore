@@ -9,6 +9,11 @@ run: build# program.bin
 	make -C ../obj_dir -f Vcpu.mk
 	../obj_dir/Vcpu
 
+fifo_test:
+	verilator -cc ./fifo.sv -exe ../test/fifo_test.cpp $(FLAGS)
+	make -C ../obj_dir -f Vfifo.mk
+	../obj_dir/Vfifo
+
 program.bin:
 	make -C ../sample_src
 
