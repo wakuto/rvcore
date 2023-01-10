@@ -127,34 +127,39 @@ module direct_map #(
   assign set_addr    = req_addr[LINE_OFFSET_WIDTH +: SET_ADDR_WIDTH];
   assign tag         = req_addr[LINE_OFFSET_WIDTH + SET_ADDR_WIDTH +: TAG_WIDTH];
 
-  logic [(LINE_SIZE << 3)-1:0] bram_out;
+  logic [(LINE_SIZE << 3)-1:0] data_out;
 
   bram #(
     .DATA_WIDTH(LINE_SIZE << 3),
     .CAPACITY(CACHE_SIZE)
-  ) data (
+  ) cached_data (
     .clk,
     .addr(set_addr),
     .wen(1'b0),
     .din(0),
-    .dout(bram_out)
+    .dout(data_out)
   );
 
+  // ホントの容量は(TAG_WIDTH+1)*LINE_NUM bit だけど、
+  // XLEN*LINE_NUM bit にしちゃおう
+  logic [31:0] tag_out;
+
   bram #(
-    .DATA_WIDTH(TAG_WIDTH+1),
-    .CAPACITY(LINE_NUM*
+    .DATA_WIDTH(32),
+    .CAPACITY(LINE_NUM*4)
   ) valid_and_tag (
     .clk,
     .addr(set_addr),
     .wen(1'b0),
     .din(0),
-    .dout(bram_out)
+    .dout(tag_out)
   );
+
+  assign hit = tag_out[TAG_WIDTH] & (tag_out[TAG_WIDTH-1:0] == tag);
+  assign data = data_out;
 
   always_ff @(posedge clk) begin
   end
 
-
-  
 endmodule
 `default_nettype wire
