@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
   top->trace(tfp, 100);
   tfp->open("direct_map_sim.vcd");
 
-  top->clk = 0;
+  top->clk = 1;
   top->req_addr = 0;
   top->hit = 0;
   top->data = 0;
@@ -56,29 +56,37 @@ int main(int argc, char **argv) {
     if (posedge(top)) {
       switch (current) {
         case Wait: {
+          top->req_addr = state_count;
+          current = TagComp;
           break;
         }
         case TagComp: {
+          if (top->hit) {
+            current = Wait;
+            std::cout << "data[" << state_count << "]: " << top->data << std::endl;
+            state_count = (state_count + 4) % 16;
+          } else {
+            top->write_addr = state_count;
+            top->write_data = state_count << 1;;
+            top->write_valid = 1;
+            current = AddrReq;
+          }
           break;
         }
         case AddrReq: {
+          top->write_valid = 0;
+          current = Wait;
           break;
         }
         case DataRecv: {
           break;
         }
       }
-      top->req_addr = state_count;
-      if (top->hit) {
-      } else {
-      }
     }
 
-    // top->clk = !top->clk;
-    // top->axi_aclk = !top->axi_aclk;
-    // top->eval();
-    // top->clk = !top->clk;
-    // top->axi_aclk = !top->axi_aclk;
+    top->clk = !top->clk;
+    top->eval();
+    top->clk = !top->clk;
     top->eval();
     tfp->dump(main_time);
 

@@ -54,7 +54,7 @@ module direct_map #(
     .clk,
     .addr(write_valid ? write_set_addr : req_set_addr),
     .wen(write_valid),
-    .din({write_tag, (SET_ADDR_WIDTH+LINE_OFFSET_WIDTH)'(0)}),
+    .din(32'({1'b1, write_tag})),
     .dout(tag_out)
   );
 

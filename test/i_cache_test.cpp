@@ -17,6 +17,7 @@ void axi_memory(Vi_cache *top) {
   const uint32_t delay_num = 5;
   static uint32_t delay_counter = 0;
   static bool arvalid = false;
+  static int arready_prev = 0;
 
   if (is_first) {
     for (int i = 0; i < 0x1000; i++) {
@@ -25,17 +26,14 @@ void axi_memory(Vi_cache *top) {
     is_first = false;
   }
 
-  if (top->axi_rready)
-    top->axi_rvalid = 0;
 
-  if (top->axi_arvalid && top->axi_arready)
-    top->axi_arready = 0;
-
+  // アドレス転送処理
   if (top->axi_arvalid) {
     addr = top->axi_araddr;
     top->axi_arready = 1;
     arvalid = true;
   }
+  // アドレス受理後、データ読み出し処理
   if (arvalid) {
     if (delay_counter >= delay_num) {
       uint32_t data = 0;
@@ -48,11 +46,17 @@ void axi_memory(Vi_cache *top) {
     delay_counter++;
   }
 
-  if (top->axi_rready) {
+  // アドレス転送完了
+  if (top->axi_arvalid && top->axi_arready)
+    top->axi_arready = 0;
+
+  // データ転送完了
+  if (top->axi_rvalid && top->axi_rready) {
     top->axi_rvalid = 0;
     delay_counter = 0;
     arvalid = false;
   }
+  arready_prev = top->axi_arready;
 }
 
 bool posedge(Vi_cache *top) {
@@ -108,10 +112,10 @@ int main(int argc, char **argv) {
           top->addr = state_count;
           top->addr_valid = 1;
         }
-        if (top->data_ready) {
+        if (top->addr_valid && top->data_ready) {
           top->addr_valid = 0;
           std::cout << "data: " << top->addr << " = " << top->data << std::endl;
-          state_count = (state_count + 1) % 8;
+          state_count = (state_count + 4) % 16;
         }
       }
     }
