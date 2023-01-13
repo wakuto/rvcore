@@ -17,7 +17,6 @@ void axi_memory(Vi_cache *top) {
   const uint32_t delay_num = 5;
   static uint32_t delay_counter = 0;
   static bool arvalid = false;
-  static int arready_prev = 0;
 
   if (is_first) {
     for (int i = 0; i < 0x1000; i++) {
@@ -26,6 +25,16 @@ void axi_memory(Vi_cache *top) {
     is_first = false;
   }
 
+  // アドレス転送完了
+  if (top->axi_arvalid && top->axi_arready)
+    top->axi_arready = 0;
+
+  // データ転送完了
+  if (top->axi_rvalid && top->axi_rready) {
+    top->axi_rvalid = 0;
+    delay_counter = 0;
+    arvalid = false;
+  }
 
   // アドレス転送処理
   if (top->axi_arvalid) {
@@ -45,18 +54,6 @@ void axi_memory(Vi_cache *top) {
     }
     delay_counter++;
   }
-
-  // アドレス転送完了
-  if (top->axi_arvalid && top->axi_arready)
-    top->axi_arready = 0;
-
-  // データ転送完了
-  if (top->axi_rvalid && top->axi_rready) {
-    top->axi_rvalid = 0;
-    delay_counter = 0;
-    arvalid = false;
-  }
-  arready_prev = top->axi_arready;
 }
 
 bool posedge(Vi_cache *top) {
@@ -71,6 +68,63 @@ bool negedge(Vi_cache *top) {
   bool res = prev_clk != top->clk && top->clk == 0;
   prev_clk = top->clk;
   return res;
+}
+
+void copy_input_data(Vi_cache *src, Vi_cache *dest) {
+  dest->reset = src->reset;
+  dest->clk = src->clk;
+  dest->addr = src->addr;
+  dest->addr_valid = src->addr_valid;
+
+  dest->axi_aclk = src->axi_aclk;
+  dest->axi_areset = src->axi_areset;
+  dest->axi_arready = src->axi_arready;
+
+  dest->axi_rvalid = src->axi_rvalid;
+  dest->axi_rdata = src->axi_rdata;
+  dest->axi_rresp = src->axi_rresp;
+}
+
+void copy_output_data(Vi_cache *src, Vi_cache *dest) {
+  dest->data = src->data;
+  dest->data_ready = src->data_ready;
+
+  dest->axi_arvalid = src->axi_arvalid;
+  dest->axi_araddr = src->axi_araddr;
+  dest->axi_arprot = src->axi_arprot;
+  dest->axi_rready = src->axi_rready;
+}
+
+void do_posedge(Vi_cache *top, void (*func)(Vi_cache *)) {
+  Vi_cache *tmp = new Vi_cache;
+  copy_input_data(top, tmp);
+  copy_output_data(top, tmp);
+
+  func(tmp);
+
+  top->clk = 1;
+  top->axi_aclk = 1;
+
+  top->eval();
+  
+  copy_input_data(tmp, top);
+}
+
+void processing(Vi_cache *top) {
+  static int state_count = 0;
+  if (!top->reset) {
+    axi_memory(top);
+
+    if (!top->addr_valid) {
+      top->addr = state_count;
+      top->addr_valid = 1;
+    }
+    if (top->addr_valid && top->data_ready) {
+      top->addr_valid = 0;
+      std::cout << "data: " << top->addr << " = " << top->data << std::endl;
+      state_count = (state_count + 4) % 16;
+    }
+  }
 }
 
 int main(int argc, char **argv) {
@@ -100,24 +154,18 @@ int main(int argc, char **argv) {
   top->axi_rdata = 0;
   top->axi_rresp = 0;
 
-  int state_count = 0;
   while (!Verilated::gotFinish()) {
     top->clk = !top->clk;
     top->axi_aclk = !top->axi_aclk;
 
     if (posedge(top)) {
-      axi_memory(top);
-      if (!top->reset) {
-        if (!top->addr_valid) {
-          top->addr = state_count;
-          top->addr_valid = 1;
-        }
-        if (top->addr_valid && top->data_ready) {
-          top->addr_valid = 0;
-          std::cout << "data: " << top->addr << " = " << top->data << std::endl;
-          state_count = (state_count + 4) % 16;
-        }
-      }
+      top->clk = !top->clk;
+      top->axi_aclk = !top->axi_aclk;
+
+      do_posedge(top, processing);
+
+      top->clk = !top->clk;
+      top->axi_aclk = !top->axi_aclk;
     }
 
     // top->clk = !top->clk;
