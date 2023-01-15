@@ -20,14 +20,10 @@ void axi_memory(Vi_cache *top) {
 
   if (is_first) {
     for (int i = 0; i < 0x1000; i++) {
-      mem[i] = i >> 2;
+      mem[i] = i % 16;
     }
     is_first = false;
   }
-
-  // アドレス転送完了
-  if (top->axi_arvalid && top->axi_arready)
-    top->axi_arready = 0;
 
   // データ転送完了
   if (top->axi_rvalid && top->axi_rready) {
@@ -36,8 +32,11 @@ void axi_memory(Vi_cache *top) {
     arvalid = false;
   }
 
+  // アドレス転送完了
+  if (top->axi_arvalid && top->axi_arready)
+    top->axi_arready = 0;
   // アドレス転送処理
-  if (top->axi_arvalid) {
+  else if (top->axi_arvalid) {
     addr = top->axi_araddr;
     top->axi_arready = 1;
     arvalid = true;
@@ -115,19 +114,17 @@ void processing(Vi_cache *top) {
   if (!top->reset) {
     axi_memory(top);
 
-    if (!top->addr_valid) {
-      top->addr = state_count;
-      top->addr_valid = 1;
-    }
-    if (top->addr_valid && top->data_ready) {
-      top->addr_valid = 0;
-      std::cout << "data: " << top->addr << " = " << top->data << std::endl;
+    top->addr = state_count;
+    top->addr_valid = 1;
+
+    if (top->data_ready) {
       state_count = (state_count + 4) % 16;
     }
   }
 }
 
 int main(int argc, char **argv) {
+  std::cout << std::showbase << std::hex;
 
   Verilated::commandArgs(argc, argv); // Remember args
 
@@ -166,6 +163,8 @@ int main(int argc, char **argv) {
 
       top->clk = !top->clk;
       top->axi_aclk = !top->axi_aclk;
+      if (top->data_ready)
+        std::cout << "data: " << top->addr << " = " << top->data << std::endl;
     }
 
     // top->clk = !top->clk;

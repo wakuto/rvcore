@@ -25,13 +25,15 @@ module i_cache (
   assign axi_arprot = 3'b101; // instruction & secure & privileged
 
   enum logic [1:0] {WAIT, TAG_COMP, ADDR_REQ, DATA_RECV} state;
-  logic cache_hit;
+  logic hit, cache_hit;
+  logic [31:0] prev_addr;
+  assign cache_hit = hit & (state == WAIT) & (addr == prev_addr);
 
   logic [31:0] cache_dout;
   direct_map direct_map (
-    .clk,
+    .clk(~clk),
     .req_addr(addr),
-    .hit(cache_hit),
+    .hit,
     .data(cache_dout),
 
     .write_addr(addr),
@@ -43,6 +45,7 @@ module i_cache (
     if (reset) begin
       state <= WAIT;
     end else begin
+      prev_addr <= addr;
       case(state)
         WAIT: begin
           if (addr_valid) begin
@@ -54,8 +57,10 @@ module i_cache (
           end
         end
         TAG_COMP: begin
-          if (cache_hit) begin // hit
+          // if (cache_hit) begin // hit
+          if (data_ready) begin // hit
             state <= WAIT;
+            data_ready <= 1'b0;
           end else begin // miss
             state <= ADDR_REQ;
             // addr request

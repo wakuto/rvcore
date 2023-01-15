@@ -36,7 +36,7 @@ module direct_map #(
     .DATA_WIDTH(LINE_SIZE << 3),
     .CAPACITY(CACHE_SIZE)
   ) cached_data (
-    .clk,
+    .clk(clk),
     .addr(write_valid ? write_set_addr : req_set_addr),
     .wen(write_valid),
     .din(write_data),
@@ -46,12 +46,16 @@ module direct_map #(
   // ホントの容量は(TAG_WIDTH+1)*LINE_NUM bit だけど、
   // XLEN*LINE_NUM bit にしちゃおう
   logic [31:0] tag_out;
+  logic [TAG_WIDTH-1:0] req_tag_buf;
+  always_ff @(posedge clk) begin
+    req_tag_buf <= req_tag;
+  end
 
   bram #(
     .DATA_WIDTH(32),
     .CAPACITY(LINE_NUM*4)
   ) valid_and_tag (
-    .clk,
+    .clk(clk),
     .addr(write_valid ? write_set_addr : req_set_addr),
     .wen(write_valid),
     .din(32'({1'b1, write_tag})),
@@ -59,7 +63,7 @@ module direct_map #(
   );
 
   // tag_out[TAG_WIDTH]: line valid flag
-  assign hit = tag_out[TAG_WIDTH] & (tag_out[TAG_WIDTH-1:0] == req_tag);
+  assign hit = tag_out[TAG_WIDTH] & (tag_out[TAG_WIDTH-1:0] == req_tag_buf);
   assign data = data_out;
 
   wire _unused = &{1'b0,
