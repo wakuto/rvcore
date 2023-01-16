@@ -46,10 +46,6 @@ module direct_map #(
   // ホントの容量は(TAG_WIDTH+1)*LINE_NUM bit だけど、
   // XLEN*LINE_NUM bit にしちゃおう
   logic [31:0] tag_out;
-  logic [TAG_WIDTH-1:0] req_tag_buf;
-  always_ff @(posedge clk) begin
-    req_tag_buf <= req_tag;
-  end
 
   bram #(
     .DATA_WIDTH(32),
@@ -63,7 +59,9 @@ module direct_map #(
   );
 
   // tag_out[TAG_WIDTH]: line valid flag
-  assign hit = tag_out[TAG_WIDTH] & (tag_out[TAG_WIDTH-1:0] == req_tag_buf);
+  wire valid = tag_out[TAG_WIDTH];
+  wire [TAG_WIDTH-1:0] tag = tag_out[TAG_WIDTH-1:0];
+  assign hit = valid & (tag == req_tag);
   assign data = data_out;
 
   wire _unused = &{1'b0,

@@ -10,6 +10,8 @@ double sc_time_stamp() { // Called by $time in Verilog
   return main_time;
 }
 
+uint32_t access_pattern[] = {0, 4, 8, 12, 0, 4, 8, 12, 16, 0, 4, 20, 16, 24, 8, 12};
+
 void axi_memory(Vi_cache *top) {
   static uint32_t addr = 0;
   static uint8_t mem[0x1000];
@@ -20,7 +22,10 @@ void axi_memory(Vi_cache *top) {
 
   if (is_first) {
     for (int i = 0; i < 0x1000; i++) {
-      mem[i] = i % 16;
+      if (i % 4 == 0)
+        mem[i] = i >> 2;
+      else
+        mem[i] = 0;
     }
     is_first = false;
   }
@@ -73,7 +78,6 @@ void copy_input_data(Vi_cache *src, Vi_cache *dest) {
   dest->reset = src->reset;
   dest->clk = src->clk;
   dest->addr = src->addr;
-  dest->addr_valid = src->addr_valid;
 
   dest->axi_aclk = src->axi_aclk;
   dest->axi_areset = src->axi_areset;
@@ -109,17 +113,30 @@ void do_posedge(Vi_cache *top, void (*func)(Vi_cache *)) {
   copy_input_data(tmp, top);
 }
 
+void do_negedge(Vi_cache *top, void (*func)(Vi_cache *)) {
+  Vi_cache *tmp = new Vi_cache;
+  copy_input_data(top, tmp);
+  copy_output_data(top, tmp);
+
+  func(tmp);
+
+  top->clk = 0;
+  top->axi_aclk = 0;
+
+  top->eval();
+  
+  copy_input_data(tmp, top);
+}
+
 void processing(Vi_cache *top) {
   static int state_count = 0;
   if (!top->reset) {
-    axi_memory(top);
-
-    top->addr = state_count;
-    top->addr_valid = 1;
-
     if (top->data_ready) {
-      state_count = (state_count + 4) % 16;
+      state_count = (state_count + 1) % 16;
+      std::cout << "data: " << top->addr << " = " << top->data << std::endl;
     }
+    top->addr = access_pattern[state_count];
+
   }
 }
 
@@ -141,7 +158,6 @@ int main(int argc, char **argv) {
   top->clk = 0;
   top->reset = 1;
   top->addr = 0;
-  top->addr_valid = 0;
 
   top->axi_aclk = 0;
   top->axi_areset = 0;
@@ -163,8 +179,15 @@ int main(int argc, char **argv) {
 
       top->clk = !top->clk;
       top->axi_aclk = !top->axi_aclk;
-      if (top->data_ready)
-        std::cout << "data: " << top->addr << " = " << top->data << std::endl;
+    }
+    if (negedge(top)) {
+      top->clk = !top->clk;
+      top->axi_aclk = !top->axi_aclk;
+
+      do_negedge(top, axi_memory);
+
+      top->clk = !top->clk;
+      top->axi_aclk = !top->axi_aclk;
     }
 
     // top->clk = !top->clk;
@@ -177,7 +200,7 @@ int main(int argc, char **argv) {
 
     main_time++;
     top->reset = main_time < 10;
-    if (main_time > 1000)
+    if (main_time > 2000)
       break;
   }
 

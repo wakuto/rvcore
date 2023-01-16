@@ -6,7 +6,6 @@ module i_cache (
   input  logic        clk,
   input  logic [31:0] addr,
   output logic [31:0] data,
-  input  logic        addr_valid,
   output logic        data_ready,
 
   // memory側 axi4 lite(read)
@@ -24,73 +23,71 @@ module i_cache (
 );
   assign axi_arprot = 3'b101; // instruction & secure & privileged
 
-  enum logic [1:0] {WAIT, TAG_COMP, ADDR_REQ, DATA_RECV} state;
-  logic hit, cache_hit;
-  logic [31:0] prev_addr;
-  assign cache_hit = hit & (state == WAIT) & (addr == prev_addr);
-
-  logic [31:0] cache_dout;
+  logic hit;
+  logic [31:0] cache_data;
   direct_map direct_map (
     .clk(~clk),
     .req_addr(addr),
     .hit,
-    .data(cache_dout),
+    .data(cache_data),
 
     .write_addr(addr),
     .write_data(axi_rdata),
-    .write_valid(axi_rvalid)
+    .write_valid(axi_rready)
   );
 
-  always_ff @(posedge clk) begin
-    if (reset) begin
-      state <= WAIT;
+  enum logic [1:0] {HIT_CMP, ADDR_SEND, WAIT_DATA, END_ACCESS} _state;
+  initial begin
+    $display(HIT_CMP, ADDR_SEND, WAIT_DATA, END_ACCESS);
+  end
+
+  task hit_or_req();
+    data_ready <= hit;
+    if (hit) begin
+      _state <= HIT_CMP;
+      data <= cache_data;
     end else begin
-      prev_addr <= addr;
-      case(state)
-        WAIT: begin
-          if (addr_valid) begin
-            state <= TAG_COMP;
-            // data output
-            // cache decision
-            data <= cache_dout;
-            data_ready <= cache_hit;
-          end
+      _state <= ADDR_SEND;
+      axi_arvalid <= 1'b1;
+      axi_araddr <= addr;
+    end
+  endtask
+
+  always_ff @(negedge clk) begin
+    if (reset) begin
+      _state <= HIT_CMP;
+    end else begin
+      case(_state)
+        HIT_CMP: begin
+          hit_or_req();
         end
-        TAG_COMP: begin
-          // if (cache_hit) begin // hit
-          if (data_ready) begin // hit
-            state <= WAIT;
-            data_ready <= 1'b0;
-          end else begin // miss
-            state <= ADDR_REQ;
-            // addr request
-            data_ready <= 1'b0;
-            axi_arvalid <= 1'b1;
-            axi_araddr <= addr;
-          end
-        end
-        ADDR_REQ: begin
-          if (axi_arvalid & axi_arready) begin
+        ADDR_SEND: begin
+          if (axi_arready) begin
+            _state <= WAIT_DATA;
             axi_arvalid <= 1'b0;
           end
-          // raise data_ready
+        end
+        WAIT_DATA: begin
           if (axi_rvalid) begin
-            state <= DATA_RECV;
+            _state <= END_ACCESS;
             axi_rready <= 1'b1;
             data_ready <= 1'b1;
             data <= axi_rdata;
-            // store data to cache
           end
         end
-        DATA_RECV: begin
-          state <= WAIT;
+        END_ACCESS: begin
           axi_rready <= 1'b0;
-          data_ready <= 1'b0;
-          data <= 32'b0;
+          hit_or_req();
+        end
+        default: begin
+          _state <= _state;
         end
       endcase
     end
   end
+
+
+
 
   wire _unused = &{1'b0,
                    axi_aclk,

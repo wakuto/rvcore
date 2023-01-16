@@ -12,13 +12,25 @@ module bram #(
 );
   parameter ADDR_WIDTH = $clog2((CAPACITY << 3)/DATA_WIDTH);
 
+  initial begin 
+    int i = 0;
+    for (i = 0; i < 1 << ADDR_WIDTH; i = i + 1) begin
+      ram[i] = 0;
+    end
+  end
+
   (* ram_style = "block" *)
   logic [DATA_WIDTH-1:0] ram [(1 << ADDR_WIDTH)-1:0];
 
+  logic [ADDR_WIDTH-1:0] addr_buf;
   always_ff @(posedge clk) begin
-    if (wen) ram[addr] <= din;
-    dout <= ram[addr];
+    if (wen) ram[addr_buf] <= din;
+    addr_buf <= addr;
+    // dout <= ram[addr];
   end
+
+  // yabasou…
+  assign dout = ram[addr];
 endmodule
 
 `default_nettype wire
