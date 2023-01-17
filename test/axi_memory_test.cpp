@@ -84,10 +84,62 @@ void do_negedge(Vaxi_memory *top, void (*func)(Vaxi_memory *)) {
   copy_input_data(tmp, top);
 }
 
+enum {
+} write_state;
+
 void processing(Vaxi_memory *top) {
   static int state_count = 0;
+  uint32_t bresp, rresp;
+  static bool reading = false;
+  static bool writing = false;
   if (!top->areset) {
+    // write state
+    if (state_count < 100) {
+      if (!writing && !top->bready && !top->bvalid) {
+        top->awaddr = state_count % 100;
+        top->awvalid = 1;
+        top->wdata = state_count+1;
+        top->wstrb = 0xFF;
+        top->wvalid = 1;
 
+        top->bready = 1;
+        writing = true;
+      }
+      if (top->bvalid && top->bready) {
+        bresp = top->bresp;
+        top->bready = 0;
+        writing = false;
+        state_count = (state_count+1) % 200;
+      }
+      if (top->wvalid && top->wready) {
+        top->wvalid = 0;
+      }
+      if (top->awvalid && top->awready) {
+        top->awvalid = 0;
+      }
+    }
+    // read state
+    else {
+      if (!reading && !(top->arvalid || top->arready || top->rvalid || top->rready)) {
+        top->araddr = state_count % 100;
+        top->arprot = 0x0;
+        top->arvalid = 1;
+        reading = true;
+      }
+      if (top->arvalid && top->arready) {
+        top->arvalid = 0;
+      }
+
+      if (top->rvalid && top->rready) {
+        top->rready = 0;
+        reading = false;
+        std::cout << "data[" << top->araddr << "]: " << top->rdata << std::endl;
+        state_count = (state_count+1) % 200;
+      } else if(top->rvalid) {
+        top->rready = 1;
+        rresp = top->rresp;
+      }
+    }
   }
 }
 
@@ -110,7 +162,7 @@ int main(int argc, char **argv) {
 
   // 読み出し用ポート
   top->aclk = 0;
-  top->areset = 0;
+  top->areset = 1;
   top->arvalid = 0;
   top->araddr = 0;
   top->arprot = 0;
@@ -138,25 +190,13 @@ int main(int argc, char **argv) {
 
       top->aclk = !top->aclk;
     }
-    if (negedge(top)) {
-      top->aclk = !top->aclk;
 
-      // do_negedge(top, memory);
-
-      top->aclk = !top->aclk;
-    }
-
-    // top->clk = !top->clk;
-    // top->axi_aclk = !top->axi_aclk;
-    // top->eval();
-    // top->clk = !top->clk;
-    // top->axi_aclk = !top->axi_aclk;
     top->eval();
     tfp->dump(main_time);
 
     main_time++;
     top->areset = main_time < 10;
-    if (main_time > 2000)
+    if (main_time > 4000)
       break;
   }
 

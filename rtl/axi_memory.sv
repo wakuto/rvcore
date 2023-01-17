@@ -49,10 +49,11 @@ module axi_memory(
   logic [31:0] addr;
   logic addr_ready_flag;
 
+  parameter MEM_DELAY = 5;
+
   always_comb begin
     // set default value
     next_arready = 1'b0;
-    next_rvalid = 1'b0;
 
     if (arvalid & arready) begin
       next_arready = 1'b0;
@@ -60,7 +61,7 @@ module axi_memory(
       next_arready = 1'b1;
     end
 
-    if (counter >= 30) begin
+    if (counter >= MEM_DELAY) begin
       next_rvalid = 1'b1;
     end else begin
       next_rvalid = 1'b0;
@@ -74,7 +75,6 @@ module axi_memory(
       addr <= 32'b0;
       rdata <= 32'b0;
     end else begin
-      rvalid <= next_rvalid;
       arready <= next_arready;
 
       if (arvalid) begin
@@ -94,18 +94,24 @@ module axi_memory(
       if (rvalid & rready) begin
         addr_ready_flag <= 1'b0;
         counter <= 32'd0;
+        rvalid <= 1'b0;
+      end else begin
+        rvalid <= next_rvalid;
       end
     end
   end
 
   // 書き込み部
-  logic next_wready, next_awready, next_bvalid;
+  logic next_wready, next_awready;
+  logic [31:0] wcounter;
+  logic [31:0] write_addr;
+  logic [31:0] write_data;
+  logic waddr_ready, wdata_ready;
 
   always_comb begin
     // set default value
     next_awready = 1'b0;
     next_wready = 1'b0;
-    next_bvalid = 1'b0;
 
     if (awvalid & awready) begin
       next_awready = 1'b0;
@@ -115,17 +121,11 @@ module axi_memory(
 
     if (wvalid & wready) begin
       next_wready = 1'b0;
-      next_bvalid = 1'b0;
     end else if (wvalid) begin
       next_wready = 1'b1;
     end
-
-    if (bvalid & bready) begin
-      next_bvalid = 1'b0;
-    end
   end
 
-  logic [31:0] write_addr;
   always_ff @(posedge aclk) begin
     if (areset) begin
       awready <= 1'b0;
@@ -134,14 +134,30 @@ module axi_memory(
     end else begin
       awready <= next_awready;
       wready <= next_wready;
-      bvalid <= next_bvalid;
 
-      if (awvalid) begin
+      if (awvalid & awready) begin
         write_addr <= awaddr;
+        waddr_ready <= 1'b1;
+      end
+      if (wvalid & wready) begin
+        write_data <= wdata;
+        wdata_ready <= 1'b1;
       end
 
-      if (wvalid) begin
-        memory[write_addr] <= wdata;
+      if (wdata_ready & waddr_ready) begin
+        wcounter <= wcounter + 32'd1;
+      end
+
+      if (wcounter >= MEM_DELAY) begin
+        memory[write_addr] <= write_data;
+        bvalid <= 1'b1;
+      end
+
+      if (bvalid & bready) begin
+        wdata_ready <= 1'b0;
+        waddr_ready <= 1'b0;
+        bvalid <= 1'b0;
+        wcounter <= 32'd0;
       end
     end
   end
