@@ -24,6 +24,11 @@ direct_map_test:
 	make -C ../obj_dir -f Vdirect_map.mk
 	../obj_dir/Vdirect_map
 
+axi_memory_test:
+	verilator -cc ./axi_memory.sv -exe ../test/axi_memory_test.cpp $(FLAGS)
+	make -C ../obj_dir -f Vaxi_memory.mk
+	../obj_dir/Vaxi_memory
+
 program.bin:
 	make -C ../sample_src
 

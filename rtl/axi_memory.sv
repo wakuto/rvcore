@@ -13,7 +13,7 @@ module axi_memory(
   output logic        rvalid,
   input  logic        rready,
   output logic [31:0] rdata,
-  output logic [1:0]  rresp
+  output logic [1:0]  rresp,
 
   // 書き込み用ポート
   input  logic [31:0] awaddr,
@@ -28,28 +28,32 @@ module axi_memory(
 
   output logic [1:0]  bresp,
   output logic        bvalid,
-  input  logic        bready,
+  input  logic        bready
 );
   assign rresp = 2'b00; // OK
+  assign bresp = 2'b00;
 
   logic [31:0] memory[4095:0];
 
   logic [31:0] counter;
   
   initial begin
-    counter <= 0;
-    int i = 0;
-    for (i = 0; i < 4096; i++) begin
+    counter = 32'd0;
+    for (int i = 0; i < 4096; i++) begin
       memory[i] = 0;
     end
   end
 
   // 読み出し部
   logic next_arready, next_rvalid;
-  logic [31:0] next_rdata;
   logic [31:0] addr;
+  logic addr_ready_flag;
 
   always_comb begin
+    // set default value
+    next_arready = 1'b0;
+    next_rvalid = 1'b0;
+
     if (arvalid & arready) begin
       next_arready = 1'b0;
     end else if (arvalid) begin
@@ -58,9 +62,7 @@ module axi_memory(
 
     if (counter >= 30) begin
       next_rvalid = 1'b1;
-    end
-
-    if (rvalid & rready) begin
+    end else begin
       next_rvalid = 1'b0;
     end
   end
@@ -81,12 +83,76 @@ module axi_memory(
       if (next_rvalid) begin
         rdata <= memory[addr];
       end
+
+      // レイテンシ再現
+      if (arvalid) begin
+        addr_ready_flag <= 1'b1;
+      end
+      if (addr_ready_flag) begin
+        counter <= counter + 32'd1;
+      end
+      if (rvalid & rready) begin
+        addr_ready_flag <= 1'b0;
+        counter <= 32'd0;
+      end
     end
   end
 
   // 書き込み部
   logic next_wready, next_awready, next_bvalid;
-  logic [1:0]  next_bresp;
+
+  always_comb begin
+    // set default value
+    next_awready = 1'b0;
+    next_wready = 1'b0;
+    next_bvalid = 1'b0;
+
+    if (awvalid & awready) begin
+      next_awready = 1'b0;
+    end else if (awvalid) begin
+      next_awready = 1'b1;
+    end
+
+    if (wvalid & wready) begin
+      next_wready = 1'b0;
+      next_bvalid = 1'b0;
+    end else if (wvalid) begin
+      next_wready = 1'b1;
+    end
+
+    if (bvalid & bready) begin
+      next_bvalid = 1'b0;
+    end
+  end
+
+  logic [31:0] write_addr;
+  always_ff @(posedge aclk) begin
+    if (areset) begin
+      awready <= 1'b0;
+      wready <= 1'b0;
+      bvalid <= 1'b0;
+    end else begin
+      awready <= next_awready;
+      wready <= next_wready;
+      bvalid <= next_bvalid;
+
+      if (awvalid) begin
+        write_addr <= awaddr;
+      end
+
+      if (wvalid) begin
+        memory[write_addr] <= wdata;
+      end
+    end
+  end
+
+  wire _unused = &{1'b0,
+                   wstrb,
+                   write_addr,
+                   addr,
+                   arprot,
+                   awprot,
+                   1'b0};
 endmodule
 `default_nettype wire
 /* @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ */
