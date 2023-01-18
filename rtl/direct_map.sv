@@ -7,11 +7,14 @@ module direct_map #(
   input  logic        clk,
   input  logic [31:0] req_addr,
   output logic        hit,
+  output logic        dirty,
   output logic [31:0] data,
 
   input  logic [31:0] write_addr,
   input  logic [31:0] write_data,
-  input  logic        write_valid
+  input  logic        write_valid,
+  // 書き込みアクセスの場合アサート
+  input  logic        write_access
 );
   parameter LINE_NUM = CACHE_SIZE/LINE_SIZE;
   parameter LINE_OFFSET_WIDTH = $clog2(LINE_SIZE);
@@ -43,7 +46,7 @@ module direct_map #(
     .dout(data_out)
   );
 
-  // ホントの容量は(TAG_WIDTH+1)*LINE_NUM bit だけど、
+  // ホントの容量は(TAG_WIDTH+2)*LINE_NUM bit だけど、
   // XLEN*LINE_NUM bit にしちゃおう
   logic [31:0] tag_out;
 
@@ -54,11 +57,13 @@ module direct_map #(
     .clk(clk),
     .addr(write_valid ? write_set_addr : req_set_addr),
     .wen(write_valid),
-    .din(32'({1'b1, write_tag})),
+    .din(32'({write_access, 1'b1, write_tag})),
     .dout(tag_out)
   );
 
-  // tag_out[TAG_WIDTH]: line valid flag
+  // tag_out[TAG_WIDTH]  : line valid flag
+  // tag_out[TAG_WIDTH+1]: dirty flag
+  assign dirty = tag_out[TAG_WIDTH+1];
   wire valid = tag_out[TAG_WIDTH];
   wire [TAG_WIDTH-1:0] tag = tag_out[TAG_WIDTH-1:0];
   assign hit = valid & (tag == req_tag);

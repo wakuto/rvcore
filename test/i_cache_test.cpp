@@ -23,7 +23,7 @@ void axi_memory(Vi_cache *top) {
   if (is_first) {
     for (int i = 0; i < 0x1000; i++) {
       if (i % 4 == 0)
-        mem[i] = i >> 2;
+        mem[i] = i;
       else
         mem[i] = 0;
     }

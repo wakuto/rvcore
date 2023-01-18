@@ -23,7 +23,7 @@ module i_cache (
 );
   assign axi_arprot = 3'b101; // instruction & secure & privileged
 
-  logic hit;
+  logic hit, dirty;
   logic [31:0] cache_data;
   direct_map direct_map (
     .clk(~clk),
@@ -33,7 +33,9 @@ module i_cache (
 
     .write_addr(addr),
     .write_data(axi_rdata),
-    .write_valid(axi_rready)
+    .write_valid(axi_rready),
+    .write_access(1'b0),
+    .dirty
   );
 
   enum logic [1:0] {HIT_CMP, ADDR_SEND, WAIT_DATA, END_ACCESS} _state;
@@ -90,6 +92,7 @@ module i_cache (
 
 
   wire _unused = &{1'b0,
+                   dirty,
                    axi_aclk,
                    axi_areset,
                    axi_rresp,
