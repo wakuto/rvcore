@@ -19,6 +19,11 @@ i_cache_test:
 	make -C ../obj_dir -f Vi_cache.mk
 	../obj_dir/Vi_cache
 
+d_cache_test:
+	verilator -cc ./d_cache.sv ./direct_map.sv ./bram.sv -exe ../test/d_cache_test.cpp $(FLAGS)
+	make -C ../obj_dir -f Vd_cache.mk
+	../obj_dir/Vd_cache
+
 direct_map_test:
 	verilator -cc ./direct_map.sv ./bram.sv -exe ../test/direct_map_test.cpp $(FLAGS)
 	make -C ../obj_dir -f Vdirect_map.mk

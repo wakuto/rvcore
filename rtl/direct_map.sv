@@ -5,12 +5,11 @@ module direct_map #(
   parameter CACHE_SIZE = 1024
 )(
   input  logic        clk,
-  input  logic [31:0] req_addr,
+  input  logic [31:0] addr,
   output logic        hit,
   output logic        dirty,
   output logic [31:0] data,
 
-  input  logic [31:0] write_addr,
   input  logic [31:0] write_data,
   input  logic        write_valid,
   // 書き込みアクセスの場合アサート
@@ -21,17 +20,13 @@ module direct_map #(
   parameter SET_ADDR_WIDTH = $clog2(LINE_NUM);
   parameter TAG_WIDTH = 32 - SET_ADDR_WIDTH - LINE_OFFSET_WIDTH;
 
-  logic [LINE_OFFSET_WIDTH-1:0] req_line_offset, write_line_offset;
-  logic [SET_ADDR_WIDTH-1:0]    req_set_addr, write_set_addr;
-  logic [TAG_WIDTH-1:0]    req_tag, write_tag;
+  logic [LINE_OFFSET_WIDTH-1:0] line_offset;
+  logic [SET_ADDR_WIDTH-1:0]    set_addr;
+  logic [TAG_WIDTH-1:0]    tag;
 
-  assign req_line_offset = req_addr[0 +: LINE_OFFSET_WIDTH];
-  assign req_set_addr    = req_addr[LINE_OFFSET_WIDTH +: SET_ADDR_WIDTH];
-  assign req_tag         = req_addr[LINE_OFFSET_WIDTH + SET_ADDR_WIDTH +: TAG_WIDTH];
-
-  assign write_line_offset = write_addr[0 +: LINE_OFFSET_WIDTH];
-  assign write_set_addr    = write_addr[LINE_OFFSET_WIDTH +: SET_ADDR_WIDTH];
-  assign write_tag         = write_addr[LINE_OFFSET_WIDTH + SET_ADDR_WIDTH +: TAG_WIDTH];
+  assign line_offset = addr[0 +: LINE_OFFSET_WIDTH];
+  assign set_addr    = addr[LINE_OFFSET_WIDTH +: SET_ADDR_WIDTH];
+  assign tag         = addr[LINE_OFFSET_WIDTH + SET_ADDR_WIDTH +: TAG_WIDTH];
 
   logic [(LINE_SIZE << 3)-1:0] data_out;
 
@@ -40,7 +35,7 @@ module direct_map #(
     .CAPACITY(CACHE_SIZE)
   ) cached_data (
     .clk(clk),
-    .addr(write_valid ? write_set_addr : req_set_addr),
+    .addr(set_addr),
     .wen(write_valid),
     .din(write_data),
     .dout(data_out)
@@ -55,9 +50,9 @@ module direct_map #(
     .CAPACITY(LINE_NUM*4)
   ) valid_and_tag (
     .clk(clk),
-    .addr(write_valid ? write_set_addr : req_set_addr),
+    .addr(set_addr),
     .wen(write_valid),
-    .din(32'({write_access, 1'b1, write_tag})),
+    .din(32'({write_access, 1'b1, tag})),
     .dout(tag_out)
   );
 
@@ -65,13 +60,11 @@ module direct_map #(
   // tag_out[TAG_WIDTH+1]: dirty flag
   assign dirty = tag_out[TAG_WIDTH+1];
   wire valid = tag_out[TAG_WIDTH];
-  wire [TAG_WIDTH-1:0] tag = tag_out[TAG_WIDTH-1:0];
-  assign hit = valid & (tag == req_tag);
+  assign hit = valid & (tag_out[TAG_WIDTH-1:0] == tag);
   assign data = data_out;
 
   wire _unused = &{1'b0,
-                   req_line_offset,
-                   write_line_offset,
+                   line_offset,
                    1'b0};
 endmodule
 `default_nettype wire

@@ -27,11 +27,10 @@ module i_cache (
   logic [31:0] cache_data;
   direct_map direct_map (
     .clk(~clk),
-    .req_addr(addr),
+    .addr(addr),
     .hit,
     .data(cache_data),
 
-    .write_addr(addr),
     .write_data(axi_rdata),
     .write_valid(axi_rready),
     .write_access(1'b0),

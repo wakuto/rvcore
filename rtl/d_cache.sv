@@ -7,8 +7,10 @@ module d_cache (
   input  logic        clk,
   input  logic [31:0] addr,
   input  logic        mem_wen,
-  output logic [31:0] data,
-  output logic        data_valid,
+  output logic [31:0] data_out,
+  output logic        data_read_valid,
+  input  logic [31:0] data_in,
+  output logic        data_write_ready,
 
   // memory側 axi4 lite
   // 読み出し用ポート
@@ -45,6 +47,19 @@ module d_cache (
   logic hit, read, dirty, cache_wen;
   assign read = !mem_wen;
 
+  direct_map direct_map (
+  .clk,
+  .addr,
+  .hit,
+  .dirty,
+  .data,
+
+  .write_data(mem_wen ? data_in : rdata),
+  .write_valid(cache_wen),
+  // 書き込みアクセスの場合アサート
+  .write_access(mem_wen)
+  );
+
   always_comb begin
     cache_wen = 1'b0;
 
@@ -52,6 +67,8 @@ module d_cache (
       cache_wen = 1'b1;
     end else if (state == SEND_DATA & awready & wready) begin
       cache_wen = mem_wen;
+    end else if (state == END_ACCESS & hit & read) begin
+      cache_wen = 1'b1;
     end
   end
 
@@ -59,26 +76,39 @@ module d_cache (
   always_ff @(negedge clk) begin
     if (!reset) begin
       state <= HIT_CMP;
-      data_valid <= 1'b0;
+      data_read_valid <= 1'b0;
+      data_write_ready <= 1'b0;
     end else begin
+      if (cache_wen) begin
+        data_write_ready <= 1'b1;
+      end else begin
+        data_write_ready <= 1'b0;
+      end
       case(state) begin
         HIT_CMP: begin
+          // READ
+          // hit
           if (hit & read) begin
             state <= HIT_CMP;
-            data_valid <= 1'b1;
+            data_read_valid <= 1'b1;
+          // miss
           end else if (!hit & read & !dirty) begin
             state <= SEND_ADDR;
-            data_valid <= 1'b0;
+            data_read_valid <= 1'b0;
             arvalid <= 1'b1;
+          // WRITE
+          // hit
           end else if (!read & (hit | !dirty)) begin
             state <= HIT_CMP;
-            data_valid <= 1'b0;
+            data_read_valid <= 1'b0;
+          // miss (write back)
           end else if (!hit & dirty) begin
             state <= SEND_DATA;
-            data_valid <= 1'b0;
+            data_read_valid <= 1'b0;
             awvalid <= 1'b1;
             wvalid <= 1'b1;
             bready <= 1'b1;
+            awaddr <= 
           end
         end
         SEND_ADDR: begin
@@ -90,7 +120,7 @@ module d_cache (
         WAIT_DATA: begin
           if (rvalid) begin
             state <= END_ACCESS;
-            rready <= 1;
+            rready <= 1'b1;
           end
         end
         END_ACCESS: begin
