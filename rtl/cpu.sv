@@ -3,28 +3,28 @@
 `include "./common.sv"
 
 module cpu (
-    input wire logic clock,
-    input wire logic reset,
+    input wire logic        clock,
+    input wire logic        reset,
 
     // instruction data
-    output logic [31:0] pc,
+    output     logic [31:0] pc,
     input wire logic [31:0] instruction,
 
     // memory data
-    output logic [31:0] address,
+    output     logic [31:0] address,
     input wire logic [31:0] read_data,
-    output logic read_enable,     // データを読むときにアサート
-    input wire logic read_valid,  // メモリ出力の有効フラグ
-    output logic [31:0] write_data,
-    output logic write_enable,    // データを書くときにアサート->request signal
-    output logic [1:0] write_wstrb,  // 書き込むデータの幅
+    output     logic        read_enable,     // データを読むときにアサート
+    input wire logic        read_valid,  // メモリ出力の有効フラグ
+    output     logic [31:0] write_data,
+    output     logic        write_enable,    // データを書くときにアサート->request signal
+    output     logic [1:0]  write_wstrb,  // 書き込むデータの幅
 
-    output logic debug_ebreak,
-    output logic [31:0] debug_reg[0:31],
-    output logic illegal_instr,
-    input logic timer_int,
-    input logic soft_int,
-    input logic ext_int
+    output     logic        debug_ebreak,
+    output     logic [31:0] debug_reg[0:31],
+    output     logic        illegal_instr,
+    input      logic        timer_int,
+    input      logic        soft_int,
+    input      logic        ext_int
 );
   // regfile
   logic [31:0] reg_pc;
