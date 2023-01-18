@@ -10,6 +10,7 @@ module d_cache (
   output logic [31:0] data_out,
   output logic        data_read_valid,
   input  logic [31:0] data_in,
+  input  logic [3:0]  data_in_strb,
   output logic        data_write_ready,
 
   // memory側 axi4 lite
@@ -41,21 +42,31 @@ module d_cache (
   input  logic        bvalid,
   output logic        bready
 );
+  // data & secure & unprivileged
+  assign arprot = 3'b000;
+  assign awprot = 3'b000;
 
   enum logic [2:0] {HIT_CMP, SEND_ADDR, WAIT_DATA, END_ACCESS, SEND_DATA, WAIT_WRITING} state;
 
+  initial begin
+    $display(HIT_CMP, SEND_ADDR, WAIT_DATA, END_ACCESS, SEND_DATA, WAIT_WRITING);
+  end
+
   logic hit, read, dirty, cache_wen;
   assign read = !mem_wen;
+  logic [31:0] invalidate_addr;
 
   direct_map direct_map (
-  .clk,
+  .clk(~clk),
   .addr,
   .hit,
   .dirty,
-  .data,
+  .data(data_out),
 
   .write_data(mem_wen ? data_in : rdata),
+  .write_strb(data_in_strb),
   .write_valid(cache_wen),
+  .invalidate_addr,
   // 書き込みアクセスの場合アサート
   .write_access(mem_wen)
   );
@@ -74,7 +85,7 @@ module d_cache (
 
   // state machine
   always_ff @(negedge clk) begin
-    if (!reset) begin
+    if (reset) begin
       state <= HIT_CMP;
       data_read_valid <= 1'b0;
       data_write_ready <= 1'b0;
@@ -84,7 +95,7 @@ module d_cache (
       end else begin
         data_write_ready <= 1'b0;
       end
-      case(state) begin
+      case(state)
         HIT_CMP: begin
           // READ
           // hit
@@ -96,6 +107,7 @@ module d_cache (
             state <= SEND_ADDR;
             data_read_valid <= 1'b0;
             arvalid <= 1'b1;
+            araddr <= addr;
           // WRITE
           // hit
           end else if (!read & (hit | !dirty)) begin
@@ -107,8 +119,9 @@ module d_cache (
             data_read_valid <= 1'b0;
             awvalid <= 1'b1;
             wvalid <= 1'b1;
-            bready <= 1'b1;
-            awaddr <= 
+            awaddr <= invalidate_addr;
+            wdata <= data_in;
+            wstrb <= data_in_strb;
           end
         end
         SEND_ADDR: begin
@@ -127,7 +140,7 @@ module d_cache (
           if (hit & read) begin
             state <= HIT_CMP;
             rready <= 1'b0;
-            data_valid <= 1'b1;
+            data_read_valid <= 1'b1;
           end
         end
         SEND_DATA: begin
@@ -149,10 +162,20 @@ module d_cache (
           end
         end
         default: begin
+          state <= HIT_CMP;
         end
-      end
+      endcase
     end
   end
+
+  wire _unused = &{
+    1'b0,
+    aclk,
+    areset,
+    rresp,
+    bresp,
+    1'b0
+  };
 
 endmodule
 

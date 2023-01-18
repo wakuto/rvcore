@@ -15,14 +15,14 @@ fifo_test:
 	../obj_dir/Vfifo
 
 i_cache_test:
-	verilator -cc ./i_cache.sv ./direct_map.sv ./bram.sv -exe ../test/i_cache_test.cpp $(FLAGS)
-	make -C ../obj_dir -f Vi_cache.mk
-	../obj_dir/Vi_cache
+	verilator -cc ./i_cache_with_memory.sv ./axi_memory.sv ./i_cache.sv ./direct_map.sv ./bram.sv -exe ../test/i_cache_test.cpp $(FLAGS)
+	make -C ../obj_dir -f Vi_cache_with_memory.mk
+	../obj_dir/Vi_cache_with_memory
 
 d_cache_test:
-	verilator -cc ./d_cache.sv ./direct_map.sv ./bram.sv -exe ../test/d_cache_test.cpp $(FLAGS)
-	make -C ../obj_dir -f Vd_cache.mk
-	../obj_dir/Vd_cache
+	verilator -cc ./d_cache_with_memory.sv ./axi_memory.sv ./d_cache.sv ./direct_map.sv ./bram.sv -exe ../test/d_cache_test.cpp $(FLAGS)
+	make -C ../obj_dir -f Vd_cache_with_memory.mk
+	../obj_dir/Vd_cache_with_memory
 
 direct_map_test:
 	verilator -cc ./direct_map.sv ./bram.sv -exe ../test/direct_map_test.cpp $(FLAGS)

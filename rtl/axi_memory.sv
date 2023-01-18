@@ -39,8 +39,8 @@ module axi_memory(
   
   initial begin
     counter = 32'd0;
-    for (int i = 0; i < 4096; i++) begin
-      memory[i] = 0;
+    for (int i = 0; i < 4096; i = i + 1) begin
+      memory[i] = i;
     end
   end
 

@@ -11,7 +11,9 @@ module direct_map #(
   output logic [31:0] data,
 
   input  logic [31:0] write_data,
+  input  logic [3:0]  write_strb,
   input  logic        write_valid,
+  output logic [31:0] invalidate_addr,
   // 書き込みアクセスの場合アサート
   input  logic        write_access
 );
@@ -29,15 +31,22 @@ module direct_map #(
   assign tag         = addr[LINE_OFFSET_WIDTH + SET_ADDR_WIDTH +: TAG_WIDTH];
 
   logic [(LINE_SIZE << 3)-1:0] data_out;
+  logic [31:0] write_mask;
+
+  always_comb begin
+    for (int i = 0; i < 4; i = i + 1) begin
+      write_mask[(i << 3) +: 8] = {8{write_strb[i]}};
+    end
+  end
 
   bram #(
     .DATA_WIDTH(LINE_SIZE << 3),
     .CAPACITY(CACHE_SIZE)
   ) cached_data (
-    .clk(clk),
+    .clk,
     .addr(set_addr),
     .wen(write_valid),
-    .din(write_data),
+    .din(write_access ? (data_out & write_mask) | (write_data & ~write_mask) : write_data),
     .dout(data_out)
   );
 
@@ -49,7 +58,7 @@ module direct_map #(
     .DATA_WIDTH(32),
     .CAPACITY(LINE_NUM*4)
   ) valid_and_tag (
-    .clk(clk),
+    .clk,
     .addr(set_addr),
     .wen(write_valid),
     .din(32'({write_access, 1'b1, tag})),
@@ -62,6 +71,7 @@ module direct_map #(
   wire valid = tag_out[TAG_WIDTH];
   assign hit = valid & (tag_out[TAG_WIDTH-1:0] == tag);
   assign data = data_out;
+  assign invalidate_addr = {tag_out[TAG_WIDTH-1:0], set_addr, line_offset};
 
   wire _unused = &{1'b0,
                    line_offset,
