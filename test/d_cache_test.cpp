@@ -1,6 +1,7 @@
 #include "../obj_dir/Vd_cache_with_memory.h"
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <verilated.h>       // Defines common routines
 #include <verilated_vcd_c.h> // VCD output
                              //
@@ -12,7 +13,8 @@ double sc_time_stamp() { // Called by $time in Verilog
 
 // ↓のアクセスパターンで書き込み→読み込みの順番でテスト
 // 書き込むデータは書き込み回数
-uint32_t access_pattern[] = {0, 4, 8, 12, 0, 4, 8, 12, 16, 0, 4, 20, 16, 24, 8, 12};
+uint32_t access_pattern_data[] = {0, 0, 0, 1024, 1024, 0, 1, 1};
+uint32_t access_pattern_wen[]  = {1, 1, 0,    1,    0, 0, 0, 0};
 
 bool posedge(Vd_cache_with_memory *top) {
   static int prev_clk = 0;
@@ -74,33 +76,24 @@ void do_negedge(Vd_cache_with_memory *top, void (*func)(Vd_cache_with_memory *))
 void processing(Vd_cache_with_memory *top) {
   static int state_count = 0;
   static int write_count = 0;
-  static bool writing = false;
-  static bool reading = false;
   if (!top->reset) {
-    if (state_count < 16) {
-      if (!writing) {
-        writing = true;
-        top->addr = access_pattern[state_count];
-        top->mem_wen = 1;
-        top->data_in = write_count;
-        top->data_in_strb = 0xF;
-      }
-      if (top->data_write_ready) {
-        writing = false;
-        state_count = (state_count + 1) % 32;
-        write_count++;
-      }
-    } else {
-      if (!reading) {
-        reading = true;
-        top->addr = access_pattern[state_count % 16];
-        top->mem_wen = 0;
-      }
-      if (top->data_read_valid) {
-        std::cout << "data: " << top->addr << " = " << top->data_out << std::endl;
-        reading = false;
-        state_count = (state_count + 1) % 32;
-      }
+    // 現在の情報をもとに結果を出力
+    if (top->data_read_valid) {
+      std::cout << "read  data: " << std::setw(8) << top->addr << "\t -> " << top->data_out << std::endl;
+      state_count = (state_count + 1) % 8;
+    }
+    if (top->data_write_ready) {
+      std::cout << "write data: " << std::setw(8) << top->addr << "\t <- " << top->data_in << std::endl;
+      state_count = (state_count + 1) % 8;
+      write_count++;
+    }
+    // 次の値を計算
+
+    top->addr = access_pattern_data[state_count];
+    top->mem_wen = access_pattern_wen[state_count];
+    if (top->mem_wen) {
+      top->data_in = write_count;
+      top->data_in_strb = 0xF;
     }
   }
 }

@@ -46,7 +46,7 @@ module direct_map #(
     .clk,
     .addr(set_addr),
     .wen(write_valid),
-    .din(write_access ? (data_out & write_mask) | (write_data & ~write_mask) : write_data),
+    .din(write_access ? (data_out & ~write_mask) | (write_data & write_mask) : write_data),
     .dout(data_out)
   );
 

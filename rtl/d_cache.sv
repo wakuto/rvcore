@@ -76,8 +76,8 @@ module d_cache (
 
     if (state == HIT_CMP & !read & (hit | !dirty)) begin
       cache_wen = 1'b1;
-    end else if (state == SEND_DATA & awready & wready) begin
-      cache_wen = mem_wen;
+    end else if (state == WAIT_WRITING & bvalid) begin
+      cache_wen = 1'b1;
     end else if (state == END_ACCESS & hit & read) begin
       cache_wen = 1'b1;
     end
@@ -122,6 +122,7 @@ module d_cache (
             awaddr <= invalidate_addr;
             wdata <= data_in;
             wstrb <= data_in_strb;
+            bready <= 1'b1;
           end
         end
         SEND_ADDR: begin
