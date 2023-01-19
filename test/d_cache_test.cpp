@@ -13,8 +13,8 @@ double sc_time_stamp() { // Called by $time in Verilog
 
 // ↓のアクセスパターンで書き込み→読み込みの順番でテスト
 // 書き込むデータは書き込み回数
-uint32_t access_pattern_data[] = {0, 0, 0, 1024, 1024, 0, 1, 1};
-uint32_t access_pattern_wen[]  = {1, 1, 0,    1,    0, 0, 0, 0};
+uint32_t access_pattern_data[] = {0, 0, 0, 1024, 1024, 0, 4, 4};
+uint32_t access_pattern_wen[]  = {1, 1, 0,    1,    0, 0, 1, 0};
 
 bool posedge(Vd_cache_with_memory *top) {
   static int prev_clk = 0;
@@ -79,11 +79,11 @@ void processing(Vd_cache_with_memory *top) {
   if (!top->reset) {
     // 現在の情報をもとに結果を出力
     if (top->data_read_valid) {
-      std::cout << "read  data: " << std::setw(8) << top->addr << "\t -> " << top->data_out << std::endl;
+      std::cout << "read  data:" << std::setw(10) << top->addr << "\t -> " << top->data_out << std::endl;
       state_count = (state_count + 1) % 8;
     }
     if (top->data_write_ready) {
-      std::cout << "write data: " << std::setw(8) << top->addr << "\t <- " << top->data_in << std::endl;
+      std::cout << "write data:" << std::setw(10) << top->addr << "\t <- " << top->data_in << std::endl;
       state_count = (state_count + 1) % 8;
       write_count++;
     }

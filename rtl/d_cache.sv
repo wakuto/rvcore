@@ -78,7 +78,7 @@ module d_cache (
       cache_wen = 1'b1;
     end else if (state == WAIT_WRITING & bvalid) begin
       cache_wen = 1'b1;
-    end else if (state == END_ACCESS & hit & read) begin
+    end else if (state == END_ACCESS & read) begin
       cache_wen = 1'b1;
     end
   end
@@ -90,11 +90,6 @@ module d_cache (
       data_read_valid <= 1'b0;
       data_write_ready <= 1'b0;
     end else begin
-      if (cache_wen) begin
-        data_write_ready <= 1'b1;
-      end else begin
-        data_write_ready <= 1'b0;
-      end
       case(state)
         HIT_CMP: begin
           // READ
@@ -102,10 +97,12 @@ module d_cache (
           if (hit & read) begin
             state <= HIT_CMP;
             data_read_valid <= 1'b1;
+            data_write_ready <= 1'b0;
           // miss
           end else if (!hit & read & !dirty) begin
             state <= SEND_ADDR;
             data_read_valid <= 1'b0;
+            data_write_ready <= 1'b0;
             arvalid <= 1'b1;
             araddr <= addr;
           // WRITE
@@ -113,15 +110,18 @@ module d_cache (
           end else if (!read & (hit | !dirty)) begin
             state <= HIT_CMP;
             data_read_valid <= 1'b0;
+            data_write_ready <= 1'b1;
           // miss (write back)
           end else if (!hit & dirty) begin
             state <= SEND_DATA;
             data_read_valid <= 1'b0;
+            data_write_ready <= 1'b0;
             awvalid <= 1'b1;
             wvalid <= 1'b1;
             awaddr <= invalidate_addr;
-            wdata <= data_in;
-            wstrb <= data_in_strb;
+            // data_out: invalidate_data
+            wdata <= data_out;
+            wstrb <= 4'hF;
             bready <= 1'b1;
           end
         end
@@ -138,14 +138,16 @@ module d_cache (
           end
         end
         END_ACCESS: begin
-          if (hit & read) begin
+          //if (hit & read) begin
+            $display("AXI read:  ", araddr, "\t->", rdata);
             state <= HIT_CMP;
             rready <= 1'b0;
             data_read_valid <= 1'b1;
-          end
+          //end
         end
         SEND_DATA: begin
           if (awready & wready) begin
+            $display("AXI write: ", awaddr, "\t<-", wdata);
             state <= WAIT_WRITING;
             awvalid <= 1'b0;
             wvalid <= 1'b0;
@@ -156,6 +158,7 @@ module d_cache (
             bready <= 1'b0;
             if (!read) begin
               state <= HIT_CMP;
+              data_write_ready <= 1'b1;
             end else if (read) begin
               state <= SEND_ADDR;
               arvalid <= 1'b1;

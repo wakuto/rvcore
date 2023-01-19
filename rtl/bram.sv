@@ -22,10 +22,11 @@ module bram #(
   (* ram_style = "block" *)
   logic [DATA_WIDTH-1:0] ram [(1 << ADDR_WIDTH)-1:0];
 
-  logic [ADDR_WIDTH-1:0] addr_buf;
+  // logic [ADDR_WIDTH-1:0] addr_buf;
+  // logic wen_buf;
   always_ff @(posedge clk) begin
-    if (wen) ram[addr_buf] <= din;
-    addr_buf <= addr;
+    if (wen) ram[addr] <= din;
+    // addr_buf <= addr;
     // dout <= ram[addr];
   end
 
