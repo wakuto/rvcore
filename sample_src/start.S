@@ -4,6 +4,10 @@ _start:
   li sp, 0x3000
   sw sp, -4(sp)
   lw x10, -4(sp)
+  csrrs   x1,minstret,x0
+  csrrs   x1,minstret,x0
+  csrrs   x2,mcycle,x0
+  csrrs   x2,mcycle,x0
 #   la t0, _trap_vec
 # # interrupt enable
 #   csrrsi t1, mstatus, 0x8
@@ -15,6 +19,10 @@ _start:
 
 # jump to main()
   jal ra, main
+  csrrs   x1,minstret,x0
+  csrrs   x1,minstret,x0
+  csrrs   x2,mcycle,x0
+  csrrs   x2,mcycle,x0
 
   ebreak
 

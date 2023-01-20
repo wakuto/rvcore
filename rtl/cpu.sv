@@ -48,6 +48,7 @@ module cpu (
     .clock,
     .reset,
 
+    .stall(mem_stall | ~instr_valid),
     .csr_instr,
     .csr_addr(csr_rd),
     .csr_instr_src(alu_out),

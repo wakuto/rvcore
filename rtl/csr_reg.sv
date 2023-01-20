@@ -6,6 +6,7 @@ module csr_reg (
     input logic clock,
     input logic reset,
 
+    input logic stall,
     input logic csr_instr,
     input logic [11:0] csr_addr,
     input logic [31:0] csr_instr_src,
@@ -40,6 +41,10 @@ module csr_reg (
     CYCLE,
     CYCLEH,
     MHARTID,
+    MCYCLE,
+    MCYCLEH,
+    MINSTRET,
+    MINSTRETH,
     OTHER
   } csr_sel;
   logic [31:0] reg_csr[0:csr_sel.num()-1];
@@ -83,6 +88,10 @@ module csr_reg (
       CSR_CYCLE: csr_sel = CYCLE;
       CSR_CYCLEH: csr_sel = CYCLEH;
       CSR_MHARTID: csr_sel = MHARTID;
+      CSR_MCYCLE: csr_sel = MCYCLE;
+      CSR_MCYCLEH: csr_sel = MCYCLEH;
+      CSR_MINSTRET: csr_sel = MINSTRET;
+      CSR_MINSTRETH: csr_sel = MINSTRETH;
       default: csr_sel = OTHER;
     endcase
 
@@ -143,7 +152,11 @@ module csr_reg (
         reg_csr[MSTATUS][B_MPIE] <= 1'b0;
       end
 
+      {reg_csr[MCYCLEH], reg_csr[MCYCLE]} <= {reg_csr[MCYCLEH], reg_csr[MCYCLE]} + 64'h1;
       {reg_csr[CYCLEH], reg_csr[CYCLE]} <= {reg_csr[CYCLEH], reg_csr[CYCLE]} + 64'h1;
+      if (~stall) begin
+        {reg_csr[MINSTRETH], reg_csr[MINSTRET]} <= {reg_csr[MINSTRETH], reg_csr[MINSTRET]} + 64'h1;
+      end
 
     end
   end
