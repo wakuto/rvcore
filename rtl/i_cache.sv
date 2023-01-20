@@ -23,35 +23,40 @@ module i_cache (
 );
   assign arprot = 3'b101; // instruction & secure & privileged
 
-  logic hit, dirty;
+  logic hit, dirty, cache_wen, data_valid_sync;
   logic [31:0] cache_data;
   logic [31:0] invalidate_addr;
+
+  always_comb begin
+    cache_wen = (state == END_ACCESS);
+    data_valid = data_valid_sync & hit;
+  end
+
   direct_map direct_map (
     .clk(~clk),
     .addr(addr),
     .hit,
     .dirty,
-    .data(cache_data),
+    .data(data),
 
     .write_data(rdata),
     .write_strb(4'b1111),
-    .write_valid(rready),
+    .write_valid(cache_wen),
     .invalidate_addr,
     .write_access(1'b0)
   );
 
-  enum logic [1:0] {HIT_CMP, ADDR_SEND, WAIT_DATA, END_ACCESS} _state;
+  enum logic [1:0] {HIT_CMP, SEND_ADDR, WAIT_DATA, END_ACCESS} state;
   initial begin
-    $display(HIT_CMP, ADDR_SEND, WAIT_DATA, END_ACCESS);
+    $display(HIT_CMP, SEND_ADDR, WAIT_DATA, END_ACCESS);
   end
 
   task hit_or_req();
-    data_valid <= hit;
     if (hit) begin
-      _state <= HIT_CMP;
+      state <= HIT_CMP;
       data <= cache_data;
     end else begin
-      _state <= ADDR_SEND;
+      state <= SEND_ADDR;
       arvalid <= 1'b1;
       araddr <= addr;
     end
@@ -59,21 +64,58 @@ module i_cache (
 
   always_ff @(negedge clk) begin
     if (reset) begin
-      _state <= HIT_CMP;
+      state <= HIT_CMP;
+      data_valid_sync <= 1'b0;
     end else begin
-      case(_state)
+      case(state)
         HIT_CMP: begin
-          hit_or_req();
+          // READ
+          // hit
+          if (hit) begin
+            state <= HIT_CMP;
+            data_valid_sync <= 1'b1;
+          // miss
+          end else begin
+            state <= SEND_ADDR;
+            data_valid_sync <= 1'b0;
+            arvalid <= 1'b1;
+            araddr <= addr;
+          end
         end
-        ADDR_SEND: begin
+        SEND_ADDR: begin
           if (arready) begin
-            _state <= WAIT_DATA;
+            state <= WAIT_DATA;
             arvalid <= 1'b0;
           end
         end
         WAIT_DATA: begin
           if (rvalid) begin
-            _state <= END_ACCESS;
+            state <= END_ACCESS;
+            rready <= 1'b1;
+          end
+        end
+        END_ACCESS: begin
+          //if (hit & read) begin
+            // $display("AXI read:  ", araddr, "\t->", rdata);
+            state <= HIT_CMP;
+            rready <= 1'b0;
+            data_valid_sync <= 1'b1;
+          //end
+        end
+        /*
+        HIT_CMP: begin
+          data_valid <= hit;
+          hit_or_req();
+        end
+        SEND_ADDR: begin
+          if (arready) begin
+            state <= WAIT_DATA;
+            arvalid <= 1'b0;
+          end
+        end
+        WAIT_DATA: begin
+          if (rvalid) begin
+            state <= END_ACCESS;
             rready <= 1'b1;
             data_valid <= 1'b1;
             data <= rdata;
@@ -81,10 +123,13 @@ module i_cache (
         end
         END_ACCESS: begin
           rready <= 1'b0;
-          hit_or_req();
+          data_valid <= 1'b1;
+          state <= HIT_CMP;
+          // hit_or_req();
         end
+        */
         default: begin
-          _state <= _state;
+          state <= state;
         end
       endcase
     end

@@ -9,6 +9,7 @@ module cpu (
     // instruction data
     output     logic [31:0] pc,
     input wire logic [31:0] instruction,
+    input wire logic        instr_valid,
 
     // memory data
     output     logic [31:0] address,
@@ -17,7 +18,8 @@ module cpu (
     input wire logic        read_valid,  // メモリ出力の有効フラグ
     output     logic [31:0] write_data,
     output     logic        write_enable,    // データを書くときにアサート->request signal
-    output     logic [1:0]  write_wstrb,  // 書き込むデータの幅
+    output     logic [3:0]  write_wstrb,  // 書き込むデータの幅
+    input wire logic        write_ready,  // 書き込むデータの幅
 
     output     logic        debug_ebreak,
     output     logic [31:0] debug_reg[0:31],
@@ -81,6 +83,7 @@ module cpu (
   logic is_jump_instr;
   decoder decoder (
       .instruction,
+      .instr_valid,
       .alu_ops(operation_type),
       .access_type,
       .wb_sel,
@@ -112,12 +115,16 @@ module cpu (
 
   // memory access
   logic [31:0] wb_mask;
+  logic mem_stall;
   memory_access memory_access (
       .access_type,
       .write_wstrb,
       .write_enable,
+      .write_ready,
       .read_enable,
+      .read_valid,
       .wb_mask,
+      .mem_stall,
       .load_access
   );
 
@@ -128,6 +135,8 @@ module cpu (
       .pc(reg_pc),
       .pc_plus_4,
       .pc_branch,
+      .mem_stall,
+      .instr_valid,
       .is_jump_instr,
       .pc_sel,
       .pc_next,

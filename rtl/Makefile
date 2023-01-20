@@ -1,5 +1,5 @@
 SVFILE=./cpu.sv ./decoder.sv ./execute.sv ./memory_access.sv ./write_back.sv
-FLAGS=--Mdir ../obj_dir/ --trace --trace-params --trace-structs --trace-underscore -Wall
+FLAGS=--Mdir ../obj_dir/ --trace --trace-params --trace-structs --trace-underscore
 all: build
 
 build:
@@ -33,6 +33,11 @@ axi_memory_test:
 	verilator -cc ./axi_memory.sv -exe ../test/axi_memory_test.cpp $(FLAGS)
 	make -C ../obj_dir -f Vaxi_memory.mk
 	../obj_dir/Vaxi_memory
+
+top_test:
+	verilator -cc ./top.sv ./axi_memory.sv ./i_cache.sv ./d_cache.sv ./direct_map.sv ./bram.sv $(SVFILE) -exe ../test/top_test.cpp $(FLAGS)
+	make -C ../obj_dir -f Vtop.mk
+	../obj_dir/Vtop
 
 program.bin:
 	make -C ../sample_src

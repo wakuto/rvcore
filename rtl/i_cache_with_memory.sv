@@ -49,19 +49,32 @@ module i_cache_with_memory (
 
   logic awready, wready, bvalid;
   logic [1:0] bresp;
+  logic b_arready, b_rvalid;
+  logic [31:0] b_rdata;
+  logic [1:0] b_rresp;
 
   axi_memory axi_memory (
     .aclk(~aclk),
     .areset,
-    .arvalid,
-    .arready,
-    .araddr,
-    .arprot,
+    .a_arvalid(arvalid),
+    .a_arready(arready),
+    .a_araddr(araddr),
+    .a_arprot(arprot),
 
-    .rvalid,
-    .rready,
-    .rdata,
-    .rresp,
+    .a_rvalid(rvalid),
+    .a_rready(rready),
+    .a_rdata(rdata),
+    .a_rresp(rresp),
+
+    .b_arvalid(0),
+    .b_arready(arready),
+    .b_araddr(0),
+    .b_arprot(0),
+
+    .b_rvalid,
+    .b_rready(0),
+    .b_rdata,
+    .b_rresp,
 
     .awaddr(0),
     .awprot(0),

@@ -14,18 +14,21 @@ fibonacchi:
 	sw	s1,20(sp)
 	addi	s0,sp,32
 	sw	a0,-20(s0)
-	lw	a4,-20(s0)
-	li	a5,1
-	bne	a4,a5,.L2
-	li	a5,1
+	lw	a5,-20(s0)
+	bne	a5,zero,.L2
+	li	a5,0
 	j	.L3
 .L2:
 	lw	a4,-20(s0)
+	li	a5,1
+	beq	a4,a5,.L4
+	lw	a4,-20(s0)
 	li	a5,2
-	bne	a4,a5,.L4
+	bne	a4,a5,.L5
+.L4:
 	li	a5,1
 	j	.L3
-.L4:
+.L5:
 	lw	a5,-20(s0)
 	addi	a5,a5,-1
 	mv	a0,a5
@@ -53,7 +56,7 @@ main:
 	sw	ra,28(sp)
 	sw	s0,24(sp)
 	addi	s0,sp,32
-	li	a0,7
+	li	a0,10
 	call	fibonacchi
 	sw	a0,-20(s0)
 	lw	a5,-20(s0)

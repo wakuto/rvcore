@@ -1,23 +1,78 @@
 `default_nettype none
-parameter [31:0] BUBBLE = 31'h00000013; // addi x0, x0, 0
 module top(
   input  logic        reset,
-  input  logic        clk
+  input  logic        clk,
+  output logic        debug_ebreak,
+  output logic [31:0] debug_reg[0:31],
+  output logic        illegal_instr,
+  input  logic        timer_int,
+  input  logic        soft_int,
+  input  logic        ext_int
 );
+  logic        aclk;
+  logic        areset;
+
+  assign aclk = clk;
+  assign areset = reset;
+
+  logic a_arvalid;
+  logic a_arready;
+  logic [31:0] a_araddr;
+  logic [2:0] a_arprot;
+
+  logic a_rvalid;
+  logic a_rready;
+  logic [31:0] a_rdata;
+  logic [1:0] a_rresp;
+
+  logic b_arvalid;
+  logic b_arready;
+  logic [31:0] b_araddr;
+  logic [2:0] b_arprot;
+
+  logic b_rvalid;
+  logic b_rready;
+  logic [31:0] b_rdata;
+  logic [1:0] b_rresp;
+
+  logic [31:0] awaddr;
+  logic [2:0] awprot;
+  logic awvalid;
+  logic awready;
+
+  logic [31:0] wdata;
+  logic [3:0] wstrb;
+  logic wvalid;
+  logic wready;
+
+  logic [1:0] bresp;
+  logic bvalid;
+  logic bready;
+
   axi_memory axi_memory (
-    // 読み出し用ポート
-    .aclk(clk),
+    .aclk(!clk),
     .areset(reset),
-    .arvalid,
-    .arready,
-    .araddr,
-    .arprot,
 
-    .rvalid,
-    .rready,
-    .rdata,
-    .rresp,
+    // 読み出し用ポート
+    .a_arvalid,
+    .a_arready,
+    .a_araddr,
+    .a_arprot,
 
+    .a_rvalid,
+    .a_rready,
+    .a_rdata,
+    .a_rresp,
+
+    .b_arvalid,
+    .b_arready,
+    .b_araddr,
+    .b_arprot,
+
+    .b_rvalid,
+    .b_rready,
+    .b_rdata,
+    .b_rresp,
     
     .awaddr,
     .awprot,
@@ -36,7 +91,7 @@ module top(
 
   logic [31:0] pc;
   logic [31:0] instruction;
-  logic inst_valid;
+  logic instr_valid;
 
   i_cache i_cache(
     .reset,
@@ -44,21 +99,86 @@ module top(
     .clk,
     .addr(pc),
     .data(instruction),
-    .data_ready(inst_valid),
+    .data_valid(instr_valid),
 
     // memory側 axi4 lite(read)
-    .axi_aclk,
-    .axi_areset,
-    .axi_arvalid,
-    .axi_arready,
-    .axi_araddr,
-    .axi_arprot,
+    .aclk(clk),
+    .areset(reset),
+    .arvalid(a_arvalid),
+    .arready(a_arready),
+    .araddr(a_araddr),
+    .arprot(a_arprot),
 
-    .axi_rvalid,
-    .axi_rready,
-    .axi_rdata,
-    .axi_rresp
+    .rvalid(a_rvalid),
+    .rready(a_rready),
+    .rdata(a_rdata),
+    .rresp(a_rresp)
   );
+
+  logic [31:0] address;
+  logic read_enable;
+  logic [31:0] read_data;
+  logic read_valid;
+  logic [31:0] write_data;
+  logic write_enable;
+  logic [3:0] write_wstrb;
+  logic write_ready;
+
+  d_cache d_cache (
+    .reset,
+
+    // cpu側
+    .clk,
+    .addr(address),
+    .mem_wen(write_enable),
+    .mem_ren(read_enable),
+    .data_out(read_data),
+    .data_read_valid(read_valid),
+    .data_in(write_data),
+    .data_in_strb(write_wstrb),
+    .data_write_ready(write_ready),
+
+    // memory側 axi4 lite
+    // 読み出し用ポート
+    .aclk,
+    .areset,
+    .arvalid(b_arvalid),
+    .arready(b_arready),
+    .araddr(b_araddr),
+    .arprot(b_arprot),
+
+    .rvalid(b_rvalid),
+    .rready(b_rready),
+    .rdata(b_rdata),
+    .rresp(b_rresp),
+
+    // 書き込み用ポート
+    .awaddr,
+    .awprot,
+    .awvalid,
+    .awready,
+
+    .wdata,
+    .wstrb,
+    .wvalid,
+    .wready,
+
+    .bresp,
+    .bvalid,
+    .bready
+  );
+
+  always_ff @(posedge clk) begin
+    if (read_enable & read_valid) begin
+      $display("mem read:\t%h\t->%h", address, read_data);
+    end
+    if (write_enable & write_ready) begin
+      $display("mem write:\t%h\t<-%h", address, write_data);
+    end
+    if (instr_valid) begin
+      // $display("execute :\t%h\t%h", pc, instruction);
+    end
+  end
   
   cpu cpu(
     .clock(clk),
@@ -66,7 +186,8 @@ module top(
 
     // instruction data
     .pc,
-    .instruction(inst_valid ? instruction : BUBBLE,
+    .instruction,
+    .instr_valid,
 
     // memory data
     .address,
@@ -76,9 +197,10 @@ module top(
     .write_data,
     .write_enable,    // データを書くときにアサート->request signal
     .write_wstrb,  // 書き込むデータの幅
+    .write_ready,
 
     .debug_ebreak,
-    .debug_reg[0:31],
+    .debug_reg,
     .illegal_instr,
     .timer_int,
     .soft_int,

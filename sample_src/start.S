@@ -1,15 +1,17 @@
 .section .text.init
 .global _start
 _start:
-  li sp, 0x4000
-  la t0, _trap_vec
-# interrupt enable
-  csrrsi t1, mstatus, 0x8
-# timer & external interrupt enable
-  li t1, 0x888
-  csrrs t1, mie, t1
-# trap vector configuration
-  csrrw t1, mtvec, t0
+  li sp, 0x3000
+  sw sp, -4(sp)
+  lw x10, -4(sp)
+#   la t0, _trap_vec
+# # interrupt enable
+#   csrrsi t1, mstatus, 0x8
+# # timer & external interrupt enable
+#   li t1, 0x888
+#   csrrs t1, mie, t1
+# # trap vector configuration
+#   csrrw t1, mtvec, t0
 
 # jump to main()
   jal ra, main

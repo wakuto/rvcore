@@ -12,56 +12,6 @@ double sc_time_stamp() { // Called by $time in Verilog
 
 uint32_t access_pattern[] = {0, 4, 8, 12, 0, 4, 8, 12, 16, 0, 4, 20, 16, 24, 8, 12};
 
-/*
-void axi_memory(Vi_cache_with_memory *top) {
-  static uint32_t addr = 0;
-  static uint8_t mem[0x1000];
-  static bool is_first = true;
-  const uint32_t delay_num = 5;
-  static uint32_t delay_counter = 0;
-  static bool arvalid = false;
-
-  if (is_first) {
-    for (int i = 0; i < 0x1000; i++) {
-      if (i % 4 == 0)
-        mem[i] = i;
-      else
-        mem[i] = 0;
-    }
-    is_first = false;
-  }
-
-  // データ転送完了
-  if (top->axi_rvalid && top->axi_rready) {
-    top->axi_rvalid = 0;
-    delay_counter = 0;
-    arvalid = false;
-  }
-
-  // アドレス転送完了
-  if (top->axi_arvalid && top->axi_arready)
-    top->axi_arready = 0;
-  // アドレス転送処理
-  else if (top->axi_arvalid) {
-    addr = top->axi_araddr;
-    top->axi_arready = 1;
-    arvalid = true;
-  }
-  // アドレス受理後、データ読み出し処理
-  if (arvalid) {
-    if (delay_counter >= delay_num) {
-      uint32_t data = 0;
-      for (int i = 3; i >= 0; i--) {
-        data |= mem[addr + i] << (8 * i);
-      }
-      top->axi_rdata = data;
-      top->axi_rvalid = 1;
-    }
-    delay_counter++;
-  }
-}
-*/
-
 bool posedge(Vi_cache_with_memory *top) {
   static int prev_clk = 0;
   bool res = prev_clk != top->clk && top->clk == 1;

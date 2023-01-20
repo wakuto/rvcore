@@ -7,6 +7,7 @@ module d_cache (
   input  logic        clk,
   input  logic [31:0] addr,
   input  logic        mem_wen,
+  input  logic        mem_ren,
   output logic [31:0] data_out,
   output logic        data_read_valid,
   input  logic [31:0] data_in,
@@ -52,8 +53,7 @@ module d_cache (
     $display(HIT_CMP, SEND_ADDR, WAIT_DATA, END_ACCESS, SEND_DATA, WAIT_WRITING);
   end
 
-  logic hit, read, dirty, cache_wen;
-  assign read = !mem_wen;
+  logic hit, dirty, cache_wen;
   logic [31:0] invalidate_addr;
 
   direct_map direct_map (
@@ -74,11 +74,11 @@ module d_cache (
   always_comb begin
     cache_wen = 1'b0;
 
-    if (state == HIT_CMP & !read & (hit | !dirty)) begin
+    if (state == HIT_CMP & mem_wen & (hit | !dirty)) begin
       cache_wen = 1'b1;
     end else if (state == WAIT_WRITING & bvalid) begin
       cache_wen = 1'b1;
-    end else if (state == END_ACCESS & read) begin
+    end else if (state == END_ACCESS & mem_ren) begin
       cache_wen = 1'b1;
     end
   end
@@ -94,12 +94,12 @@ module d_cache (
         HIT_CMP: begin
           // READ
           // hit
-          if (hit & read) begin
+          if (hit & mem_ren) begin
             state <= HIT_CMP;
             data_read_valid <= 1'b1;
             data_write_ready <= 1'b0;
           // miss
-          end else if (!hit & read & !dirty) begin
+          end else if (!hit & mem_ren & !dirty) begin
             state <= SEND_ADDR;
             data_read_valid <= 1'b0;
             data_write_ready <= 1'b0;
@@ -107,12 +107,12 @@ module d_cache (
             araddr <= addr;
           // WRITE
           // hit
-          end else if (!read & (hit | !dirty)) begin
+          end else if (mem_wen & (hit | !dirty)) begin
             state <= HIT_CMP;
             data_read_valid <= 1'b0;
             data_write_ready <= 1'b1;
           // miss (write back)
-          end else if (!hit & dirty) begin
+          end else if (mem_wen & !hit & dirty) begin
             state <= SEND_DATA;
             data_read_valid <= 1'b0;
             data_write_ready <= 1'b0;
@@ -123,6 +123,10 @@ module d_cache (
             wdata <= data_out;
             wstrb <= 4'hF;
             bready <= 1'b1;
+          end else begin
+            state <= HIT_CMP;
+            data_read_valid <= 1'b0;
+            data_write_ready <= 1'b0;
           end
         end
         SEND_ADDR: begin
@@ -139,7 +143,7 @@ module d_cache (
         end
         END_ACCESS: begin
           //if (hit & read) begin
-            $display("AXI read:  ", araddr, "\t->", rdata);
+            $display("AXI read:  %h\t->%h", araddr, rdata);
             state <= HIT_CMP;
             rready <= 1'b0;
             data_read_valid <= 1'b1;
@@ -147,7 +151,7 @@ module d_cache (
         end
         SEND_DATA: begin
           if (awready & wready) begin
-            $display("AXI write: ", awaddr, "\t<-", wdata);
+            $display("AXI write: %h\t->%h", awaddr, wdata);
             state <= WAIT_WRITING;
             awvalid <= 1'b0;
             wvalid <= 1'b0;
@@ -155,11 +159,12 @@ module d_cache (
         end
         WAIT_WRITING: begin
           if (bvalid) begin
-            bready <= 1'b0;
-            if (!read) begin
+            if (mem_wen) begin
+              bready <= 1'b0;
               state <= HIT_CMP;
               data_write_ready <= 1'b1;
-            end else if (read) begin
+            end else if (mem_ren) begin
+              bready <= 1'b0;
               state <= SEND_ADDR;
               arvalid <= 1'b1;
             end

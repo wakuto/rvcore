@@ -94,7 +94,7 @@ void processing(Vaxi_memory *top) {
   static bool writing = false;
   if (!top->areset) {
     // write state
-    if (state_count < 100) {
+    if (state_count >= 100) {
       if (!writing && !top->bready && !top->bvalid) {
         top->awaddr = state_count % 100;
         top->awvalid = 1;
