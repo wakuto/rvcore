@@ -5,6 +5,7 @@
 module decoder (
     // if/id
     input wire logic [31:0] instruction,
+    input wire logic        instr_valid,
     // id/ex
     // output _alu_ops
     output logic [3:0] alu_ops,
@@ -39,22 +40,24 @@ module decoder (
     output logic csr_instr
 
 );
+  logic [31:0] instr;
+  assign instr = instr_valid ? instruction : common::BUBBLE;
   // instruction fields
-  assign field.opcode = instruction[6:0];
-  assign field.rd = instruction[11:7];
-  assign field.rs1 = instruction[19:15];
-  assign field.rs2 = instruction[24:20];
-  assign field.shamt = instruction[24:20];
-  assign field.funct3 = instruction[14:12];
-  assign field.funct7 = instruction[31:25];
-  assign field.imm_i = instruction[31:20];
-  assign field.imm_s = {instruction[31:25], instruction[11:7]};
+  assign field.opcode = instr[6:0];
+  assign field.rd = instr[11:7];
+  assign field.rs1 = instr[19:15];
+  assign field.rs2 = instr[24:20];
+  assign field.shamt = instr[24:20];
+  assign field.funct3 = instr[14:12];
+  assign field.funct7 = instr[31:25];
+  assign field.imm_i = instr[31:20];
+  assign field.imm_s = {instr[31:25], instr[11:7]};
   assign field.imm_b = {
-    instruction[31], instruction[7], instruction[30:25], instruction[11:8], 1'b0
+    instr[31], instr[7], instr[30:25], instr[11:8], 1'b0
   };
-  assign field.imm_u = {instruction[31:12], 12'h0};
+  assign field.imm_u = {instr[31:12], 12'h0};
   assign field.imm_j = {
-    instruction[31], instruction[19:12], instruction[20], instruction[30:21], 1'b0
+    instr[31], instr[19:12], instr[20], instr[30:21], 1'b0
   };
 
   common::alu_cmd _alu_ops;
@@ -69,7 +72,7 @@ module decoder (
   always_comb begin
     // chose _alu_ops
     import riscv_instr::*;
-    casez (instruction)
+    casez (instr)
       ADD, ADDI, AUIPC, LB, LBU, LH, LHU, LW, LUI, SW, SH, SB, JAL, JALR, CSRRW, CSRRWI, EBREAK:
       _alu_ops = common::ADD;
       SUB: _alu_ops = common::SUB;
@@ -89,8 +92,8 @@ module decoder (
       default: _alu_ops = common::ILL;
     endcase
 
-    illegal_instr = _alu_ops == common::ILL;
-    casez (instruction) 
+    illegal_instr = instr_valid & _alu_ops == common::ILL;
+    casez (instr) 
       ECALL: begin
         env_call = 1'b1;
         break_point = 1'b0;
@@ -113,7 +116,7 @@ module decoder (
       end
     endcase
     // memory access type
-    casez (instruction)
+    casez (instr)
       LB: _access_type = common::LB;
       LH: _access_type = common::LH;
       LW: _access_type = common::LW;
@@ -164,7 +167,7 @@ module decoder (
       end
       // Zicsr
       7'b1110011: begin
-        casez(instruction)
+        casez(instr)
           CSRRW, CSRRWI: begin
             op1 = reg_rs1;
             op2 = 32'h0;
@@ -220,7 +223,7 @@ module decoder (
         // JAL, JALR
         7'b1100111, 7'b1101111: wb_sel = common::JUMP;
         7'b1110011: begin
-          casez(instruction)
+          casez(instr)
             // zicsr
             CSRRW, CSRRWI, CSRRS, CSRRSI, CSRRC, CSRRCI: wb_sel = common::ZICSR;
             MRET: wb_sel = common::WB_MRET;
@@ -232,21 +235,21 @@ module decoder (
       endcase
     end
     else begin
-      casez(instruction)
+      casez(instr)
         MRET: wb_sel = common::WB_MRET;
         default: wb_sel = common::WB_NONE;
       endcase
     end
 
     // set pc_sel
-    casez(instruction)
+    casez(instr)
       JAL, JALR, BEQ, BNE, BLT, BGE, BLTU, BGEU: pc_sel = common::PC_BRANCH;
       MRET: pc_sel = common::PC_MRET;
       default: pc_sel = common::PC_NEXT;
     endcase
 
     // set csr_rd
-    casez(instruction)
+    casez(instr)
       CSRRW, CSRRWI, CSRRS, CSRRSI, CSRRC, CSRRCI: csr_rd = field.imm_i;
       MRET: csr_rd = 12'h300;
       default: csr_rd = 12'h0;

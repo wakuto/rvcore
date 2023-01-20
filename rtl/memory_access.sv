@@ -4,10 +4,13 @@
 
 module memory_access (
     input wire logic [3:0] access_type,
-    output logic [1:0] write_wstrb,  // write $(wstrb+1) bytes
+    output logic [3:0] write_wstrb,  // write $(wstrb+1) bytes
     output logic write_enable,
+    input wire logic write_ready,
     output logic read_enable,
+    input wire logic read_valid,
     output logic [31:0] wb_mask,
+    output logic mem_stall,
     output logic load_access  // load access fault
 );
   import common::*;
@@ -18,32 +21,35 @@ module memory_access (
       SB, SH, SW: begin
         write_enable = 1'b1;
         read_enable  = 1'b0;
+        mem_stall = !write_ready;
       end
       LB, LBU, LH, LHU, LW: begin
         write_enable = 1'b0;
         read_enable  = 1'b1;
+        mem_stall = !read_valid;
       end
       default: begin
         write_enable = 1'b0;
         read_enable  = 1'b0;
+        mem_stall = 1'b0;
       end
     endcase
 
     case (access_type)
       SB, LB, LBU: begin
-        write_wstrb = 2'h0;
+        write_wstrb = 4'h1;
         wb_mask = 32'h000000FF;
       end
       SH, LH, LHU: begin
-        write_wstrb = 2'h1;
+        write_wstrb = 4'h3;
         wb_mask = 32'h0000FFFF;
       end
       SW, LW: begin
-        write_wstrb = 2'h3;
+        write_wstrb = 4'hf;
         wb_mask = 32'hFFFFFFFF;
       end
       default: begin
-        write_wstrb = 2'h0;
+        write_wstrb = 4'hf;
         wb_mask = 32'hFFFFFFFF;
       end
     endcase
