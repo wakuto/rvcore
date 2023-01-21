@@ -126,7 +126,7 @@ module d_cache (
             awaddr <= invalidate_addr;
             // data_out: invalidate_data
             wdata <= data_out;
-            wstrb <= 4'hF;
+            wstrb <= data_in_strb;
             bready <= 1'b1;
           end else if (!cacheable & mem_wen) begin
             state <= SEND_DATA;

@@ -1,14 +1,27 @@
 .section .text.init
 .global _start
 _start:
-  li sp, 0x3000
+  li x3, 0x10000000
+  li x2, 'h'
+  sw x2, 0(x3)
+  li x2, 'e'
+  sw x2, 0(x3)
+  li x2, 'l'
+  sw x2, 0(x3)
+  sw x2, 0(x3)
+  li x2, 'o'
+  sw x2, 0(x3)
+  li x2, '\n'
+  sw x2, 0(x3)
+
+  li sp, 0x80003000
   sw sp, -4(sp)
   lw x10, -4(sp)
   csrrs   x1,minstret,x0
   csrrs   x1,minstret,x0
   csrrs   x2,mcycle,x0
   csrrs   x2,mcycle,x0
-  li sp, 0x3000
+  li sp, 0x80003000
 #   la t0, _trap_vec
 # # interrupt enable
 #   csrrsi t1, mstatus, 0x8
@@ -24,16 +37,18 @@ _start:
   csrrs   x1,minstret,x0
   csrrs   x2,mcycle,x0
   csrrs   x2,mcycle,x0
+
   li x3, 0x10000000
-  li x2, 0x48
+  li x2, 'H'
   sw x2, 0(x3)
-  li x2, 0x65
+  li x2, 'e'
   sw x2, 0(x3)
-  li x2, 0x6c
+  li x2, 'l'
   sw x2, 0(x3)
-  li x2, 0x6c
   sw x2, 0(x3)
-  li x2, 0x6f
+  li x2, 'o'
+  sw x2, 0(x3)
+  li x2, '\n'
   sw x2, 0(x3)
 
 

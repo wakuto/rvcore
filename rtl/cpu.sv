@@ -1,6 +1,7 @@
 `default_nettype none
 `include "./riscv_instr.sv"
 `include "./common.sv"
+`include "./memory_map.sv"
 
 module cpu (
     input wire logic        clock,
@@ -153,7 +154,7 @@ module cpu (
 
   // <= だとwarning出るけどなんで？
   initial begin
-    reg_pc  = 32'h0;
+    reg_pc  = memory_map::DRAM_BASE;
     address = 32'h0;
     for (int i = 0; i < 32; i++) regfile[i] = 32'h0;
   end
@@ -170,7 +171,7 @@ module cpu (
 
   always_ff @(posedge clock or posedge reset) begin
     if (reset) begin
-      reg_pc <= 32'h0;
+      reg_pc <= memory_map::DRAM_BASE;
     end else begin
       import riscv_instr::*;
 

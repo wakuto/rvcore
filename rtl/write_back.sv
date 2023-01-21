@@ -63,6 +63,10 @@ module write_back (
         wb_en_without_stall = 1'b0;
         reg_next = 32'h0;
       end
+      WB_NONE: begin
+        wb_en_without_stall = 1'b0;
+        reg_next = 32'h0;
+      end
       default: begin
         reg_next = 32'hdeadbeef;
         wb_en_without_stall = 1'b0;

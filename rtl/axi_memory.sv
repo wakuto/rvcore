@@ -116,7 +116,7 @@ module axi_memory(
       end
       if (next_a_rvalid) begin
         for (int i_read = 0; i_read < 4; i_read = i_read+1) begin
-          a_rdata[8*i_read+:8] <= memory[a_addr+i_read];
+          a_rdata[8*i_read+:8] <= memory[a_addr-DRAM_BASE+i_read];
         end
       end
 
@@ -173,7 +173,7 @@ module axi_memory(
       end
       if (next_b_rvalid) begin
         for (int i_read = 0; i_read < 4; i_read = i_read+1) begin
-          b_rdata[8*i_read+:8] <= memory[b_addr+i_read];
+          b_rdata[8*i_read+:8] <= memory[b_addr-DRAM_BASE+i_read];
         end
       end
 
@@ -247,7 +247,7 @@ module axi_memory(
         case(get_device(write_addr))
           DRAM: begin
             for(int i_write = 0; i_write < 4; i_write = i_write + 1) begin
-              memory[write_addr+i_write] <= write_data[8*i_write+:8];
+              memory[write_addr-DRAM_BASE+i_write] <= write_data[8*i_write+:8];
             end
           end
           UART0: begin
