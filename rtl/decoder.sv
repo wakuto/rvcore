@@ -8,7 +8,7 @@ module decoder (
     input wire logic        instr_valid,
     // id/ex
     // output _alu_ops
-    output logic [3:0] alu_ops,
+    output logic [4:0] alu_ops,
     // output instruction type
     //output logic [2:0] inst_type,
     output logic [3:0] access_type,
@@ -82,6 +82,8 @@ module decoder (
       SRL, SRLI: _alu_ops = common::SRL;
       SRA, SRAI: _alu_ops = common::SRA;
       SLL, SLLI: _alu_ops = common::SLL;
+      SLT, SLTI: _alu_ops = common::SLT;
+      SLTU, SLTIU: _alu_ops = common::SLTU;
       BEQ: _alu_ops = common::EQ;
       BNE: _alu_ops = common::NE;
       BLT: _alu_ops = common::LT;

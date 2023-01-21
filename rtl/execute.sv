@@ -5,7 +5,7 @@
 module execute (
     input wire logic [31:0] op1,
     input wire logic [31:0] op2,
-    input wire logic [3:0] alu_ops,
+    input wire logic [4:0] alu_ops,
     output logic [31:0] alu_out
 );
 
@@ -17,9 +17,11 @@ module execute (
       XOR: alu_out = op1 ^ op2;
       OR: alu_out = op1 | op2;
       AND: alu_out = op1 & op2;
-      SRL: alu_out = op1 >> op2;
-      SRA: alu_out = op1 >>> op2;
-      SLL: alu_out = op1 << op2;
+      SRL: alu_out = op1 >> (op2 & 32'h1F);
+      SRA: alu_out = $signed(op1) >>> (op2 & 32'h1F);
+      SLL: alu_out = op1 << (op2 & 32'h1F);
+      SLT: alu_out = {31'h0, $signed(op1) < $signed(op2)};
+      SLTU: alu_out = {31'h0, op1 < op2};
       EQ: alu_out = {31'h0, op1 == op2};
       NE: alu_out = {31'h0, op1 != op2};
       LT: alu_out = {31'h0, signed'(op1) < signed'(op2)};
