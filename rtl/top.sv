@@ -170,10 +170,10 @@ module top(
 
   always_ff @(posedge clk) begin
     if (read_enable & read_valid) begin
-      $display("mem read:\t%h\t->%h", address, read_data);
+      // $display("mem read:\t%h\t->%h", address, read_data);
     end
     if (write_enable & write_ready) begin
-      $display("mem write:\t%h\t<-%h", address, write_data);
+      // $display("mem write:\t%h\t<-%h", address, write_data);
     end
     if (instr_valid) begin
       // $display("execute :\t%h\t%h", pc, instruction);

@@ -1,5 +1,6 @@
 /* @@@@@@@@@@@@ Simulation only @@@@@@@@@@@@ */
 `default_nettype none
+`include "./memory_map.sv"
 
 module axi_memory(
   input  logic        aclk,
@@ -46,33 +47,36 @@ module axi_memory(
   assign b_rresp = 2'b00; // OK
   assign bresp = 2'b00;
 
-  logic [7:0] memory[4096*4-1:0];
+  import memory_map::*;
+  logic [7:0] memory[DRAM_SIZE-1:0];
 
   logic [31:0] a_counter, b_counter;
-  int fd; //, i;
+  int fd;
   
   initial begin
     a_counter = 32'd0;
     b_counter = 32'd0;
     fd = $fopen("../sample_src/program.bin", "rb");
     $fread(memory, fd);
-    /*
-    i = 0;
-    // $readmemh("../sample_src/program.bin", memory, 0, 4*4096);
-    begin:FILE_LOOP
-      forever begin                   
-        if ($feof(fd) != 0 | i > 4095*4-1) begin
-            disable FILE_LOOP;
-        end
-        if ($fread(memory[i], fd, i, 1) == 0) begin
-          $display("OMG");
-        end
-        i = i + 1;
-      end
-    end
-    */
-
   end
+
+  enum logic [1:0] {DRAM, UART0, UNKNOWN} device;
+
+  function is_include_range(
+    input logic [31:0] addr,
+    input logic [31:0] base,
+    input logic [31:0] size
+  );
+    is_include_range = base <= addr & addr < base + size;
+  endfunction
+  function [1:0] get_device(input logic [31:0] addr);
+    if (is_include_range(addr, DRAM_BASE, DRAM_SIZE))
+      get_device = DRAM;
+    else if (is_include_range(addr, UART0_BASE, UART0_SIZE))
+      get_device = UART0;
+    else
+      get_device = UNKNOWN;
+  endfunction
 
   parameter MEM_DELAY = 5;
 
@@ -195,6 +199,7 @@ module axi_memory(
   logic [31:0] wcounter;
   logic [31:0] write_addr;
   logic [31:0] write_data;
+  logic [3:0]  write_strb;
   logic waddr_ready, wdata_ready;
 
   always_comb begin
@@ -230,6 +235,7 @@ module axi_memory(
       end
       if (wvalid & wready) begin
         write_data <= wdata;
+        write_strb <= wstrb;
         wdata_ready <= 1'b1;
       end
 
@@ -237,10 +243,19 @@ module axi_memory(
         wcounter <= wcounter + 32'd1;
       end
 
-      if (wcounter >= MEM_DELAY) begin
-        for(int i_write = 0; i_write < 4; i_write = i_write + 1) begin
-          memory[write_addr+i_write] <= write_data[8*i_write+:8];
-        end
+      if (wcounter >= MEM_DELAY & ~bvalid) begin
+        case(get_device(write_addr))
+          DRAM: begin
+            for(int i_write = 0; i_write < 4; i_write = i_write + 1) begin
+              memory[write_addr+i_write] <= write_data[8*i_write+:8];
+            end
+          end
+          UART0: begin
+            $write("%c", write_data[7:0]);
+          end
+          default: begin
+          end
+        endcase
         bvalid <= 1'b1;
       end
 

@@ -8,6 +8,7 @@ _start:
   csrrs   x1,minstret,x0
   csrrs   x2,mcycle,x0
   csrrs   x2,mcycle,x0
+  li sp, 0x3000
 #   la t0, _trap_vec
 # # interrupt enable
 #   csrrsi t1, mstatus, 0x8
@@ -23,6 +24,18 @@ _start:
   csrrs   x1,minstret,x0
   csrrs   x2,mcycle,x0
   csrrs   x2,mcycle,x0
+  li x3, 0x10000000
+  li x2, 0x48
+  sw x2, 0(x3)
+  li x2, 0x65
+  sw x2, 0(x3)
+  li x2, 0x6c
+  sw x2, 0(x3)
+  li x2, 0x6c
+  sw x2, 0(x3)
+  li x2, 0x6f
+  sw x2, 0(x3)
+
 
   ebreak
 

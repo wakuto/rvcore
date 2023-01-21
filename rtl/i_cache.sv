@@ -47,9 +47,6 @@ module i_cache (
   );
 
   enum logic [1:0] {HIT_CMP, SEND_ADDR, WAIT_DATA, END_ACCESS} state;
-  initial begin
-    $display(HIT_CMP, SEND_ADDR, WAIT_DATA, END_ACCESS);
-  end
 
   task hit_or_req();
     if (hit) begin
