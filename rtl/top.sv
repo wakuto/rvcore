@@ -121,7 +121,7 @@ module top(
   logic read_valid;
   logic [31:0] write_data;
   logic write_enable;
-  logic [3:0] write_wstrb;
+  logic [3:0] strb;
   logic write_ready;
 
   d_cache d_cache (
@@ -135,7 +135,7 @@ module top(
     .data_out(read_data),
     .data_read_valid(read_valid),
     .data_in(write_data),
-    .data_in_strb(write_wstrb),
+    .strb,
     .data_write_ready(write_ready),
 
     // memory側 axi4 lite
@@ -196,7 +196,7 @@ module top(
     .read_valid,  // メモリ出力の有効フラグ
     .write_data,
     .write_enable,    // データを書くときにアサート->request signal
-    .write_wstrb,  // 書き込むデータの幅
+    .strb,  // 書き込むデータの幅
     .write_ready,
 
     .debug_ebreak,
