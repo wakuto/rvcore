@@ -40,7 +40,6 @@ module i_cache (
     .data(data),
 
     .write_data(rdata),
-    .write_strb(4'b1111),
     .write_valid(cache_wen),
     .invalidate_addr,
     .write_access(1'b0)

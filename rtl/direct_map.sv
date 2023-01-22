@@ -11,7 +11,6 @@ module direct_map #(
   output logic [31:0] data,
 
   input  logic [31:0] write_data,
-  input  logic [3:0]  write_strb,
   input  logic        write_valid,
   output logic [31:0] invalidate_addr,
   // 書き込みアクセスの場合アサート
@@ -31,13 +30,6 @@ module direct_map #(
   assign tag         = addr[LINE_OFFSET_WIDTH + SET_ADDR_WIDTH +: TAG_WIDTH];
 
   logic [(LINE_SIZE << 3)-1:0] data_out;
-  logic [31:0] write_mask;
-
-  always_comb begin
-    for (int i = 0; i < 4; i = i + 1) begin
-      write_mask[(i << 3) +: 8] = {8{write_strb[i]}};
-    end
-  end
 
   bram #(
     .DATA_WIDTH(LINE_SIZE << 3),
@@ -46,7 +38,7 @@ module direct_map #(
     .clk,
     .addr(set_addr),
     .wen(write_valid),
-    .din(write_access ? (data_out & ~write_mask) | (write_data & write_mask) : write_data),
+    .din(write_data),
     .dout(data_out)
   );
 
