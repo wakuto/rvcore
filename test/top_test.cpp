@@ -81,11 +81,11 @@ int main(int argc, char **argv) {
 
   // Trace DUMP ON
   Verilated::traceEverOn(true);
-  VerilatedVcdC *tfp = new VerilatedVcdC;
+  // VerilatedVcdC *tfp = new VerilatedVcdC;
 
   // initialize
-  top->trace(tfp, 100);
-  tfp->open("top_test.vcd");
+  // top->trace(tfp, 100);
+  // tfp->open("top_test.vcd");
 
   top->clk = 0;
   top->reset = 1;
@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
     }
 
     top->eval();
-    tfp->dump(main_time);
+    // tfp->dump(main_time);
 
     main_time++;
     top->reset = main_time < 10;
@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
   }
 
   top->final(); // Done simulating
-  tfp->close();
+  // tfp->close();
 }
 
 

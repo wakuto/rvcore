@@ -35,7 +35,7 @@ axi_memory_test:
 	../obj_dir/Vaxi_memory
 
 top_test:
-	verilator -cc ./top.sv ./axi_memory.sv ./i_cache.sv ./d_cache.sv ./direct_map.sv ./bram.sv $(SVFILE) -exe ../test/top_test.cpp $(FLAGS)
+	verilator -O3 --x-assign fast --x-initial fast --noassert -cc ./top.sv ./axi_memory.sv ./i_cache.sv ./d_cache.sv ./direct_map.sv ./bram.sv $(SVFILE) -exe ../test/top_test.cpp $(FLAGS)
 	make -C ../obj_dir -f Vtop.mk
 	../obj_dir/Vtop
 

@@ -58,8 +58,19 @@ main:
 	addi	s0,sp,32
 	li	a0,10
 	call	fibonacchi
-	sw	a0,-20(s0)
+	sw	a0,-24(s0)
+	sw	zero,-20(s0)
+	j	.L7
+.L8:
 	lw	a5,-20(s0)
+	addi	a5,a5,1
+	sw	a5,-20(s0)
+.L7:
+	lw	a4,-20(s0)
+	li	a5,98304
+	addi	a5,a5,1695
+	ble	a4,a5,.L8
+	lw	a5,-24(s0)
 	mv	a0,a5
 	lw	ra,28(sp)
 	lw	s0,24(sp)
