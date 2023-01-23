@@ -104,7 +104,6 @@ module d_cache (
 
   always_comb begin
     // data_out = (readdata2 >> ((clog2(line_size)-addr_offset)<<3)) | (readdata >> (addr_offset<<3))
-    data_out = (read_higher) | (read_lower);
 
     // 常にアラインされたアドレスを供給
     if (double_access & !data2_ready) begin
@@ -159,6 +158,7 @@ module d_cache (
                 // あやしい
                 data2_ready <= 1'b0;
                 data_read_valid <= 1'b1;
+                data_out <= (read_higher | read_lower);
               end
             // miss
             end else if (!hit & mem_ren & !dirty) begin
@@ -257,9 +257,11 @@ module d_cache (
                 read_data2 <= rdata;
                 data_read_valid <= 1'b0;
               end else begin
+                data_out <= rdata;
                 data_read_valid <= 1'b1;
               end
             end else if(mem_wen) begin
+              // 怪しい
               if (double_access & !data2_ready) begin
                 data2_ready <= 1'b1;
                 data_read_valid <= 1'b0;
