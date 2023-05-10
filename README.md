@@ -3,7 +3,7 @@
 
 ```
 # まずは使用するプログラムのビルド
-make -C ./sample_src
+make clang -C ./sample_src
 
 # 出来上がったprogram.binでシミュレーションを開始
 make run -C ./rtl
