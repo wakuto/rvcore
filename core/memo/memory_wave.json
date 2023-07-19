@@ -1,0 +1,15 @@
+{
+    "signal": [
+        { "name": "clk",          "wave": "p...................." },
+        { "name": "address",      "wave": "x2.....2.....2.....x.", "data": ["0x00", "0x04", "0x08"]},
+        {},
+        { "name": "read_data",    "wave": "x.2x..2x2x..2x2x..2x.", "data": ["?", "x", "?", "y", "?", "z"] },
+        { "name": "read_enable",  "wave": "01.0.1...0.1...0.1.0." },
+        { "name": "read_valid",   "wave": "0.10..1010..1010..10." },
+        {},
+        { "name": "write_data",   "wave": "x..2.x...2.x...2.x...", "data": ["x", "y", "z"] },
+        { "name": "write_enable", "wave": "0..1.0...1.0...1.0..." },
+        { "name": "write_wstrb",  "wave": "x..2.x...2.x...2.x...", "data": ["0x1", "0x3", "0xF"] },
+        { "name": "write_ready",  "wave": "0...10....10....10..." }
+    ]
+}

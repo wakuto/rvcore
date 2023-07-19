@@ -2,7 +2,7 @@
 `include "./riscv_instr.sv"
 `include "./common.sv"
 
-module cpu (
+module core (
     input wire logic        clock,
     input wire logic        reset,
 
@@ -150,13 +150,6 @@ module cpu (
       .csr_data
   );
 
-  // <= だとwarning出るけどなんで？
-  initial begin
-    reg_pc  = 32'h0;
-    address = 32'h0;
-    for (int i = 0; i < 32; i++) regfile[i] = 32'h0;
-  end
-
   always_comb begin
     import riscv_instr::*;
     // debug output
@@ -170,6 +163,7 @@ module cpu (
   always_ff @(posedge clock or posedge reset) begin
     if (reset) begin
       reg_pc <= 32'h0;
+      for (int i = 0; i < 32; i++) regfile[i] = 32'h0;
     end else begin
       import riscv_instr::*;
 

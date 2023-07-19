@@ -1,0 +1,38 @@
+[*]
+[*] GTKWave Analyzer v3.3.115 (w)1999-2023 BSI
+[*] Mon Jun 26 02:39:59 2023
+[*]
+[dumpfile] "/home/wakuto/src/hobby/low_layer/cpu_labo/core/test/memory_test.vcd"
+[dumpfile_mtime] "Sun Jun 25 13:20:42 2023"
+[dumpfile_size] 1237
+[savefile] "/home/wakuto/src/hobby/low_layer/cpu_labo/core/test/memory_test.gtkw"
+[timestart] 0
+[size] 1894 975
+[pos] -1 -1
+*-1.941106 5 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[sst_width] 269
+[signals_width] 158
+[sst_expanded] 1
+[sst_vpaned_height] 287
+@28
+TOP.clk
+TOP.reset
+@22
+TOP.address[31:0]
+@28
+TOP.read_enable
+TOP.read_valid
+@22
+TOP.read_data[31:0]
+@200
+-
+@28
+TOP.write_enable
+@22
+TOP.write_wstrb[3:0]
+TOP.write_data[31:0]
+@28
+TOP.write_ready
+[pattern_trace] 1
+[pattern_trace] 0

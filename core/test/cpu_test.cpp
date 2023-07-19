@@ -1,4 +1,4 @@
-#include "../obj_dir//Vcpu.h" // From Verilating "../rtl/cpu.sv"
+#include "../obj_dir//Vcore.h" // From Verilating "../rtl/cpu.sv"
 #include <fstream>
 #include <iostream>
 #include <verilated.h>       // Defines common routines
@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
 
   Verilated::commandArgs(argc, argv); // Remember args
 
-  Vcpu *top = new Vcpu(); // Create instance
+  Vcore *top = new Vcore(); // Create instance
 
   // Trace DUMP ON
   Verilated::traceEverOn(true);
@@ -95,6 +95,10 @@ int main(int argc, char **argv) {
   top->timer_int = 0;
   top->soft_int = 0;
   top->ext_int = 0;
+
+  // とりあえずwrite/fetchのレイテンシは無視
+  top->instr_valid = 1;
+  top->write_ready = 1;
 
   int access_counter = 0;
 

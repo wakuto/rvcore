@@ -73,6 +73,7 @@ void processing(Vtop *top) {
 // write 1-100
 // read 1-100
 int main(int argc, char **argv) {
+  std::cout << "Starting top_test..." << std::endl;
   std::cout << std::showbase << std::hex;
 
   Verilated::commandArgs(argc, argv); // Remember args
