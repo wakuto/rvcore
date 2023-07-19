@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
 
   // initialize
   top->trace(tfp, 100);
-  tfp->open("top_test.sim");
+  tfp->open("top_test.vcd");
 
   top->clk = 0;
   top->reset = 1;
@@ -115,6 +115,8 @@ int main(int argc, char **argv) {
   }
 
   top->final(); // Done simulating
+  std::cout << std::showbase << std::dec;
+  std::cout << "endtime = " << main_time << std::endl;
   tfp->close();
 }
 

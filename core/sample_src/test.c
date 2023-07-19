@@ -10,5 +10,7 @@ int fibonacchi(int max) {
 int main(void) {
   // int a = myfunc(1);
   int a = fibonacchi(10);
+  for (int i = 0; i < 100000; i++) {
+  }
   return a;
 }

@@ -16,6 +16,7 @@ module write_back (
     input wire logic [31:0] read_data,
     input wire logic read_valid,
     input wire logic [31:0] wb_mask,
+    input wire logic [4:0]  wb_msb_bit,
     input wire logic [31:0] alu_result,
     output logic [31:0] reg_next,
     output logic wb_en,
@@ -48,7 +49,11 @@ module write_back (
         wb_en_without_stall = 1'b1;
       end
       LOAD: begin
-        reg_next = read_data & wb_mask;
+        if (wb_msb_bit != 5'd0) begin
+          reg_next = (read_data & wb_mask) | ({32{read_data[wb_msb_bit]}} & ~wb_mask);
+        end else begin
+          reg_next = read_data & wb_mask;
+        end
         wb_en_without_stall = 1'b1;
       end
       JUMP: begin
@@ -60,6 +65,10 @@ module write_back (
         reg_next = csr_data;
       end
       WB_MRET: begin
+        wb_en_without_stall = 1'b0;
+        reg_next = 32'h0;
+      end
+      WB_NONE: begin
         wb_en_without_stall = 1'b0;
         reg_next = 32'h0;
       end

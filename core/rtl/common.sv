@@ -13,7 +13,7 @@ package common;
     logic [31:0] imm_u;
     logic [20:0] imm_j;
   } instr_field;
-  typedef enum logic [3:0] {
+  typedef enum logic [4:0] {
     ADD,
     SUB,
     XOR,
@@ -29,6 +29,8 @@ package common;
     LTU,
     GEU,
     BIT_C,
+    SLT,
+    SLTU,
     ILL
   } alu_cmd;
   typedef enum logic [2:0] {

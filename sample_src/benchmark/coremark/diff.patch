@@ -1,0 +1,162 @@
+diff --git a/Makefile b/Makefile
+index c2db7cc..43a3343 100644
+--- a/Makefile
++++ b/Makefile
+@@ -59,7 +59,8 @@ CFLAGS += -DITERATIONS=$(ITERATIONS)
+ 
+ CORE_FILES = core_list_join core_main core_matrix core_state core_util
+ ORIG_SRCS = $(addsuffix .c,$(CORE_FILES))
+-SRCS = $(ORIG_SRCS) $(PORT_SRCS)
++# SRCS = $(ORIG_SRCS) $(PORT_SRCS)
++SRCS = $(PORT_SRCS) $(ORIG_SRCS)
+ OBJS = $(addprefix $(OPATH),$(addsuffix $(OEXT),$(CORE_FILES)) $(PORT_OBJS))
+ OUTNAME = coremark$(EXE)
+ OUTFILE = $(OPATH)$(OUTNAME)
+diff --git a/barebones/core_portme.c b/barebones/core_portme.c
+index 30112ff..8563611 100644
+--- a/barebones/core_portme.c
++++ b/barebones/core_portme.c
+@@ -44,8 +44,14 @@ volatile ee_s32 seed5_volatile = 0;
+ CORETIMETYPE
+ barebones_clock()
+ {
++  unsigned int r;
++  asm volatile ("csrr %0, mcycle" : "=r"(r));
++  return r;
++
++  /*
+ #error \
+     "You must implement a method to measure time in barebones_clock()! This function should return current time.\n"
++    */
+ }
+ /* Define : TIMER_RES_DIVIDER
+         Divider to trade off timer resolution and total time that can be
+@@ -55,6 +61,7 @@ barebones_clock()
+    does not occur. If there are issues with the return value overflowing,
+    increase this value.
+         */
++#define CLOCKS_PER_SEC 1000
+ #define GETMYTIME(_t)              (*_t = barebones_clock())
+ #define MYTIMEDIFF(fin, ini)       ((fin) - (ini))
+ #define TIMER_RES_DIVIDER          1
+@@ -129,7 +136,7 @@ ee_u32 default_num_contexts = 1;
+ void
+ portable_init(core_portable *p, int *argc, char *argv[])
+ {
+-#error \
++// #error \
+     "Call board initialization routines in portable init (if needed), in particular initialize UART!\n"
+ 
+     (void)argc; // prevent unused warning
+@@ -146,6 +153,7 @@ portable_init(core_portable *p, int *argc, char *argv[])
+         ee_printf("ERROR! Please define ee_u32 to a 32b unsigned type!\n");
+     }
+     p->portable_id = 1;
++    ee_printf("INIT\n");
+ }
+ /* Function : portable_fini
+         Target specific final code
+@@ -154,4 +162,5 @@ void
+ portable_fini(core_portable *p)
+ {
+     p->portable_id = 0;
++    ee_printf("FINISH\n");
+ }
+diff --git a/barebones/core_portme.h b/barebones/core_portme.h
+index b221363..c58f85d 100644
+--- a/barebones/core_portme.h
++++ b/barebones/core_portme.h
+@@ -28,14 +28,14 @@ Original Author: Shay Gal-on
+         Define to 1 if the platform supports floating point.
+ */
+ #ifndef HAS_FLOAT
+-#define HAS_FLOAT 1
++#define HAS_FLOAT 0
+ #endif
+ /* Configuration : HAS_TIME_H
+         Define to 1 if platform has the time.h header file,
+         and implementation of functions thereof.
+ */
+ #ifndef HAS_TIME_H
+-#define HAS_TIME_H 1
++#define HAS_TIME_H 0
+ #endif
+ /* Configuration : USE_CLOCK
+         Define to 1 if platform has the time.h header file,
+@@ -91,6 +91,7 @@ typedef double         ee_f32;
+ typedef unsigned char  ee_u8;
+ typedef unsigned int   ee_u32;
+ typedef ee_u32         ee_ptr_int;
++typedef long           size_t;
+ typedef size_t         ee_size_t;
+ #define NULL ((void *)0)
+ /* align_mem :
+diff --git a/barebones/core_portme.mak b/barebones/core_portme.mak
+index 8159469..2641e26 100755
+--- a/barebones/core_portme.mak
++++ b/barebones/core_portme.mak
+@@ -19,18 +19,20 @@
+ # Flag : OUTFLAG
+ #	Use this flag to define how to to get an executable (e.g -o)
+ OUTFLAG= -o
++RISCV_PREFIX = riscv32-unknown-elf-
+ # Flag : CC
+ #	Use this flag to define compiler to use
+-CC 		= gcc
++CC 		= $(RISCV_PREFIX)gcc
+ # Flag : LD
+ #	Use this flag to define compiler to use
+-LD		= gld
++LD		= $(RISCV_PREFIX)ld
+ # Flag : AS
+ #	Use this flag to define compiler to use
+-AS		= gas
++AS		= $(RISCV_PREFIX)as
+ # Flag : CFLAGS
+ #	Use this flag to define compiler options. Note, you can add compiler options from the command line using XCFLAGS="other flags"
+-PORT_CFLAGS = -O0 -g
++# PORT_CFLAGS = -O0 -g -march=rv32i -mabi=ilp32 
++PORT_CFLAGS = -O0 -march=rv32i -mabi=ilp32 -nostdlib -fno-builtin -nostartfiles -T $(PORT_DIR)/link.ld
+ FLAGS_STR = "$(PORT_CFLAGS) $(XCFLAGS) $(XLFLAGS) $(LFLAGS_END)"
+ CFLAGS = $(PORT_CFLAGS) -I$(PORT_DIR) -I. -DFLAGS_STR=\"$(FLAGS_STR)\" 
+ #Flag : LFLAGS_END
+@@ -39,17 +41,19 @@ CFLAGS = $(PORT_CFLAGS) -I$(PORT_DIR) -I. -DFLAGS_STR=\"$(FLAGS_STR)\"
+ SEPARATE_COMPILE=1
+ # Flag : SEPARATE_COMPILE
+ # You must also define below how to create an object file, and how to link.
++LIBGCC = /opt/riscv/lib/gcc/riscv64-unknown-elf/11.1.0/rv32i/ilp32/libgcc.a
+ OBJOUT 	= -o
+-LFLAGS 	= 
+-ASFLAGS =
++LFLAGS 	= -T $(PORT_DIR)/link.ld
++ASFLAGS = -march=rv32i -mabi=ilp32
+ OFLAG 	= -o
+ COUT 	= -c
+ 
+-LFLAGS_END = 
++LFLAGS_END = $(LIBGCC)
+ # Flag : PORT_SRCS
+ # 	Port specific source files can be added here
+ #	You may also need cvt.c if the fcvt functions are not provided as intrinsics by your compiler!
+-PORT_SRCS = $(PORT_DIR)/core_portme.c $(PORT_DIR)/ee_printf.c
++PORT_SRCS = $(PORT_DIR)/start.S $(PORT_DIR)/core_portme.c $(PORT_DIR)/ee_printf.c
++PORT_OBJS = $(PORT_DIR)/start.o $(PORT_DIR)/core_portme.o $(PORT_DIR)/ee_printf.o
+ vpath %.c $(PORT_DIR)
+ vpath %.s $(PORT_DIR)
+ 
+diff --git a/barebones/ee_printf.c b/barebones/ee_printf.c
+index f2d362d..2f4d0aa 100644
+--- a/barebones/ee_printf.c
++++ b/barebones/ee_printf.c
+@@ -662,7 +662,10 @@ ee_vsprintf(char *buf, const char *fmt, va_list args)
+ void
+ uart_send_char(char c)
+ {
+-#error "You must implement the method uart_send_char to use this file!\n";
++  volatile char *uart_base = (char*)0x10000000;
++  *uart_base = c;
++
++// #error "You must implement the method uart_send_char to use this file!\n";
+     /*	Output of a char to a UART usually follows the following model:
+             Wait until UART is ready
+             Write char to UART

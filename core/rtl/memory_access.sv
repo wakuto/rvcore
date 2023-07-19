@@ -4,12 +4,13 @@
 
 module memory_access (
     input wire logic [3:0] access_type,
-    output logic [3:0] write_wstrb,  // write $(wstrb+1) bytes
+    output logic [3:0] strb,
     output logic write_enable,
     input wire logic write_ready,
     output logic read_enable,
     input wire logic read_valid,
     output logic [31:0] wb_mask,
+    output logic [4:0] wb_msb_bit,
     output logic mem_stall,
     output logic load_access  // load access fault
 );
@@ -37,22 +38,30 @@ module memory_access (
 
     case (access_type)
       SB, LB, LBU: begin
-        write_wstrb = 4'h1;
+        strb = 4'b0001;
         wb_mask = 32'h000000FF;
+        wb_msb_bit = 5'd7;
       end
       SH, LH, LHU: begin
-        write_wstrb = 4'h3;
+        strb = 4'b0011;
         wb_mask = 32'h0000FFFF;
+        wb_msb_bit = 5'd15;
       end
       SW, LW: begin
-        write_wstrb = 4'hf;
+        strb = 4'b1111;
         wb_mask = 32'hFFFFFFFF;
+        wb_msb_bit = 5'd31;
       end
       default: begin
-        write_wstrb = 4'hf;
+        strb = 4'b1111;
         wb_mask = 32'hFFFFFFFF;
+        wb_msb_bit = 5'd31;
       end
     endcase
+    if (access_type == LBU | access_type == LHU) begin
+      // zero extend
+      wb_msb_bit = 5'd0;
+    end
   end
 
 endmodule

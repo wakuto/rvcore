@@ -8,7 +8,7 @@ module decoder (
     input wire logic        instr_valid,
     // id/ex
     // output _alu_ops
-    output logic [3:0] alu_ops,
+    output logic [4:0] alu_ops,
     // output instruction type
     //output logic [2:0] inst_type,
     output logic [3:0] access_type,
@@ -73,7 +73,7 @@ module decoder (
     // chose _alu_ops
     import riscv_instr::*;
     casez (instr)
-      ADD, ADDI, AUIPC, LB, LBU, LH, LHU, LW, LUI, SW, SH, SB, JAL, JALR, CSRRW, CSRRWI, EBREAK:
+      ADD, ADDI, AUIPC, LB, LBU, LH, LHU, LW, LUI, SW, SH, SB, JAL, JALR, CSRRW, CSRRWI, EBREAK, FENCE:
       _alu_ops = common::ADD;
       SUB: _alu_ops = common::SUB;
       XOR, XORI, MRET: _alu_ops = common::XOR;
@@ -82,6 +82,8 @@ module decoder (
       SRL, SRLI: _alu_ops = common::SRL;
       SRA, SRAI: _alu_ops = common::SRA;
       SLL, SLLI: _alu_ops = common::SLL;
+      SLT, SLTI: _alu_ops = common::SLT;
+      SLTU, SLTIU: _alu_ops = common::SLTU;
       BEQ: _alu_ops = common::EQ;
       BNE: _alu_ops = common::NE;
       BLT: _alu_ops = common::LT;
@@ -194,6 +196,11 @@ module decoder (
           end
         endcase
       end
+      // Fence(nop)
+      7'b0001111: begin
+        op1 = 32'h0;
+        op2 = 32'h0;
+      end
       // other
       default: begin
         op1 = 32'h0;
@@ -230,6 +237,8 @@ module decoder (
             default: wb_sel = common::WB_NONE;
           endcase
         end
+        // Fence(nop)
+        7'b0001111: wb_sel = common::WB_NONE;
         // other
         default: wb_sel = common::WB_NONE;
       endcase

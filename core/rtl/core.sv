@@ -1,6 +1,7 @@
 `default_nettype none
 `include "./riscv_instr.sv"
 `include "./common.sv"
+`include "./memory_map.sv"
 
 module core (
     input wire logic        clock,
@@ -18,7 +19,7 @@ module core (
     input wire logic        read_valid,  // メモリ出力の有効フラグ
     output     logic [31:0] write_data,
     output     logic        write_enable,    // データを書くときにアサート->request signal
-    output     logic [3:0]  write_wstrb,  // 書き込むデータの幅
+    output     logic [3:0]  strb,  // 書き込むデータの幅
     input wire logic        write_ready,  // 書き込むデータの幅
 
     output     logic        debug_ebreak,
@@ -48,6 +49,7 @@ module core (
     .clock,
     .reset,
 
+    .stall(mem_stall | ~instr_valid),
     .csr_instr,
     .csr_addr(csr_rd),
     .csr_instr_src(alu_out),
@@ -115,15 +117,17 @@ module core (
 
   // memory access
   logic [31:0] wb_mask;
+  logic [4:0] wb_msb_bit;
   logic mem_stall;
   memory_access memory_access (
       .access_type,
-      .write_wstrb,
+      .strb,
       .write_enable,
       .write_ready,
       .read_enable,
       .read_valid,
       .wb_mask,
+      .wb_msb_bit,
       .mem_stall,
       .load_access
   );
@@ -144,6 +148,7 @@ module core (
       .read_data,
       .read_valid,
       .wb_mask,
+      .wb_msb_bit,
       .alu_result(alu_out),
       .reg_next,
       .wb_en,
@@ -162,7 +167,7 @@ module core (
 
   always_ff @(posedge clock or posedge reset) begin
     if (reset) begin
-      reg_pc <= 32'h0;
+      reg_pc <= memory_map::DRAM_BASE;
       for (int i = 0; i < 32; i++) regfile[i] = 32'h0;
     end else begin
       import riscv_instr::*;
