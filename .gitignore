@@ -1,6 +1,7 @@
-obj_dir/
 *.bin
 *.elf
 *.o
 *.vcd
+core/build
+core/obj_dir
 sample_src/benchmark/coremark/coremark

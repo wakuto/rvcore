@@ -1,6 +1,6 @@
 `default_nettype none
-`include "./riscv_instr.sv"
-`include "./common.sv"
+`include "riscv_instr.sv"
+`include "common.sv"
 
 module execute (
     input wire logic [31:0] op1,

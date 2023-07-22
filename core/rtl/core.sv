@@ -1,7 +1,7 @@
 `default_nettype none
-`include "./riscv_instr.sv"
-`include "./common.sv"
-`include "./memory_map.sv"
+`include "riscv_instr.sv"
+`include "common.sv"
+`include "memory_map.sv"
 
 module core (
     input wire logic        clock,

@@ -1,6 +1,6 @@
 `default_nettype none
-`include "./riscv_instr.sv"
-`include "./common.sv"
+`include "riscv_instr.sv"
+`include "common.sv"
 
 module csr_reg (
     input logic clock,
