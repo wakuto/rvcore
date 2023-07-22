@@ -1,10 +1,13 @@
 #include "../obj_dir/Vmemory.h"
 #include <fstream>
 #include <iostream>
+#include <string>
+#include <format>
 #include <functional>
 #include <verilated.h>       // Defines common routines
 #include <verilated_vcd_c.h> // VCD output
-                             //
+#include <gtest/gtest.h>
+
 // Verilatorモデルを操作するクラス
 template <typename V>
 class Model {
@@ -13,14 +16,30 @@ public:
   VerilatedVcdC *tfp;
   uint32_t main_time;
 
-  Model() {
+  Model(const char* dump_filename) {
     this->top = new V();
     Verilated::traceEverOn(true);
     this->tfp = new VerilatedVcdC;
 
     this->top->trace(this->tfp, 100);
-    this->tfp->open("memory_test.vcd");
+    this->tfp->open(dump_filename);
   }
+  
+  void init() {
+    this->change_signal([](Vmemory *vmem){
+      vmem->reset = 1;
+      vmem->read_enable = 0;
+      vmem->write_data = 0;
+      vmem->write_wstrb = 0;
+      vmem->write_enable = 0;
+    });
+
+    this->next_clock();
+    this->do_posedge([](Vmemory *vmem){
+      vmem->reset = 0;
+    });
+  }
+
   void dump() {
     this->tfp->dump(this->main_time++);
   }
@@ -73,6 +92,7 @@ public:
   
   void writemem(uint32_t addr, uint8_t data) {
     this->do_posedge([=](Vmemory *vmem) {
+      vmem->address = addr;
       vmem->read_enable = 0;
       vmem->write_enable = 1;
       vmem->write_data = data;
@@ -83,6 +103,7 @@ public:
 
   void writemem(uint32_t addr, uint16_t data) {
     this->do_posedge([=](Vmemory *vmem) {
+      vmem->address = addr;
       vmem->read_enable = 0;
       vmem->write_enable = 1;
       vmem->write_data = data;
@@ -93,6 +114,7 @@ public:
 
   void writemem(uint32_t addr, uint32_t data) {
     this->do_posedge([=](Vmemory *vmem) {
+      vmem->address = addr;
       vmem->read_enable = 0;
       vmem->write_enable = 1;
       vmem->write_data = data;
@@ -102,61 +124,107 @@ public:
   }
 };
 
+size_t load_program(std::string program_file, uint32_t *program, size_t size) {
+  std::ifstream program_stream(program_file);
+  if (program_stream.fail()) {
+    throw std::runtime_error("failed to load memory initialization file: ../sample_src/program.txt");
+  }
 
-int main(int argc, char **argv) {
-  std::cout << "Starting memory_test..." << std::endl;
-  std::cout << std::showbase << std::hex;
-  
-  auto dut = new Model<Vmemory>();
-
-  // reset
-  dut->change_signal([](Vmemory *vmem){
-    vmem->reset = 1;
-    vmem->read_enable = 0;
-    vmem->write_data = 0;
-    vmem->write_wstrb = 0;
-    vmem->write_enable = 0;
-  });
-
-  dut->next_clock();
-  dut->do_posedge([](Vmemory *vmem){
-    vmem->reset = 0;
-  });
-
-  // 0x00を読み込み
-  std::cout << "[0x00] = " << dut->readmem(0x00) << std::endl;
-
-  // 0x00に書き込み-----
-  dut->writemem(0x00, (uint8_t)0xef);
-  std::cout << "write [0x00] <= " << (uint32_t)0xef << std::endl;
-
-  // 0x00を読み込み-----
-  std::cout << "[0x00] = " << dut->readmem(0x00) << std::endl;
-
-  // 0x04を読み込み-----
-  std::cout << "[0x04] = " << dut->readmem(0x04) << std::endl;
-  
-  // 0x04に書き込み-----
-  dut->writemem(0x04, (uint8_t)0xef);
-  std::cout << "write [0x04] <= " << (uint32_t)0xef << std::endl;
-
-  // 0x04を読み込み-----
-  std::cout << "[0x04] = " << dut->readmem(0x04) << std::endl;
-  
-  // 0x04に書き込み-----
-  dut->writemem(0x04, (uint8_t)0xbe);
-  std::cout << "write [0x04] <= " << (uint32_t)0xbe << std::endl;
-
-  // 0x04を読み込み-----
-  std::cout << "[0x04] = " << dut->readmem(0x04) << std::endl;
-  
-  dut->next_clock();
-
-  
-  dut->top->final();
-  dut->tfp->close();
-  return 0;
+  auto i = 0;
+  std::string str_4byte;
+  for(i = 0; (i < size) && std::getline(program_stream, str_4byte); i++) {
+    program[i] = std::stoul(str_4byte, nullptr, 16);
+  }
+  // 読み込めたサイズを返却
+  // size分読めたときを場合分け
+  return i+1 < size ? i+1 : size;
 }
 
+TEST (memory_test, read_test) {
+  uint32_t program[32];
+  auto test_num = 0;
+  ASSERT_NO_THROW(test_num = load_program("../sample_src/program.txt", program, 32));
 
+  auto dut = new Model<Vmemory>("read_test.vcd");
+  dut->init();
+  
+  for(int i = 0; i < test_num; i++) {
+    uint32_t tmp;
+    EXPECT_EQ(program[i], tmp = dut->readmem(0x04*i))
+      << std::format("memory data is different at {:#x}: expect:{:#x}, actually:{:#x}", 0x4*i, program[0x4*i], tmp);
+  }
+  dut->next_clock();
+  dut->top->final();
+  dut->tfp->close();
+}
 
+TEST (memory_test, write_1byte_test) {
+  uint32_t program[32];
+  auto test_num = 0;
+  ASSERT_NO_THROW(test_num = load_program("../sample_src/program.txt", program, 32));
+
+  auto dut = new Model<Vmemory>("write_1byte_test.vcd");
+  dut->init();
+
+  for(int i = 0; i < test_num; i++) {
+    dut->writemem(0x4*i, (uint8_t)i);
+    program[i] &= 0xFFFFFF00;
+    program[i] |= (uint8_t)i;
+  }
+  
+  for(int i = 0; i < test_num; i++) {
+    uint32_t tmp;
+    EXPECT_EQ(program[i], tmp = dut->readmem(0x04*i))
+      << std::format("memory data is different at {:#x}: expect:{:#x}, actually:{:#x}", 0x4*i, program[0x4*i], tmp);
+  }
+  dut->next_clock();
+  dut->top->final();
+  dut->tfp->close();
+}
+
+TEST (memory_test, write_2byte_test) {
+  uint32_t program[32];
+  auto test_num = 0;
+  ASSERT_NO_THROW(test_num = load_program("../sample_src/program.txt", program, 32));
+
+  auto dut = new Model<Vmemory>("write_2byte_test.vcd");
+  dut->init();
+
+  for(int i = 0; i < test_num; i++) {
+    dut->writemem(0x4*i, (uint16_t)i);
+    program[i] &= 0xFFFF0000;
+    program[i] |= (uint16_t)i;
+  }
+  
+  for(int i = 0; i < test_num; i++) {
+    uint32_t tmp;
+    EXPECT_EQ(program[i], tmp = dut->readmem(0x04*i))
+      << std::format("memory data is different at {:#x}: expect:{:#x}, actually:{:#x}", 0x4*i, program[0x4*i], tmp);
+  }
+  dut->next_clock();
+  dut->top->final();
+  dut->tfp->close();
+}
+
+TEST (memory_test, write_4byte_test) {
+  uint32_t program[32];
+  auto test_num = 0;
+  ASSERT_NO_THROW(test_num = load_program("../sample_src/program.txt", program, 32));
+
+  auto dut = new Model<Vmemory>("write_4byte_test.vcd");
+  dut->init();
+
+  for(int i = 0; i < test_num; i++) {
+    dut->writemem(0x4*i, (uint32_t)(1 << i));
+    program[i] = (uint32_t)(1 << i);
+  }
+  
+  for(int i = 0; i < test_num; i++) {
+    uint32_t tmp;
+    EXPECT_EQ(program[i], tmp = dut->readmem(0x04*i))
+      << std::format("memory data is different at {:#x}: expect:{:#x}, actually:{:#x}", 0x4*i, program[0x4*i], tmp);
+  }
+  dut->next_clock();
+  dut->top->final();
+  dut->tfp->close();
+}

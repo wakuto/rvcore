@@ -16,7 +16,17 @@ module memory (
   logic [7:0] mem [0:4095];
 
   initial begin
-    $readmemh("../sample_src/program.txt", mem);
+    int fd = $fopen("../sample_src/program.txt", "r");
+    int i = 0;
+    logic [31:0] tmp = 0;
+    while($feof(fd) == 0 && i < 4096) begin
+      $fscanf(fd, "%h\n", tmp);
+      mem[i+0] = tmp[7:0];
+      mem[i+1] = tmp[15:8];
+      mem[i+2] = tmp[23:16];
+      mem[i+3] = tmp[31:24];
+      i += 4;
+    end
   end
 
   always_ff @(posedge clk) begin
