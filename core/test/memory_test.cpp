@@ -3,31 +3,27 @@
 #include <iostream>
 #include <string>
 #include <format>
-#include <functional>
 #include <verilated.h>       // Defines common routines
 #include <verilated_vcd_c.h> // VCD output
 #include <gtest/gtest.h>
+#include "model_tester.hpp"
 
-// Verilatorモデルを操作するクラス
-template <typename V>
-class Model {
+// メモリ操作用クラス
+class MemoryTester : public ModelTester<Vmemory> {
 public:
-  V *top;
-  VerilatedVcdC *tfp;
-  uint32_t main_time;
-
-  Model(const char* dump_filename) {
-    this->top = new V();
-    Verilated::traceEverOn(true);
-    this->tfp = new VerilatedVcdC;
-
-    this->top->trace(this->tfp, 100);
-    this->tfp->open(dump_filename);
-  }
+  MemoryTester(const char* dump_filename) : ModelTester(dump_filename) {}
   
+  void clock(uint32_t signal) {
+    this->top->clk = signal;
+  }
+
+  void reset(uint32_t signal) {
+    this->top->reset = signal;
+  }
+
   void init() {
+    this->reset(1);
     this->change_signal([](Vmemory *vmem){
-      vmem->reset = 1;
       vmem->read_enable = 0;
       vmem->write_data = 0;
       vmem->write_wstrb = 0;
@@ -35,49 +31,15 @@ public:
     });
 
     this->next_clock();
-    this->do_posedge([](Vmemory *vmem){
-      vmem->reset = 0;
-    });
+    this->reset(0);
   }
-
-  void dump() {
-    this->tfp->dump(this->main_time++);
-  }
-  void eval_dump() {
-    this->top->eval();
-    this->dump();
-  }
-
+  
   // signalがvalid(=1)になるまで待機
   // クロックの立ち上がりまで解析を続ける
   void wait_for_signal(CData *signal) {
     do {
       this->next_clock();
     } while(!*signal);
-  }
-  
-  void next_clock() {
-    this->top->clk = 1;
-    this->eval_dump();
-    this->top->clk = 0;
-    this->eval_dump();
-  }
-  
-  void change_signal(std::function<void(V*)> func) {
-    func(top);
-  }
-  
-  void do_posedge(std::function<void(V*)> func) {
-    // クロックの立ち上げ
-    this->top->clk = 1;
-    this->top->eval();
-
-    // 立ち上がったクロックに反応して信号を操作
-    func(this->top);
-    this->eval_dump();
-
-    this->top->clk = 0;
-    this->eval_dump();
   }
   
   uint32_t readmem(uint32_t addr) {
@@ -145,7 +107,7 @@ TEST (memory_test, read_test) {
   auto test_num = 0;
   ASSERT_NO_THROW(test_num = load_program("../sample_src/program.txt", program, 32));
 
-  auto dut = new Model<Vmemory>("read_test.vcd");
+  auto dut = new MemoryTester("read_test.vcd");
   dut->init();
   
   for(int i = 0; i < test_num; i++) {
@@ -153,9 +115,6 @@ TEST (memory_test, read_test) {
     EXPECT_EQ(program[i], tmp = dut->readmem(0x04*i))
       << std::format("memory data is different at {:#x}: expect:{:#x}, actually:{:#x}", 0x4*i, program[0x4*i], tmp);
   }
-  dut->next_clock();
-  dut->top->final();
-  dut->tfp->close();
 }
 
 TEST (memory_test, write_1byte_test) {
@@ -163,7 +122,7 @@ TEST (memory_test, write_1byte_test) {
   auto test_num = 0;
   ASSERT_NO_THROW(test_num = load_program("../sample_src/program.txt", program, 32));
 
-  auto dut = new Model<Vmemory>("write_1byte_test.vcd");
+  auto dut = new MemoryTester("write_1byte_test.vcd");
   dut->init();
 
   for(int i = 0; i < test_num; i++) {
@@ -177,9 +136,6 @@ TEST (memory_test, write_1byte_test) {
     EXPECT_EQ(program[i], tmp = dut->readmem(0x04*i))
       << std::format("memory data is different at {:#x}: expect:{:#x}, actually:{:#x}", 0x4*i, program[0x4*i], tmp);
   }
-  dut->next_clock();
-  dut->top->final();
-  dut->tfp->close();
 }
 
 TEST (memory_test, write_2byte_test) {
@@ -187,7 +143,7 @@ TEST (memory_test, write_2byte_test) {
   auto test_num = 0;
   ASSERT_NO_THROW(test_num = load_program("../sample_src/program.txt", program, 32));
 
-  auto dut = new Model<Vmemory>("write_2byte_test.vcd");
+  auto dut = new MemoryTester("write_2byte_test.vcd");
   dut->init();
 
   for(int i = 0; i < test_num; i++) {
@@ -201,9 +157,6 @@ TEST (memory_test, write_2byte_test) {
     EXPECT_EQ(program[i], tmp = dut->readmem(0x04*i))
       << std::format("memory data is different at {:#x}: expect:{:#x}, actually:{:#x}", 0x4*i, program[0x4*i], tmp);
   }
-  dut->next_clock();
-  dut->top->final();
-  dut->tfp->close();
 }
 
 TEST (memory_test, write_4byte_test) {
@@ -211,7 +164,7 @@ TEST (memory_test, write_4byte_test) {
   auto test_num = 0;
   ASSERT_NO_THROW(test_num = load_program("../sample_src/program.txt", program, 32));
 
-  auto dut = new Model<Vmemory>("write_4byte_test.vcd");
+  auto dut = new MemoryTester("write_4byte_test.vcd");
   dut->init();
 
   for(int i = 0; i < test_num; i++) {
@@ -224,7 +177,4 @@ TEST (memory_test, write_4byte_test) {
     EXPECT_EQ(program[i], tmp = dut->readmem(0x04*i))
       << std::format("memory data is different at {:#x}: expect:{:#x}, actually:{:#x}", 0x4*i, program[0x4*i], tmp);
   }
-  dut->next_clock();
-  dut->top->final();
-  dut->tfp->close();
 }

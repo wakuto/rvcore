@@ -12,6 +12,7 @@ FetchContent_Declare(
 )
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
+enable_testing()
 
 # verilator setting
 find_package(verilator HINTS $ENV{VERILATOR_ROOT})
@@ -22,7 +23,6 @@ set(CORE_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test)
 set(CORE_OBJ_DIR ${CMAKE_CURRENT_SOURCE_DIR}/obj_dir)
 
 # memory_test
-enable_testing()
 add_executable(memory_test ${CORE_TEST_DIR}/memory_test.cpp)
 target_link_libraries(memory_test PUBLIC GTest::gtest_main)
 include(GoogleTest)
@@ -30,6 +30,31 @@ gtest_discover_tests(memory_test)
 verilate(memory_test
     SOURCES
         ${CORE_RTL_DIR}/memory.sv
+    PREFIX Vmemory
+    INCLUDE_DIRS
+        ${CORE_RTL_DIR}/include
+    DIRECTORY ${CORE_OBJ_DIR}
+    VERILATOR_ARGS
+        --trace
+        --trace-params
+        --trace-structs
+        --trace-underscore
+)
+
+# core_test
+add_executable(core_test ${CORE_TEST_DIR}/core_test.cpp)
+target_link_libraries(core_test PUBLIC GTest::gtest_main)
+include(GoogleTest)
+gtest_discover_tests(core_test)
+verilate(core_test
+    SOURCES
+        ${CORE_RTL_DIR}/core.sv
+        ${CORE_RTL_DIR}/csr_reg.sv
+        ${CORE_RTL_DIR}/decoder.sv
+        ${CORE_RTL_DIR}/execute.sv
+        ${CORE_RTL_DIR}/memory_access.sv
+        ${CORE_RTL_DIR}/write_back.sv
+    PREFIX Vcore
     INCLUDE_DIRS
         ${CORE_RTL_DIR}/include
     DIRECTORY ${CORE_OBJ_DIR}

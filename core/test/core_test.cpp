@@ -1,10 +1,69 @@
-#include "../obj_dir//Vcore.h" // From Verilating "../rtl/cpu.sv"
+#include "../obj_dir/Vcore.h" // From Verilating "../rtl/core.sv"
 #include <fstream>
 #include <iostream>
+#include <format>
 #include <verilated.h>       // Defines common routines
 #include <verilated_vcd_c.h> // VCD output
+#include <gtest/gtest.h>
+#include "model_tester.hpp"
 
 #define MEM_SIZE 0x20000
+
+class CoreTester : public ModelTester<Vcore> {
+private:
+  const uint32_t MEMORY_SIZE = 0x20000;
+  uint8_t *program = new uint8_t[MEMORY_SIZE]; // 4kB instruction memory
+  uint8_t *memory = new uint8_t[MEMORY_SIZE];  // 4kB data memory
+
+public:
+  CoreTester(const char* dump_filename) : ModelTester(dump_filename) {}
+  
+  void clock(uint32_t signal) {
+    this->top->clock = signal;
+  }
+
+  void reset(uint32_t signal) {
+    this->top->reset = signal;
+  }
+
+  void init() {
+    this->reset(1);
+    this->change_signal([](Vcore *core){
+      // instruction data
+      core->instruction = 0;
+      core->instr_valid = 0;
+      
+      // memory data
+      core->read_data = 0;
+      core->read_valid = 0;
+      core->write_ready = 0;
+
+      // interrupt
+      core->timer_int = 0;
+      core->soft_int = 0;
+      core->ext_int = 0;
+    });
+
+    this->next_clock();
+    this->next_clock();
+    this->reset(0);
+  }
+  
+  void read_program(std::string filename) {
+    std::ifstream hexfile(filename, std::ios::binary);
+    hexfile.seekg(0, std::ios::end);
+    size_t size = hexfile.tellg();
+
+    if (size > this->MEMORY_SIZE)
+      throw std::runtime_error(
+        std::format("failed to load program (too long!) {}. \
+        max size = {} bytes!", filename, this->MEMORY_SIZE)
+      );
+
+    hexfile.seekg(0);
+    hexfile.read((char *)this->program, size);
+  }
+};
 
 unsigned int main_time = 0; // Current simulation time
 
@@ -65,9 +124,24 @@ void mem_write(uint8_t *memory, uint32_t addr, uint32_t data, uint8_t wstrb) {
   }
 }
 
-int main(int argc, char **argv) {
+// TODO: サンプルプログラムを実行するテストを書く
+TEST (core_test, run_sample_program) {
+  auto dut = new CoreTester("sample_program.vcd");
+  dut->read_program("../sample_src/program.bin");
+  dut->init();
+  
+  dut->do_posedge([](Vcore *core) {
+  });
+}
 
-  Verilated::commandArgs(argc, argv); // Remember args
+// TODO: RISC-V Tests を実行するテストを書く
+TEST (core_test, run_riscv_test) {
+  
+}
+
+// int main(int argc, char **argv) {
+TEST (core_test, core) {
+  // Verilated::commandArgs(argc, argv); // Remember args
 
   Vcore *top = new Vcore(); // Create instance
 
@@ -117,7 +191,7 @@ int main(int argc, char **argv) {
       }
     }
     if (top->write_enable) {
-      mem_write(memory, top->address, top->write_data, top->write_wstrb);
+      mem_write(memory, top->address, top->write_data, top->strb);
     }
 
     int tmp = main_time - 100;

@@ -4,4 +4,6 @@
 *.vcd
 core/build
 core/obj_dir
+core/.vscode
+core/.cache
 sample_src/benchmark/coremark/coremark
