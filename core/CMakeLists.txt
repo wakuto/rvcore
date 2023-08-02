@@ -50,6 +50,7 @@ verilate(core_test
     SOURCES
         ${CORE_RTL_DIR}/core.sv
         ${CORE_RTL_DIR}/csr_reg.sv
+        ${CORE_RTL_DIR}/regfile.sv
         ${CORE_RTL_DIR}/decoder.sv
         ${CORE_RTL_DIR}/execute.sv
         ${CORE_RTL_DIR}/memory_access.sv

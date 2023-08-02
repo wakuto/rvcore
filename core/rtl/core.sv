@@ -31,7 +31,6 @@ module core (
 );
   // regfile
   logic [31:0] reg_pc;
-  logic [31:0] regfile[0:31];
   logic [31:0] csr_data;
   logic [11:0] csr_rd;
 
@@ -69,6 +68,20 @@ module core (
     .mtvec,
     .mepc,
     .csr_pc_sel
+  );
+  
+  logic [31:0] rs1;
+  logic [31:0] rs2;
+  regfile regfile(
+    .clock,
+    .reset,
+    .addr_rs1(field.rs1),
+    .addr_rs2(field.rs2),
+    .addr_rd(field.rd),
+    .rd_data(reg_next),
+    .wen(wb_en),
+    .rs1,
+    .rs2
   );
 
   // decoded data
@@ -159,16 +172,15 @@ module core (
     import riscv_instr::*;
     // debug output
     debug_ebreak = instruction == riscv_instr::EBREAK;
-    for (int i = 0; i < 32; i++) debug_reg[i] = regfile[i];
+    // for (int i = 0; i < 32; i++) debug_reg[i] = regfile[i];
     pc = reg_pc;
     address = alu_out;
-    write_data = regfile[field.rs2];
+    write_data = rs2;
   end
 
   always_ff @(posedge clock or posedge reset) begin
     if (reset) begin
       reg_pc <= memory_map::DRAM_BASE;
-      for (int i = 0; i < 32; i++) regfile[i] = 32'h0;
     end else begin
       import riscv_instr::*;
 
@@ -184,7 +196,6 @@ module core (
       else
         reg_pc <= pc_next;
 
-      if (wb_en) regfile[field.rd] <= reg_next;
     end
   end
 endmodule
