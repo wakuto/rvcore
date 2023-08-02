@@ -3,31 +3,31 @@
 `include "common.sv"
 
 module csr_reg (
-    input logic clock,
-    input logic reset,
+    input wire logic clock,
+    input wire logic reset,
 
-    input logic stall,
-    input logic csr_instr,
-    input logic [11:0] csr_addr,
-    input logic [31:0] csr_instr_src,
-    output logic [31:0] csr_instr_dst,
+    input wire logic stall,
+    input wire logic csr_instr,
+    input wire logic [11:0] csr_addr,
+    input wire logic [31:0] csr_instr_src,
+    output     logic [31:0] csr_instr_dst,
 
-    input logic mret_instr,
+    input wire logic mret_instr,
 
     // interrupt flags
-    input logic illegal_instr,
-    input logic env_call,
-    input logic load_access,
-    input logic break_point,
-    input logic timer_int,
-    input logic soft_int,
-    input logic ext_int,
+    input wire logic illegal_instr,
+    input wire logic env_call,
+    input wire logic load_access,
+    input wire logic break_point,
+    input wire logic timer_int,
+    input wire logic soft_int,
+    input wire logic ext_int,
 
     // interrupt data
-    input logic [31:0] pc,
-    output logic [31:0] mtvec,
-    output logic [31:0] mepc,
-    output logic csr_pc_sel
+    input wire logic [31:0] pc,
+    output     logic [31:0] mtvec,
+    output     logic [31:0] mepc,
+    output     logic csr_pc_sel
 );
   import riscv_instr::*;
 

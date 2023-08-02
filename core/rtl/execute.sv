@@ -6,7 +6,7 @@ module execute (
     input wire logic [31:0] op1,
     input wire logic [31:0] op2,
     input wire logic [4:0] alu_ops,
-    output logic [31:0] alu_out
+    output     logic [31:0] alu_out
 );
 
   always_comb begin

@@ -3,12 +3,12 @@
 `include "common.sv"
 
 module memory_access (
-    input wire logic [3:0] access_type,
+    input  wire logic [3:0] access_type,
     output logic [3:0] strb,
     output logic write_enable,
-    input wire logic write_ready,
+    input  wire logic write_ready,
     output logic read_enable,
-    input wire logic read_valid,
+    input  wire logic read_valid,
     output logic [31:0] wb_mask,
     output logic [4:0] wb_msb_bit,
     output logic mem_stall,

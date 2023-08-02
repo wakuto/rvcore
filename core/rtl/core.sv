@@ -25,9 +25,9 @@ module core (
     output     logic        debug_ebreak,
     output     logic [31:0] debug_reg[0:31],
     output     logic        illegal_instr,
-    input      logic        timer_int,
-    input      logic        soft_int,
-    input      logic        ext_int
+    input wire logic        timer_int,
+    input wire logic        soft_int,
+    input wire logic        ext_int
 );
   // regfile
   logic [31:0] reg_pc;

@@ -1,13 +1,13 @@
 `default_nettype none
 module top(
-  input  logic        reset,
-  input  logic        clk,
-  output logic        debug_ebreak,
-  output logic [31:0] debug_reg[0:31],
-  output logic        illegal_instr,
-  input  logic        timer_int,
-  input  logic        soft_int,
-  input  logic        ext_int
+  input  wire logic        reset,
+  input  wire logic        clk,
+  output      logic        debug_ebreak,
+  output      logic [31:0] debug_reg[0:31],
+  output      logic        illegal_instr,
+  input  wire logic        timer_int,
+  input  wire logic        soft_int,
+  input  wire logic        ext_int
 );
 
   logic [31:0] pc;
@@ -33,7 +33,7 @@ module top(
   logic        read_valid;
   logic [31:0] write_data;
   logic        write_enable;
-  logic [ 3:0] write_wstrb;
+  logic [ 3:0] strb;
   logic        write_ready;
 
   memory dmem(
@@ -45,7 +45,7 @@ module top(
     .read_valid,
     .write_data,
     .write_enable,
-    .write_wstrb,
+    .write_wstrb(strb),
     .write_ready
   );
   
@@ -65,7 +65,7 @@ module top(
     .read_valid,  // メモリ出力の有効フラグ
     .write_data,
     .write_enable,    // データを書くときにアサート->request signal
-    .write_wstrb,  // 書き込むデータの幅
+    .strb,  // 書き込むデータの幅
     .write_ready,
 
     .debug_ebreak,

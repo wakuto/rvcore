@@ -8,36 +8,36 @@ module decoder (
     input wire logic        instr_valid,
     // id/ex
     // output _alu_ops
-    output logic [4:0] alu_ops,
+    output     logic [4:0] alu_ops,
     // output instruction type
-    //output logic [2:0] inst_type,
-    output logic [3:0] access_type,
+    //output     logic [2:0] inst_type,
+    output     logic [3:0] access_type,
     // output wb_type
     output common::wb_sel_t wb_sel,
     // output op1, op2
-    output logic [31:0] op1,
-    output logic [31:0] op2,
+    output     logic [31:0] op1,
+    output     logic [31:0] op2,
     output common::instr_field field,
-    output logic [11:0] csr_rd,
+    output     logic [11:0] csr_rd,
     // other
     // regfile
     input wire logic [31:0] reg_rs1,
     input wire logic [31:0] reg_rs2,
     //input wire logic [31:0] regfile[0:31],
     input wire logic [31:0] pc,
-    output logic [31:0] pc_plus_4,
-    output logic [31:0] pc_branch,
-    output logic is_jump_instr,
+    output     logic [31:0] pc_plus_4,
+    output     logic [31:0] pc_branch,
+    output     logic is_jump_instr,
     output common::pc_sel_t pc_sel,
     input wire logic [31:0] csr_data,
     // error
     
-    output logic mret_instr,
+    output     logic mret_instr,
     
-    output logic illegal_instr,
-    output logic env_call,
-    output logic break_point,
-    output logic csr_instr
+    output     logic illegal_instr,
+    output     logic env_call,
+    output     logic break_point,
+    output     logic csr_instr
 
 );
   logic [31:0] instr;
