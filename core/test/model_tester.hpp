@@ -13,13 +13,13 @@ public:
   VerilatedVcdC *tfp;
   uint32_t main_time;
 
-  ModelTester(const char* dump_filename) {
+  ModelTester(std::string dump_filename) {
     this->top = new V();
     Verilated::traceEverOn(true);
     this->tfp = new VerilatedVcdC;
 
     this->top->trace(this->tfp, 100);
-    this->tfp->open(dump_filename);
+    this->tfp->open(dump_filename.c_str());
   }
   
   /// @brief clockを操作する関数

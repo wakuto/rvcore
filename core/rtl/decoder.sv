@@ -64,8 +64,6 @@ module decoder (
   assign alu_ops = _alu_ops;
   common::instr_type instruction_type;
   //assign inst_type = instruction_type;
-  common::mem_access_type _access_type;
-  assign access_type = _access_type;
 
   assign csr_instr = wb_sel == common::ZICSR;
 
@@ -119,15 +117,15 @@ module decoder (
     endcase
     // memory access type
     casez (instr)
-      LB: _access_type = common::LB;
-      LH: _access_type = common::LH;
-      LW: _access_type = common::LW;
-      LBU: _access_type = common::LBU;
-      LHU: _access_type = common::LHU;
-      SB: _access_type = common::SB;
-      SH: _access_type = common::SH;
-      SW: _access_type = common::SW;
-      default: _access_type = common::MEM_NONE;
+      LB:  access_type = 4'(common::LB);
+      LH:  access_type = 4'(common::LH);
+      LW:  access_type = 4'(common::LW);
+      LBU: access_type = 4'(common::LBU);
+      LHU: access_type = 4'(common::LHU);
+      SB:  access_type = 4'(common::SB);
+      SH:  access_type = 4'(common::SH);
+      SW:  access_type = 4'(common::SW);
+      default: access_type = 4'(common::MEM_NONE);
     endcase
 
     // operand fetch

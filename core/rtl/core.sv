@@ -81,7 +81,8 @@ module core (
     .rd_data(reg_next),
     .wen(wb_en),
     .rs1,
-    .rs2
+    .rs2,
+    .debug_reg
   );
 
   // decoded data
@@ -106,8 +107,8 @@ module core (
       .op2,
       .field,
       .csr_rd,
-      .reg_rs1(regfile[field.rs1]),
-      .reg_rs2(regfile[field.rs2]),
+      .reg_rs1(rs1),
+      .reg_rs2(rs2),
       .pc(reg_pc),
       .pc_plus_4,
       .pc_branch,
@@ -172,7 +173,6 @@ module core (
     import riscv_instr::*;
     // debug output
     debug_ebreak = instruction == riscv_instr::EBREAK;
-    // for (int i = 0; i < 32; i++) debug_reg[i] = regfile[i];
     pc = reg_pc;
     address = alu_out;
     write_data = rs2;
@@ -195,7 +195,6 @@ module core (
       end
       else
         reg_pc <= pc_next;
-
     end
   end
 endmodule

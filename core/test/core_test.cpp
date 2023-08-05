@@ -7,16 +7,19 @@
 #include <gtest/gtest.h>
 #include "model_tester.hpp"
 
-#define MEM_SIZE 0x20000
+#define UART0_BASE 0x10000000
+#define UART0_SIZE 0x100
+#define DRAM_BASE  0x80000000
+#define DRAM_SIZE  0x40000
 
 class CoreTester : public ModelTester<Vcore> {
 private:
-  const uint32_t MEMORY_SIZE = 0x20000;
+  const uint32_t MEMORY_SIZE = DRAM_SIZE;
   uint8_t *program = new uint8_t[MEMORY_SIZE]; // 4kB instruction memory
   uint8_t *memory = new uint8_t[MEMORY_SIZE];  // 4kB data memory
 
 public:
-  CoreTester(const char* dump_filename) : ModelTester(dump_filename) {}
+  CoreTester(const char* dump_filename) : ModelTester(std::format("core_test-{}", dump_filename)) {}
   
   void clock(uint32_t signal) {
     this->top->clock = signal;
@@ -63,66 +66,94 @@ public:
     hexfile.seekg(0);
     hexfile.read((char *)this->program, size);
   }
+
+  uint32_t read_imem(uint32_t addr) {
+    if (DRAM_BASE <= addr && addr < DRAM_BASE + DRAM_SIZE) {
+      addr -= DRAM_BASE;
+      if (addr + 3 > this->MEMORY_SIZE) {
+        throw std::out_of_range(std::format("Address out of memory(fetch): {:#x}/{:#x}", addr+3, this->MEMORY_SIZE));
+      }
+      auto data_word = (this->program[addr + 3] << 3 * 8) | (this->program[addr + 2] << 2 * 8) |
+                       (this->program[addr + 1] << 1 * 8) | this->program[addr];
+      return data_word;
+    }
+    return 0xdeadbeef;
+  }
+
+  uint32_t read_dmem(uint32_t addr) {
+    addr -= DRAM_BASE;
+    if (addr + 3 > this->MEMORY_SIZE) {
+      throw std::out_of_range(std::format("Address out of memory(read): {:#x}/{:#x}", addr+3, this->MEMORY_SIZE));
+    }
+    auto data_word = (this->memory[addr + 3] << 3 * 8) | (this->memory[addr + 2] << 2 * 8) |
+                     (this->memory[addr + 1] << 1 * 8) | this->memory[addr];
+    return data_word;
+  }
+  
+  void write_dmem(uint32_t addr, uint32_t data, uint8_t strb) {
+    static bool prev_was_newline = true;
+    if (UART0_BASE <= addr && addr < UART0_BASE + UART0_SIZE) {
+      if (prev_was_newline) {
+        std::cout << "[UART0 OUTPUT] ";
+        prev_was_newline = false;
+      }
+      std::cout << (char)this->top->write_data;
+      if ((char)this->top->write_data == '\n')
+        prev_was_newline = true;
+    } else if (DRAM_BASE <= addr && addr < DRAM_BASE + DRAM_SIZE) {
+      addr -= DRAM_BASE;
+      uint32_t write_size = 0;
+      if      (strb == 0b0001) write_size = 1;
+      else if (strb == 0b0011) write_size = 2;
+      else if (strb == 0b1111) write_size = 4;
+
+      if (addr + write_size >= this->MEMORY_SIZE) {
+        throw std::out_of_range(std::format("Address out of memory(write): {:#x}/{:#x}", addr+3, this->MEMORY_SIZE));
+      }
+      switch (write_size) {
+      case 4:
+        this->memory[addr + 3] = (data & 0xFF000000) >> 24;
+        this->memory[addr + 2] = (data & 0x00FF0000) >> 16;
+      case 2:
+        this->memory[addr + 1] = (data & 0x0000FF00) >> 8;
+      case 1:
+        this->memory[addr + 0] = data & 0x000000FF;
+      default:
+        break;
+      }
+    }
+  }
+  
+  void run_one_cycle(uint32_t mem_delay) {
+    static uint32_t delay_counter = 0;
+    this->do_posedge([&](Vcore *core) {
+      core->instruction = this->read_imem(core->pc);
+      core->instr_valid = 1;
+      
+      // delay_counter = 0 -> read_valid = write_ready = 0
+      if (core->read_enable) {
+        if (delay_counter < 4) {
+          core->read_data = 0xdeadbeef;
+          core->read_valid = 0;
+          delay_counter++;
+        } else {
+          core->read_data = this->read_dmem(core->address);
+          core->read_valid = 1;
+          delay_counter = 0;
+        }
+      } else if (core->write_enable) {
+        if (delay_counter < 4) {
+          core->write_ready = 0;
+          delay_counter++;
+        } else {
+          this->write_dmem(core->address, core->write_data, core->strb);
+          core->write_ready = 1;
+          delay_counter = 0;
+        }
+      }
+    });
+  }
 };
-
-unsigned int main_time = 0; // Current simulation time
-
-double sc_time_stamp() { // Called by $time in Verilog
-  return main_time;
-}
-
-int read_hexfile(std::string filename, uint8_t *buf) {
-  size_t len = MEM_SIZE;
-  std::ifstream hexfile(filename, std::ios::binary);
-  hexfile.seekg(0, std::ios::end);
-  size_t size = hexfile.tellg();
-
-  if (size > len)
-    return 1;
-
-  hexfile.seekg(0);
-  hexfile.read((char *)buf, size);
-
-  return 0;
-}
-
-uint32_t fetch_4byte(uint8_t *memory, uint32_t addr) {
-  size_t size = MEM_SIZE;
-  if (addr + 3 > size) {
-    std::cerr << "Address out of memory(fetch):";
-    std::cerr << std::showbase << std::hex;
-    std::cerr << addr + 3 << "/" << size << std::endl;
-    std::cerr << std::noshowbase;
-    exit(1);
-  }
-  auto data_word = (memory[addr + 3] << 3 * 8) | (memory[addr + 2] << 2 * 8) |
-                   (memory[addr + 1] << 1 * 8) | memory[addr];
-
-  return data_word;
-}
-
-void mem_write(uint8_t *memory, uint32_t addr, uint32_t data, uint8_t wstrb) {
-  size_t size = MEM_SIZE;
-  uint32_t write_size = wstrb + 1;
-  if (addr + write_size >= size) {
-    std::cerr << "Address out of memory(write):";
-    std::cerr << std::showbase << std::hex;
-    std::cerr << addr + 3 << "/" << size << std::endl;
-    std::cerr << std::noshowbase;
-    exit(1);
-  }
-  switch (write_size) {
-  case 4:
-    memory[addr + 2] = (data & 0x00FF0000) >> 16;
-    memory[addr + 3] = (data & 0xFF000000) >> 24;
-  case 2:
-    memory[addr + 1] = (data & 0x0000FF00) >> 8;
-  case 1:
-    memory[addr + 0] = data & 0x000000FF;
-  default:
-    break;
-  }
-}
 
 // TODO: サンプルプログラムを実行するテストを書く
 TEST (core_test, run_sample_program) {
@@ -130,109 +161,28 @@ TEST (core_test, run_sample_program) {
   dut->read_program("../sample_src/program.bin");
   dut->init();
   
-  dut->do_posedge([](Vcore *core) {
-  });
+  uint32_t cycle = 0;
+  while (1) {
+    cycle++;
+    dut->run_one_cycle(4);
+    if (cycle > 5000 || dut->top->debug_ebreak) break;
+  }
+  EXPECT_FALSE(cycle > 5000) << std::format("Test is too long. cycle = {}", cycle);
+  EXPECT_TRUE(dut->top->debug_ebreak) << "Test wasn't done.";
 }
 
 // TODO: RISC-V Tests を実行するテストを書く
 TEST (core_test, run_riscv_test) {
+  auto dut = new CoreTester("sample_program.vcd");
+  dut->read_program("../sample_src/program.bin");
+  dut->init();
   
-}
-
-// int main(int argc, char **argv) {
-TEST (core_test, core) {
-  // Verilated::commandArgs(argc, argv); // Remember args
-
-  Vcore *top = new Vcore(); // Create instance
-
-  // Trace DUMP ON
-  Verilated::traceEverOn(true);
-  VerilatedVcdC *tfp = new VerilatedVcdC;
-
-  uint8_t *program = new uint8_t[MEM_SIZE]; // 4kB instruction memory
-  uint8_t *memory = new uint8_t[MEM_SIZE];  // 4kB data memory
-  for (int i = 0; i < MEM_SIZE; i++)
-    memory[i] = i;
-  if (read_hexfile("../sample_src/program.bin", program)) {
-    std::cerr << "Could not read program.bin" << std::endl;
-    exit(1);
+  uint32_t cycle = 0;
+  while (1) {
+    cycle++;
+    dut->run_one_cycle(4);
+    if (cycle > 5000 || dut->top->debug_ebreak) break;
   }
-
-  // initialize
-  top->trace(tfp, 100);
-  tfp->open("cpu_sim.vcd");
-  top->clock = 1;
-  top->reset = 0;
-  top->instruction = fetch_4byte(program, top->pc);
-  top->read_data = 0;
-  top->read_valid = 0;
-  top->timer_int = 0;
-  top->soft_int = 0;
-  top->ext_int = 0;
-
-  // とりあえずwrite/fetchのレイテンシは無視
-  top->instr_valid = 1;
-  top->write_ready = 1;
-
-  int access_counter = 0;
-
-  while (!Verilated::gotFinish()) {
-
-    top->instruction = fetch_4byte(program, top->pc);
-    if (top->read_enable) {
-      if (access_counter < 4) {
-        top->read_data = 0xdeadbeef;
-        top->read_valid = 0;
-        access_counter++;
-      } else {
-        top->read_data = fetch_4byte(memory, top->address);
-        top->read_valid = 1;
-        access_counter = 0;
-      }
-    }
-    if (top->write_enable) {
-      mem_write(memory, top->address, top->write_data, top->strb);
-    }
-
-    int tmp = main_time - 100;
-    if (tmp >= 0 && tmp < 2)
-      top->soft_int = 1;
-    else
-      top->soft_int = 0;
-
-    top->eval();
-
-    top->clock = !top->clock;
-
-    top->eval(); // Evaluate model
-    tfp->dump(main_time);
-
-    // Wait for done
-    if (main_time > 10000)
-      break;
-
-    // debug output
-    std::cout << std::showbase << std::dec;
-    std::cout << "registers: main_time=" << main_time << std::endl;
-    std::cout << "pc: " << std::hex << top->pc << std::endl;
-    std::cout << "instruction: " << std::hex << top->instruction << std::endl;
-    for (int i = 0; i < 16; i++) {
-      std::cout << "x" << std::dec << i << ": ";
-      std::cout << std::hex << top->debug_reg[i] << std::endl;
-    }
-
-    if (top->illegal_instr) {
-      std::cout << "Illegal Instruction: " << std::endl;
-      std::cout << "pc: " << std::hex << top->pc << std::endl;
-      std::cout << "instr: " << std::hex << top->instruction << std::endl;
-    }
-    if (top->debug_ebreak) {
-      std::cout << "EBREAK!!!!!!!" << std::endl;
-      break;
-    }
-    main_time++; // Time passes...
-  }
-
-  top->final(); // Done simulating
-  tfp->close();
+  EXPECT_FALSE(cycle > 5000) << std::format("Test is too long. cycle = {}", cycle);
+  EXPECT_TRUE(dut->top->debug_ebreak) << "Test wasn't done.";
 }

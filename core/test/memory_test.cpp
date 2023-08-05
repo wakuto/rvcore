@@ -8,10 +8,15 @@
 #include <gtest/gtest.h>
 #include "model_tester.hpp"
 
+#define UART0_BASE 0x10000000
+#define UART0_SIZE 0x100
+#define DRAM_BASE  0x80000000
+#define DRAM_SIZE  0x40000
+
 // メモリ操作用クラス
 class MemoryTester : public ModelTester<Vmemory> {
 public:
-  MemoryTester(const char* dump_filename) : ModelTester(dump_filename) {}
+  MemoryTester(const char* dump_filename) : ModelTester(std::format("memory_test-{}", dump_filename)) {}
   
   void clock(uint32_t signal) {
     this->top->clk = signal;
@@ -44,7 +49,7 @@ public:
   
   uint32_t readmem(uint32_t addr) {
     this->do_posedge([=](Vmemory *vmem) {
-      vmem->address = addr;
+      vmem->address = addr+DRAM_BASE;
       vmem->read_enable = 1;
       vmem->write_enable = 0;
     });
@@ -54,7 +59,7 @@ public:
   
   void writemem(uint32_t addr, uint8_t data) {
     this->do_posedge([=](Vmemory *vmem) {
-      vmem->address = addr;
+      vmem->address = addr+DRAM_BASE;
       vmem->read_enable = 0;
       vmem->write_enable = 1;
       vmem->write_data = data;
@@ -65,7 +70,7 @@ public:
 
   void writemem(uint32_t addr, uint16_t data) {
     this->do_posedge([=](Vmemory *vmem) {
-      vmem->address = addr;
+      vmem->address = addr+DRAM_BASE;
       vmem->read_enable = 0;
       vmem->write_enable = 1;
       vmem->write_data = data;
@@ -76,7 +81,7 @@ public:
 
   void writemem(uint32_t addr, uint32_t data) {
     this->do_posedge([=](Vmemory *vmem) {
-      vmem->address = addr;
+      vmem->address = addr+DRAM_BASE;
       vmem->read_enable = 0;
       vmem->write_enable = 1;
       vmem->write_data = data;
@@ -87,15 +92,18 @@ public:
 };
 
 size_t load_program(std::string program_file, uint32_t *program, size_t size) {
-  std::ifstream program_stream(program_file);
+  std::ifstream program_stream(program_file, std::ios::binary);
   if (program_stream.fail()) {
-    throw std::runtime_error("failed to load memory initialization file: ../sample_src/program.txt");
+    throw std::runtime_error("failed to load memory initialization file: ../sample_src/program.bin");
   }
 
   auto i = 0;
-  std::string str_4byte;
-  for(i = 0; (i < size) && std::getline(program_stream, str_4byte); i++) {
-    program[i] = std::stoul(str_4byte, nullptr, 16);
+  uint8_t buffer[4];
+  while (i < size && program_stream.read(reinterpret_cast<char*>(buffer), 4)) {
+    program[i++] = static_cast<uint32_t>(buffer[0]) |
+                        (static_cast<uint32_t>(buffer[1]) << 8) |
+                        (static_cast<uint32_t>(buffer[2]) << 16) |
+                        (static_cast<uint32_t>(buffer[3]) << 24);
   }
   // 読み込めたサイズを返却
   // size分読めたときを場合分け
@@ -105,14 +113,14 @@ size_t load_program(std::string program_file, uint32_t *program, size_t size) {
 TEST (memory_test, read_test) {
   uint32_t program[32];
   auto test_num = 0;
-  ASSERT_NO_THROW(test_num = load_program("../sample_src/program.txt", program, 32));
+  ASSERT_NO_THROW(test_num = load_program("../sample_src/program.bin", program, 32));
 
   auto dut = new MemoryTester("read_test.vcd");
   dut->init();
   
   for(int i = 0; i < test_num; i++) {
     uint32_t tmp;
-    EXPECT_EQ(program[i], tmp = dut->readmem(0x04*i))
+    ASSERT_EQ(program[i], tmp = dut->readmem(0x04*i))
       << std::format("memory data is different at {:#x}: expect:{:#x}, actually:{:#x}", 0x4*i, program[0x4*i], tmp);
   }
 }
@@ -120,7 +128,7 @@ TEST (memory_test, read_test) {
 TEST (memory_test, write_1byte_test) {
   uint32_t program[32];
   auto test_num = 0;
-  ASSERT_NO_THROW(test_num = load_program("../sample_src/program.txt", program, 32));
+  ASSERT_NO_THROW(test_num = load_program("../sample_src/program.bin", program, 32));
 
   auto dut = new MemoryTester("write_1byte_test.vcd");
   dut->init();
@@ -133,7 +141,7 @@ TEST (memory_test, write_1byte_test) {
   
   for(int i = 0; i < test_num; i++) {
     uint32_t tmp;
-    EXPECT_EQ(program[i], tmp = dut->readmem(0x04*i))
+    ASSERT_EQ(program[i], tmp = dut->readmem(0x04*i))
       << std::format("memory data is different at {:#x}: expect:{:#x}, actually:{:#x}", 0x4*i, program[0x4*i], tmp);
   }
 }
@@ -141,7 +149,7 @@ TEST (memory_test, write_1byte_test) {
 TEST (memory_test, write_2byte_test) {
   uint32_t program[32];
   auto test_num = 0;
-  ASSERT_NO_THROW(test_num = load_program("../sample_src/program.txt", program, 32));
+  ASSERT_NO_THROW(test_num = load_program("../sample_src/program.bin", program, 32));
 
   auto dut = new MemoryTester("write_2byte_test.vcd");
   dut->init();
@@ -154,7 +162,7 @@ TEST (memory_test, write_2byte_test) {
   
   for(int i = 0; i < test_num; i++) {
     uint32_t tmp;
-    EXPECT_EQ(program[i], tmp = dut->readmem(0x04*i))
+    ASSERT_EQ(program[i], tmp = dut->readmem(0x04*i))
       << std::format("memory data is different at {:#x}: expect:{:#x}, actually:{:#x}", 0x4*i, program[0x4*i], tmp);
   }
 }
@@ -162,7 +170,7 @@ TEST (memory_test, write_2byte_test) {
 TEST (memory_test, write_4byte_test) {
   uint32_t program[32];
   auto test_num = 0;
-  ASSERT_NO_THROW(test_num = load_program("../sample_src/program.txt", program, 32));
+  ASSERT_NO_THROW(test_num = load_program("../sample_src/program.bin", program, 32));
 
   auto dut = new MemoryTester("write_4byte_test.vcd");
   dut->init();
@@ -174,7 +182,7 @@ TEST (memory_test, write_4byte_test) {
   
   for(int i = 0; i < test_num; i++) {
     uint32_t tmp;
-    EXPECT_EQ(program[i], tmp = dut->readmem(0x04*i))
+    ASSERT_EQ(program[i], tmp = dut->readmem(0x04*i))
       << std::format("memory data is different at {:#x}: expect:{:#x}, actually:{:#x}", 0x4*i, program[0x4*i], tmp);
   }
 }
