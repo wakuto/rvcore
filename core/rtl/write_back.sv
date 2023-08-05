@@ -9,10 +9,10 @@ module write_back (
     input wire logic mem_stall,
     input wire logic instr_valid,
     input wire logic is_jump_instr,
-    input common::pc_sel_t pc_sel,
+    input wire common::pc_sel_t pc_sel,
     output logic [31:0] pc_next,
 
-    input common::wb_sel_t wb_sel,
+    input wire common::wb_sel_t wb_sel,
     input wire logic [31:0] read_data,
     input wire logic read_valid,
     input wire logic [31:0] wb_mask,
