@@ -3,6 +3,7 @@
 
 #include <verilated.h>
 #include <verilated_vcd_c.h> // VCD output
+#include <filesystem>
 #include <functional>
 
 // Verilatorモデルを操作するクラス
@@ -13,13 +14,14 @@ public:
   VerilatedVcdC *tfp;
   uint32_t main_time;
 
-  ModelTester(std::string dump_filename) {
+  ModelTester(std::string dump_dirname, std::string dump_filename) {
+    std::filesystem::create_directory(dump_dirname);
     this->top = new V();
     Verilated::traceEverOn(true);
     this->tfp = new VerilatedVcdC;
 
     this->top->trace(this->tfp, 100);
-    this->tfp->open(dump_filename.c_str());
+    this->tfp->open((dump_dirname + "/" + dump_filename).c_str());
   }
   
   /// @brief clockを操作する関数
@@ -31,7 +33,6 @@ public:
   virtual void reset(uint32_t signal) = 0;
 
   virtual ~ModelTester() {
-    this->next_clock();
     this->top->final();
     this->tfp->close();
   }

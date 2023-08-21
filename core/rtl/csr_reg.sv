@@ -74,6 +74,7 @@ module csr_reg (
         ((flags[BIT_EXT] & reg_csr[MIE][B_MEIE]) |
          (flags[BIT_TIM] & reg_csr[MIE][B_MTIE]) |
          (flags[BIT_SOFT] & reg_csr[MIE][B_MSIE])))
+      | flags[BIT_ENV] | flags[BIT_ILL] | flags[BIT_LOAD] | flags[BIT_BRK]
       | mret_instr;
 
     mepc = reg_csr[MEPC];

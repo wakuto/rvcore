@@ -3,6 +3,7 @@ module top(
   input  wire logic        reset,
   input  wire logic        clk,
   output      logic        debug_ebreak,
+  output      logic        debug_ecall,
   output      logic [31:0] debug_reg[0:31],
   output      logic        illegal_instr,
   input  wire logic        timer_int,
@@ -69,6 +70,7 @@ module top(
     .write_ready,
 
     .debug_ebreak,
+    .debug_ecall,
     .debug_reg,
     .illegal_instr,
     .timer_int,

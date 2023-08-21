@@ -23,6 +23,7 @@ module core (
     input wire logic        write_ready,  // 書き込むデータの幅
 
     output     logic        debug_ebreak,
+    output     logic        debug_ecall,
     output     logic [31:0] debug_reg[0:31],
     output     logic        illegal_instr,
     input wire logic        timer_int,
@@ -173,6 +174,7 @@ module core (
     import riscv_instr::*;
     // debug output
     debug_ebreak = instruction == riscv_instr::EBREAK;
+    debug_ecall  = instruction == riscv_instr::ECALL;
     pc = reg_pc;
     address = alu_out;
     write_data = rs2;

@@ -24,6 +24,7 @@ set(CORE_OBJ_DIR ${CMAKE_CURRENT_SOURCE_DIR}/obj_dir)
 
 # memory_test
 add_executable(memory_test ${CORE_TEST_DIR}/memory_test.cpp)
+target_compile_options(memory_test PRIVATE -Wall -Wextra -Wno-unused-parameter)
 target_link_libraries(memory_test PUBLIC GTest::gtest_main)
 include(GoogleTest)
 gtest_discover_tests(memory_test)
@@ -43,6 +44,7 @@ verilate(memory_test
 
 # core_test
 add_executable(core_test ${CORE_TEST_DIR}/core_test.cpp)
+target_compile_options(core_test PRIVATE -Wall -Wextra -Wno-unused-parameter)
 target_link_libraries(core_test PUBLIC GTest::gtest_main)
 include(GoogleTest)
 gtest_discover_tests(core_test)
@@ -68,6 +70,7 @@ verilate(core_test
 
 # top_test
 add_executable(top_test ${CORE_TEST_DIR}/top_test.cpp)
+target_compile_options(top_test PRIVATE -Wall -Wextra -Wno-unused-parameter)
 target_link_libraries(top_test PUBLIC GTest::gtest_main)
 include(GoogleTest)
 gtest_discover_tests(top_test)

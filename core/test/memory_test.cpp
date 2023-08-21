@@ -16,7 +16,7 @@
 // メモリ操作用クラス
 class MemoryTester : public ModelTester<Vmemory> {
 public:
-  MemoryTester(const char* dump_filename) : ModelTester(std::format("memory_test-{}", dump_filename)) {}
+  MemoryTester(std::string dump_filename) : ModelTester("memory_test_vcd", dump_filename) {}
   
   void clock(uint32_t signal) {
     this->top->clk = signal;

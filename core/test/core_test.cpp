@@ -2,6 +2,8 @@
 #include <fstream>
 #include <iostream>
 #include <format>
+#include <vector>
+#include <filesystem>
 #include <verilated.h>       // Defines common routines
 #include <verilated_vcd_c.h> // VCD output
 #include <gtest/gtest.h>
@@ -15,11 +17,11 @@
 class CoreTester : public ModelTester<Vcore> {
 private:
   const uint32_t MEMORY_SIZE = DRAM_SIZE;
-  uint8_t *program = new uint8_t[MEMORY_SIZE]; // 4kB instruction memory
+  // uint8_t *program = new uint8_t[MEMORY_SIZE]; // 4kB instruction memory
   uint8_t *memory = new uint8_t[MEMORY_SIZE];  // 4kB data memory
 
 public:
-  CoreTester(const char* dump_filename) : ModelTester(std::format("core_test-{}", dump_filename)) {}
+  CoreTester(std::string dump_filename) : ModelTester("core_test_vcd", dump_filename) {}
   
   void clock(uint32_t signal) {
     this->top->clock = signal;
@@ -64,7 +66,7 @@ public:
       );
 
     hexfile.seekg(0);
-    hexfile.read((char *)this->program, size);
+    hexfile.read((char *)this->memory, size);
   }
 
   uint32_t read_imem(uint32_t addr) {
@@ -73,8 +75,8 @@ public:
       if (addr + 3 > this->MEMORY_SIZE) {
         throw std::out_of_range(std::format("Address out of memory(fetch): {:#x}/{:#x}", addr+3, this->MEMORY_SIZE));
       }
-      auto data_word = (this->program[addr + 3] << 3 * 8) | (this->program[addr + 2] << 2 * 8) |
-                       (this->program[addr + 1] << 1 * 8) | this->program[addr];
+      auto data_word = (this->memory[addr + 3] << 3 * 8) | (this->memory[addr + 2] << 2 * 8) |
+                       (this->memory[addr + 1] << 1 * 8) | this->memory[addr];
       return data_word;
     }
     return 0xdeadbeef;
@@ -132,7 +134,7 @@ public:
       
       // delay_counter = 0 -> read_valid = write_ready = 0
       if (core->read_enable) {
-        if (delay_counter < 4) {
+        if (delay_counter < mem_delay) {
           core->read_data = 0xdeadbeef;
           core->read_valid = 0;
           delay_counter++;
@@ -142,7 +144,7 @@ public:
           delay_counter = 0;
         }
       } else if (core->write_enable) {
-        if (delay_counter < 4) {
+        if (delay_counter < mem_delay) {
           core->write_ready = 0;
           delay_counter++;
         } else {
@@ -155,7 +157,6 @@ public:
   }
 };
 
-// TODO: サンプルプログラムを実行するテストを書く
 TEST (core_test, run_sample_program) {
   auto dut = new CoreTester("sample_program.vcd");
   dut->read_program("../sample_src/program.bin");
@@ -169,20 +170,35 @@ TEST (core_test, run_sample_program) {
   }
   EXPECT_FALSE(cycle > 5000) << std::format("Test is too long. cycle = {}", cycle);
   EXPECT_TRUE(dut->top->debug_ebreak) << "Test wasn't done.";
+  delete(dut);
 }
 
 // TODO: RISC-V Tests を実行するテストを書く
 TEST (core_test, run_riscv_test) {
-  auto dut = new CoreTester("sample_program.vcd");
-  dut->read_program("../sample_src/program.bin");
-  dut->init();
-  
-  uint32_t cycle = 0;
-  while (1) {
-    cycle++;
-    dut->run_one_cycle(4);
-    if (cycle > 5000 || dut->top->debug_ebreak) break;
+  std::string riscv_test_path = "../sample_src/riscv-tests/bin/";
+  std::vector<std::string> bin_files;
+
+  for (const auto& entry : std::filesystem::directory_iterator(riscv_test_path)) {
+    if (entry.is_regular_file() && entry.path().extension() == ".bin") {
+      bin_files.push_back(entry.path().filename().stem().string());
+    }
   }
-  EXPECT_FALSE(cycle > 5000) << std::format("Test is too long. cycle = {}", cycle);
-  EXPECT_TRUE(dut->top->debug_ebreak) << "Test wasn't done.";
+  
+  for (const auto& bin_file : bin_files) {
+    auto dut = new CoreTester(bin_file + ".vcd");
+    dut->read_program(riscv_test_path + bin_file + ".bin");
+    dut->init();
+    
+    uint32_t cycle = 0;
+    while (1) {
+      cycle++;
+      dut->run_one_cycle(4);
+      if (cycle > 5000 || dut->top->debug_ecall) break;
+    }
+    EXPECT_FALSE(cycle > 5000) << std::format("[riscv-tests failed] {}, Test is too long. cycle = {}", bin_file, cycle);
+    if (dut->top->debug_reg[3] == 1) std::cout << std::format("[riscv-tests pass] {}", bin_file) << std::endl;
+    EXPECT_EQ(dut->top->debug_reg[3], 1) << std::format("[riscv-tests failed] {}", bin_file);
+
+    delete(dut);
+  }
 }

@@ -65,13 +65,11 @@ module decoder (
   common::instr_type instruction_type;
   //assign inst_type = instruction_type;
 
-  assign csr_instr = wb_sel == common::ZICSR;
-
   always_comb begin
     // chose _alu_ops
     import riscv_instr::*;
     casez (instr)
-      ADD, ADDI, AUIPC, LB, LBU, LH, LHU, LW, LUI, SW, SH, SB, JAL, JALR, CSRRW, CSRRWI, EBREAK, FENCE:
+      ADD, ADDI, AUIPC, LB, LBU, LH, LHU, LW, LUI, SW, SH, SB, JAL, JALR, CSRRW, CSRRWI, EBREAK, FENCE, FENCE_I:
       _alu_ops = common::ADD;
       SUB: _alu_ops = common::SUB;
       XOR, XORI, MRET: _alu_ops = common::XOR;
@@ -90,6 +88,11 @@ module decoder (
       BGEU: _alu_ops = common::GEU;
       CSRRC, CSRRCI: _alu_ops = common::BIT_C;
       default: _alu_ops = common::ILL;
+    endcase
+
+    casez(instr) 
+      CSRRW, CSRRWI, CSRRS, CSRRSI, CSRRC, CSRRCI: csr_instr = 1'b1;
+      default: csr_instr = 1'b0;
     endcase
 
     illegal_instr = instr_valid & _alu_ops == common::ILL;
@@ -194,7 +197,7 @@ module decoder (
           end
         endcase
       end
-      // Fence(nop)
+      // Fence, Fence.i(nop)
       7'b0001111: begin
         op1 = 32'h0;
         op2 = 32'h0;

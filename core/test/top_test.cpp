@@ -9,7 +9,7 @@
 
 class TopTester : public ModelTester<Vtop> {
 public:
-  TopTester(const char* dump_filename) : ModelTester(std::format("top_test-{}", dump_filename)) { }
+  TopTester(std::string dump_filename) : ModelTester("top_test_vcd", dump_filename) { }
   
   void clock(uint32_t signal) {
     this->top->clk = signal;
