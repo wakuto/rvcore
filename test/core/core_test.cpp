@@ -1,4 +1,4 @@
-#include "../obj_dir/Vcore.h" // From Verilating "../rtl/core.sv"
+#include "../../obj_dir/Vcore.h" // From Verilating "../rtl/core.sv"
 #include <fstream>
 #include <iostream>
 #include <format>

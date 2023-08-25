@@ -1,4 +1,4 @@
-#include "../obj_dir/Vtop.h"
+#include "../../obj_dir/Vtop.h"
 #include <fstream>
 #include <iostream>
 #include <format>

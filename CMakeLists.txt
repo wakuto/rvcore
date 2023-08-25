@@ -18,8 +18,8 @@ enable_testing()
 find_package(verilator HINTS $ENV{VERILATOR_ROOT})
 
 # rvcore/core setting
-set(CORE_RTL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/rtl)
-set(CORE_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test)
+set(CORE_RTL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/rtl/core/)
+set(CORE_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test/core/)
 set(CORE_OBJ_DIR ${CMAKE_CURRENT_SOURCE_DIR}/obj_dir)
 
 # memory_test
