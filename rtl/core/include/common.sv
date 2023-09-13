@@ -1,3 +1,4 @@
+`default_nettype none
 `ifndef COMMON_H
 `define COMMON_H
 
@@ -32,7 +33,7 @@ package common;
     SLT,
     SLTU,
     ILL
-  } alu_cmd;
+  } alu_cmd_t;
   typedef enum logic [2:0] {
     R_TYPE,
     I_TYPE,
@@ -66,7 +67,10 @@ package common;
     PC_NEXT
   } pc_sel_t;
   // nop(addi x0, x0, 0)
+  // verilator lint_off UNUSEDPARAM
   localparam [31:0] BUBBLE = 32'b000000000000_00000_000_00000_0010011;
+  // verilator lint_on UNUSEDPARAM
 endpackage
 
 `endif
+`default_nettype wire

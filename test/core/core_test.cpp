@@ -7,7 +7,7 @@
 #include <verilated.h>       // Defines common routines
 #include <verilated_vcd_c.h> // VCD output
 #include <gtest/gtest.h>
-#include "model_tester.hpp"
+#include "../common/model_tester.hpp"
 
 #define UART0_BASE 0x10000000
 #define UART0_SIZE 0x100

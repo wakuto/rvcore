@@ -87,7 +87,7 @@ module core (
   );
 
   // decoded data
-  common::alu_cmd operation_type;
+  common::alu_cmd_t operation_type;
   common::mem_access_type access_type;
   common::instr_field field;
   common::pc_sel_t pc_sel;

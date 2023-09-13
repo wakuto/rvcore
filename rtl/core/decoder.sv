@@ -60,7 +60,7 @@ module decoder (
     instr[31], instr[19:12], instr[20], instr[30:21], 1'b0
   };
 
-  common::alu_cmd _alu_ops;
+  common::alu_cmd_t _alu_ops;
   assign alu_ops = _alu_ops;
   common::instr_type instruction_type;
   //assign inst_type = instruction_type;

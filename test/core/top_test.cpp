@@ -5,7 +5,7 @@
 #include <verilated.h>       // Defines common routines
 #include <verilated_vcd_c.h> // VCD output
 #include <gtest/gtest.h>
-#include "model_tester.hpp"
+#include "../common/model_tester.hpp"
 
 class TopTester : public ModelTester<Vtop> {
 public:
