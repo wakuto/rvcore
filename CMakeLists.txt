@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.26)
-project(rvcore_core_test)
+project(rvcore_test)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # GoogleTest settings
 set(CMAKE_CXX_STANDARD 20)
@@ -20,7 +21,9 @@ find_package(verilator HINTS $ENV{VERILATOR_ROOT})
 # rvcore/core setting
 set(CORE_RTL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/rtl/core/)
 set(CORE_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test/core/)
-set(CORE_OBJ_DIR ${CMAKE_CURRENT_SOURCE_DIR}/obj_dir)
+set(COMMON_RTL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/rtl/common/)
+set(COMMON_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test/common/)
+set(OBJ_DIR ${CMAKE_CURRENT_SOURCE_DIR}/obj_dir)
 
 # memory_test
 add_executable(memory_test ${CORE_TEST_DIR}/memory_test.cpp)
@@ -34,7 +37,7 @@ verilate(memory_test
     PREFIX Vmemory
     INCLUDE_DIRS
         ${CORE_RTL_DIR}/include
-    DIRECTORY ${CORE_OBJ_DIR}
+    DIRECTORY ${OBJ_DIR}
     VERILATOR_ARGS
         --trace
         --trace-params
@@ -60,7 +63,7 @@ verilate(core_test
     PREFIX Vcore
     INCLUDE_DIRS
         ${CORE_RTL_DIR}/include
-    DIRECTORY ${CORE_OBJ_DIR}
+    DIRECTORY ${OBJ_DIR}
     VERILATOR_ARGS
         --trace
         --trace-params
@@ -88,10 +91,58 @@ verilate(top_test
     PREFIX Vtop
     INCLUDE_DIRS
         ${CORE_RTL_DIR}/include
-    DIRECTORY ${CORE_OBJ_DIR}
+    DIRECTORY ${OBJ_DIR}
     VERILATOR_ARGS
         --trace
         --trace-params
         --trace-structs
         --trace-underscore
+)
+
+# fifo_test
+add_executable(fifo_test ${COMMON_TEST_DIR}/fifo_test.cpp)
+target_compile_options(fifo_test PRIVATE -Wall -Wextra -Wno-unused-parameter)
+target_link_libraries(fifo_test PUBLIC GTest::gtest_main)
+include(GoogleTest)
+gtest_discover_tests(fifo_test)
+verilate(fifo_test
+    SOURCES
+        ${COMMON_RTL_DIR}/fifoWrapper.sv
+        ${COMMON_RTL_DIR}/fifo.sv
+        ${COMMON_RTL_DIR}/fifoIf.sv
+    PREFIX Vfifo
+    DIRECTORY ${OBJ_DIR}
+    VERILATOR_ARGS
+        --trace
+        --trace-params
+        --trace-structs
+        --trace-underscore
+        -Wall
+        -Wwarn-lint
+        -Wwarn-style
+)
+
+# issue_queue_test
+add_executable(issue_queue_test ${CORE_TEST_DIR}/issue_queue_test.cpp)
+target_compile_options(issue_queue_test PRIVATE -Wall -Wextra -Wno-unused-parameter)
+target_link_libraries(issue_queue_test PUBLIC GTest::gtest_main)
+include(GoogleTest)
+gtest_discover_tests(issue_queue_test)
+verilate(issue_queue_test
+    SOURCES
+        ${CORE_RTL_DIR}/issueQueue.sv
+        ${CORE_RTL_DIR}/issueQueueIf.sv
+        ${CORE_RTL_DIR}/issueQueueWrapper.sv
+    PREFIX Vissue_queue
+    INCLUDE_DIRS
+        ${CORE_RTL_DIR}/include
+    DIRECTORY ${OBJ_DIR}
+    VERILATOR_ARGS
+        --trace
+        --trace-params
+        --trace-structs
+        --trace-underscore
+        -Wall
+        -Wwarn-lint
+        -Wwarn-style
 )

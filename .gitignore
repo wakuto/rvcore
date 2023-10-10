@@ -4,3 +4,4 @@
 *.vcd
 obj_dir/
 build/
+.cache/
