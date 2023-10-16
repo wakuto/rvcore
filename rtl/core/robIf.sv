@@ -1,36 +1,67 @@
 `default_nettype none
 
 `include "common.sv"
+`include "paramter.sv"
 
-interface robIf(input clk, input rst);
-  // 2命令同時実行なので2つのポートを持つ
-  logic [ 7: 0] phys_rd [0:1];;
-  logic [ 4: 0] arch_rd [0:1];;
-  logic         rd_en [0:1];
-  logic         full;
-  logic [ 4: 0] commit_target_tag [0:1];
-  logic         commit_target_en [0:1];
+interface robIf();
+  import parameter::*;
+  // dispatch port
+  logic [PHYS_REGS_ADDR_WIDTH-1: 0] dispatch_phys_rd   [0:DISPATCH_WIDTH-1];
+  logic [ 4: 0]                     dispatch_arch_rd   [0:DISPATCH_WIDTH-1];
+  logic                             dispatch_en        [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_WIDTH-1: 0]       dispatch_bank_addr [0:DISPATCH_WIDTH-1];
+  logic [ROB_ADDR_WIDTH-1: 0]       dispatch_rob_addr  [0:DISPATCH_WIDTH-1];
+  logic                             full;
+
+  // writeback port
+  logic [DISPATCH_WIDTH-1: 0] writeback_bank_addr [0:DISPATCH_WIDTH-1];
+  logic [ROB_ADDR_WIDTH-1: 0] writeback_rob_addr  [0:DISPATCH_WIDTH-1];
+  logic                       writeback_en        [0:DISPATCH_WIDTH-1];
+
+  // commit port
+  logic [PHYS_REGS_ADDR_WIDTH-1: 0] commit_phys_rd    [0:DISPATCH_WIDTH-1];
+  logic [ 4: 0]                     commit_arch_rd    [0:DISPATCH_WIDTH-1];
+  logic                             commit_en         [0:DISPATCH_WIDTH-1];
 
   modport rob (
-    input clk, rst,
-    input phys_rd,
-    input arch_rd,
-    input rd_en,
+    // dispatch
+    input  dispatch_phys_rd,
+    input  dispatch_arch_rd,
+    input  dispatch_en,
+    output dispatch_bank_addr,
+    output dispatch_rob_addr,
     output full,
-    input commit_target_tag,
-    input commit_target_en
+
+    // writeback
+    input  writeback_bank_addr,
+    input  writeback_rob_addr,
+    input  writeback_en,
+
+    // commit
+    input  commit_phys_rd,
+    input  commit_arch_rd,
+    input  commit_en
   );
 
-  modport append (
-    output phys_rd,
-    output arch_rd,
-    output rd_en,
+  modport dispatch (
+    output dispatch_phys_rd,
+    output dispatch_arch_rd,
+    output dispatch_en,
+    input  dispatch_bank_addr,
+    input  dispatch_rob_addr,
     input  full
   );
 
+  modport writeback (
+    output writeback_bank_addr,
+    output writeback_rob_addr,
+    output writeback_en
+  );
+
   modport commit (
-    output commit_target_tag,
-    output commit_target_en
+    output commit_phys_rd,
+    output commit_arch_rd,
+    output commit_en
   );
 endinterface
 
