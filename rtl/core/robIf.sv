@@ -1,20 +1,20 @@
 `default_nettype none
 
 `include "common.sv"
-`include "paramter.sv"
+`include "parameters.sv"
 
 interface robIf();
-  import parameter::*;
+  import parameters::*;
   // dispatch port
   logic [PHYS_REGS_ADDR_WIDTH-1: 0] dispatch_phys_rd   [0:DISPATCH_WIDTH-1];
   logic [ 4: 0]                     dispatch_arch_rd   [0:DISPATCH_WIDTH-1];
   logic                             dispatch_en        [0:DISPATCH_WIDTH-1];
-  logic [DISPATCH_WIDTH-1: 0]       dispatch_bank_addr [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_ADDR_WIDTH-1: 0]       dispatch_bank_addr [0:DISPATCH_WIDTH-1];
   logic [ROB_ADDR_WIDTH-1: 0]       dispatch_rob_addr  [0:DISPATCH_WIDTH-1];
   logic                             full;
 
   // writeback port
-  logic [DISPATCH_WIDTH-1: 0] writeback_bank_addr [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_ADDR_WIDTH-1: 0] writeback_bank_addr [0:DISPATCH_WIDTH-1];
   logic [ROB_ADDR_WIDTH-1: 0] writeback_rob_addr  [0:DISPATCH_WIDTH-1];
   logic                       writeback_en        [0:DISPATCH_WIDTH-1];
 
@@ -38,9 +38,9 @@ interface robIf();
     input  writeback_en,
 
     // commit
-    input  commit_phys_rd,
-    input  commit_arch_rd,
-    input  commit_en
+    output commit_phys_rd,
+    output commit_arch_rd,
+    output commit_en
   );
 
   modport dispatch (
@@ -59,9 +59,9 @@ interface robIf();
   );
 
   modport commit (
-    output commit_phys_rd,
-    output commit_arch_rd,
-    output commit_en
+    input  commit_phys_rd,
+    input  commit_arch_rd,
+    input  commit_en
   );
 endinterface
 

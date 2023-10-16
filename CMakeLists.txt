@@ -146,3 +146,28 @@ verilate(issue_queue_test
         -Wwarn-lint
         -Wwarn-style
 )
+
+# rob_test
+add_executable(rob_test ${CORE_TEST_DIR}/rob_test.cpp)
+target_compile_options(rob_test PRIVATE -Wall -Wextra -Wno-unused-parameter)
+target_link_libraries(rob_test PUBLIC GTest::gtest_main)
+include(GoogleTest)
+gtest_discover_tests(rob_test)
+verilate(rob_test
+    SOURCES
+        ${CORE_RTL_DIR}/rob.sv
+        ${CORE_RTL_DIR}/robIf.sv
+        ${CORE_RTL_DIR}/robWrapper.sv
+    PREFIX Vrob
+    INCLUDE_DIRS
+        ${CORE_RTL_DIR}/include
+    DIRECTORY ${OBJ_DIR}
+    VERILATOR_ARGS
+        --trace
+        --trace-params
+        --trace-structs
+        --trace-underscore
+        -Wall
+        -Wwarn-lint
+        -Wwarn-style
+)

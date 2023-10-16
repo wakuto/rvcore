@@ -1,26 +1,36 @@
 `default_nettype none
 
 `include "common.sv"
-`include "paramter.sv"
+`include "parameters.sv"
 
 typedef struct packed {
   logic             entry_valid;
-  logic [3:0]       tag;
-  logic [7:0]       phys_rd;
+  logic [parameters::PHYS_REGS_ADDR_WIDTH-1:0] phys_rd;
   logic [4:0]       arch_rd;
   logic             commit_ready;
 } rob_entry_t;
 
-module robEntry #(
+module rob #(
 ) (
   input wire clk, rst,
   robIf.rob rob_if
 );
-  import parameter::*;
+  import parameters::*;
   rob_entry_t rob_entry [0:ROB_SIZE-1][0:DISPATCH_WIDTH-1];
   logic [ROB_ADDR_WIDTH-1:0] head; // 次にdispatchするアドレス
   logic [ROB_ADDR_WIDTH-1:0] tail; // 次にcommitするアドレス
   logic [ROB_ADDR_WIDTH-1:0] num_entry; // 現在のエントリ数
+
+  // reset
+  always_ff @(posedge clk) begin
+    if (rst) begin
+      for (int i = 0; i < ROB_SIZE; i++) begin
+        for (int j = 0; j < DISPATCH_WIDTH; j++) begin
+          rob_entry[i][j] <= 0;
+        end
+      end
+    end
+  end
 
   // ---------------------------------
   // Dispatch
@@ -35,7 +45,7 @@ module robEntry #(
     end
 
     // TODO: 条件があっているかの確認
-    full = num_entry == (ROB_SIZE-1);
+    rob_if.full = num_entry == ROB_ADDR_WIDTH'(ROB_SIZE-1);
   end
   // いずれかのバンクにdispatchされたら head を進める
   always_ff @(posedge clk) begin
@@ -51,8 +61,8 @@ module robEntry #(
         rob_entry[head][w].phys_rd     <= rob_if.dispatch_phys_rd[w];
         rob_entry[head][w].arch_rd     <= rob_if.dispatch_arch_rd[w];
         rob_entry[head][w].commit_ready<= 0;
-        rob_if.dispatch_bank_addr      <= w;
-        rob_if.dispatch_rob_addr       <= head;
+        rob_if.dispatch_bank_addr[w]   <= DISPATCH_ADDR_WIDTH'(w);
+        rob_if.dispatch_rob_addr[w]    <= head;
       end
     end
   end

@@ -1,9 +1,10 @@
 `default_nettype none
-`ifndef PARAMETER_H
-`define PARAMETER_H
+`ifndef PARAMETERS_H
+`define PARAMETERS_H
 
-package parameter;
+package parameters;
   parameter integer DISPATCH_WIDTH = 2;
+  parameter integer DISPATCH_ADDR_WIDTH = $clog2(DISPATCH_WIDTH);
   parameter integer ROB_SIZE = 16;
   parameter integer ROB_ADDR_WIDTH = $clog2(ROB_SIZE);
   parameter integer PHYS_REGS = 128;
