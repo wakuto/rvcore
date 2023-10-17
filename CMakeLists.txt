@@ -171,3 +171,31 @@ verilate(rob_test
         -Wwarn-lint
         -Wwarn-style
 )
+
+# freelist_test
+add_executable(freelist_test ${CORE_TEST_DIR}/freelist_test.cpp)
+target_compile_options(freelist_test PRIVATE -Wall -Wextra -Wno-unused-parameter)
+target_link_libraries(freelist_test PUBLIC GTest::gtest_main)
+include(GoogleTest)
+gtest_discover_tests(freelist_test)
+verilate(freelist_test
+    SOURCES
+        ${CORE_RTL_DIR}/freelist.sv
+        ${CORE_RTL_DIR}/freelistIf.sv
+        ${CORE_RTL_DIR}/freelistWrapper.sv
+        ${COMMON_RTL_DIR}/fifo.sv
+        ${COMMON_RTL_DIR}/fifoIf.sv
+        ${COMMON_RTL_DIR}/fifoWrapper.sv
+    PREFIX Vfreelist
+    INCLUDE_DIRS
+        ${CORE_RTL_DIR}/include
+    DIRECTORY ${OBJ_DIR}
+    VERILATOR_ARGS
+        --trace
+        --trace-params
+        --trace-structs
+        --trace-underscore
+        -Wall
+        -Wwarn-lint
+        -Wwarn-style
+)

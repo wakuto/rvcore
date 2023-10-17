@@ -2,6 +2,7 @@
 
 module fifo #(
 ) (
+  input clk, rst,
   fifoIf.fifo fifo_if
 );
   localparam DATA_WIDTH = fifo_if.DATA_WIDTH;
@@ -15,8 +16,8 @@ module fifo #(
   assign fifo_if.empty = (count == 0);
   assign fifo_if.full =  (count == (ADDR_WIDTH+1)'(DEPTH));
 
-  always_ff @(posedge fifo_if.clk) begin
-    if (fifo_if.rst) begin
+  always_ff @(posedge clk) begin
+    if (rst) begin
       wr_ptr <= 0;
       rd_ptr <= 0;
     end else begin
