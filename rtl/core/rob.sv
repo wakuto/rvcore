@@ -88,7 +88,11 @@ module rob #(
   // validなエントリが全てcommit_readyになっているかどうか
   logic tail_commit_ready;
   always_comb begin
-    tail_commit_ready = 1;
+    tail_commit_ready = 0;
+    // 最低1つのエントリがvalidであること
+    for(int w = 0; w < DISPATCH_WIDTH; w++) begin
+      tail_commit_ready |= rob_entry[tail][w].entry_valid;
+    end
     for(int w = 0; w < DISPATCH_WIDTH; w++) begin
       tail_commit_ready &= rob_entry[tail][w].entry_valid ? rob_entry[tail][w].commit_ready : 1;
     end
@@ -96,8 +100,8 @@ module rob #(
 
   // ↑が成立しているとき、validなエントリをcommitして、エントリを削除する
   always_ff @(posedge clk) begin
-    if (tail_commit_ready) begin
-      for (int w = 0; w < DISPATCH_WIDTH; w++) begin
+    for (int w = 0; w < DISPATCH_WIDTH; w++) begin
+      if (tail_commit_ready) begin
         if (rob_entry[tail][w].entry_valid) begin
           rob_if.commit_phys_rd[w] <= rob_entry[tail][w].phys_rd;
           rob_if.commit_arch_rd[w] <= rob_entry[tail][w].arch_rd;
@@ -107,10 +111,8 @@ module rob #(
         end else begin
           rob_if.commit_en[w] <= 0;
         end
-      end
-      tail <= tail + 1;
-    end else begin
-      for (int w = 0; w < DISPATCH_WIDTH; w++) begin
+        tail <= tail + 1;
+      end else begin
         rob_if.commit_en[w] <= 0;
       end
     end
