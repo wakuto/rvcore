@@ -185,7 +185,6 @@ verilate(freelist_test
         ${CORE_RTL_DIR}/freelistWrapper.sv
         ${COMMON_RTL_DIR}/fifo.sv
         ${COMMON_RTL_DIR}/fifoIf.sv
-        ${COMMON_RTL_DIR}/fifoWrapper.sv
     PREFIX Vfreelist
     INCLUDE_DIRS
         ${CORE_RTL_DIR}/include
