@@ -6,9 +6,9 @@ interface freelistIf;
   import parameters::*;
 
   logic [PHYS_REGS_ADDR_WIDTH-1:0] push_reg [0:DISPATCH_WIDTH-1];
-  logic                            push_en  [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_WIDTH-1:0]       push_en;
   logic [PHYS_REGS_ADDR_WIDTH-1:0] pop_reg  [0:DISPATCH_WIDTH-1];
-  logic                            pop_en   [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_WIDTH-1:0]       pop_en;
   logic full;
   logic empty;
 

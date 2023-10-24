@@ -5,10 +5,10 @@
 module freelistWrapper(
   input  wire  clk, rst,
   input  wire  [PHYS_REGS_ADDR_WIDTH-1:0] push_reg [0:DISPATCH_WIDTH-1],
-  input  wire                             push_en  [0:DISPATCH_WIDTH-1],
+  input  wire  [DISPATCH_WIDTH-1:0]       push_en,
   output logic full,
   output logic [PHYS_REGS_ADDR_WIDTH-1:0] pop_reg  [0:DISPATCH_WIDTH-1],
-  input  wire                             pop_en   [0:DISPATCH_WIDTH-1],
+  input  wire  [DISPATCH_WIDTH-1:0]       pop_en,
   output logic empty
 );
   import parameters::*;
