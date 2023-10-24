@@ -6,10 +6,9 @@ module freelistWrapper(
   input  wire  clk, rst,
   input  wire  [PHYS_REGS_ADDR_WIDTH-1:0] push_reg [0:DISPATCH_WIDTH-1],
   input  wire  [DISPATCH_WIDTH-1:0]       push_en,
-  output logic full,
   output logic [PHYS_REGS_ADDR_WIDTH-1:0] pop_reg  [0:DISPATCH_WIDTH-1],
   input  wire  [DISPATCH_WIDTH-1:0]       pop_en,
-  output logic empty
+  output logic [PHYS_REGS_ADDR_WIDTH:0]   num_free
 );
   import parameters::*;
 
@@ -24,11 +23,10 @@ module freelistWrapper(
   always_comb begin
     freelist_if.push_reg = push_reg;
     freelist_if.push_en  = push_en;
-    full                = freelist_if.full;
 
     pop_reg             = freelist_if.pop_reg;
     freelist_if.pop_en  = pop_en;
-    empty               = freelist_if.empty;
+    num_free            = freelist_if.num_free;
   end
 
 endmodule

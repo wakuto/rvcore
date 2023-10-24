@@ -27,9 +27,7 @@ module freelist(
       num_pop += (DISPATCH_WIDTH+1)'(freelist_if.pop_en[i]);
     end
 
-    freelist_if.full = num_free == (PHYS_REGS_ADDR_WIDTH+1)'(PHYS_REGS);
-    freelist_if.empty = (num_free == 0)
-        | (PHYS_REGS_ADDR_WIDTH+1)'(num_free) - (PHYS_REGS_ADDR_WIDTH+1)'(num_pop) < (PHYS_REGS_ADDR_WIDTH+1)'(DISPATCH_WIDTH);
+    freelist_if.num_free = num_free;
   end
 
   always_ff @(posedge clk) begin
@@ -70,7 +68,7 @@ module freelist(
         endcase
         tail <= tail + PHYS_REGS_ADDR_WIDTH'(num_pop);
       end
-      if (|freelist_if.push_en && (PHYS_REGS_ADDR_WIDTH+1)'(num_push) + num_free < (PHYS_REGS_ADDR_WIDTH+1)'(PHYS_REGS)) begin
+      if (|freelist_if.push_en && (PHYS_REGS_ADDR_WIDTH+1)'(num_push) + num_free <= (PHYS_REGS_ADDR_WIDTH+1)'(PHYS_REGS)) begin
         case(freelist_if.push_en)
           'b01 : freelist_queue[head+0] <= freelist_if.push_reg[0];
           'b10 : freelist_queue[head+0] <= freelist_if.push_reg[1];

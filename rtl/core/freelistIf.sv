@@ -9,28 +9,25 @@ interface freelistIf;
   logic [DISPATCH_WIDTH-1:0]       push_en;
   logic [PHYS_REGS_ADDR_WIDTH-1:0] pop_reg  [0:DISPATCH_WIDTH-1];
   logic [DISPATCH_WIDTH-1:0]       pop_en;
-  logic full;
-  logic empty;
+  logic [PHYS_REGS_ADDR_WIDTH:0]    num_free;
 
   modport push(
     output push_reg,
-    output push_en,
-    input  full
+    output push_en
   );
 
   modport pop(
     input  pop_reg,
     output pop_en,
-    input  empty
+    input  num_free
   );
 
   modport freelist(
     input  push_reg,
     input  push_en,
-    output full,
     output pop_reg,
     input  pop_en,
-    output empty
+    output num_free
   );
 endinterface
 

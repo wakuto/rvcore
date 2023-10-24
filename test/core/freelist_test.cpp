@@ -118,14 +118,10 @@ TEST (FreelistTest, Push) {
   });
   // ---------- pop done
 
-  for (const auto i: inflight) {
-    std::cout << std::format("inflight value: {}\n", i);
-  }
-
   // push 10 times to bank 0
   for (auto i = 0; i < 10; i++) {
     dut->do_posedge([&inflight, &pushed_value](Vfreelist *freelist){
-      freelist->pop_reg[0] = inflight.back();
+      freelist->push_reg[0] = inflight.back();
       pushed_value.push_back(inflight.back());
       inflight.pop_back();
       freelist->push_en = 1;
@@ -135,7 +131,7 @@ TEST (FreelistTest, Push) {
   // push 10 times to bank 1
   for (auto i = 0; i < 10; i++) {
     dut->do_posedge([&inflight, &pushed_value](Vfreelist *freelist){
-      freelist->pop_reg[1] = inflight.back();
+      freelist->push_reg[1] = inflight.back();
       pushed_value.push_back(inflight.back());
       inflight.pop_back();
       freelist->push_en = 2;
@@ -145,22 +141,20 @@ TEST (FreelistTest, Push) {
   // push 10 times to bank 0, 1
   for (auto i = 0; i < 10; i++) {
     dut->do_posedge([&inflight, &pushed_value](Vfreelist *freelist){
-      freelist->pop_reg[0] = inflight.back();
+      freelist->push_reg[0] = inflight.back();
       pushed_value.push_back(inflight.back());
       inflight.pop_back();
-      freelist->pop_reg[1] = inflight.back();
+      freelist->push_reg[1] = inflight.back();
       pushed_value.push_back(inflight.back());
       inflight.pop_back();
       freelist->push_en = 3;
     });
   }
   dut->do_posedge([](Vfreelist *freelist){
+    freelist->push_reg[0] = 0;
+    freelist->push_reg[1] = 0;
     freelist->push_en = 0;
   });
-
-  for (const auto i: pushed_value) {
-    std::cout << std::format("pushed value: {}\n", i);
-  }
 
   // pop until pushed value is popped
   auto pop_value = 0;
@@ -173,27 +167,55 @@ TEST (FreelistTest, Push) {
       freelist->pop_en = 1;
     });
   } while (std::find(pushed_value.begin(), pushed_value.end(), pop_value) == pushed_value.end());
-  EXPECT_EQ(pop_value, pushed_value.back()) << "While の直後";
-  pushed_value.pop_back();
+  EXPECT_EQ(pop_value, pushed_value.front());
+  pushed_value.erase(pushed_value.begin());
 
-  std::cout << std::format("pushed value size: {}\n", pushed_value.size());
-  for (int i = pushed_value.size()-1; i >= 0; i--) {
+  for (size_t i = 0; i < pushed_value.size(); i++) {
     dut->do_posedge([&pop_value](Vfreelist *freelist){
       pop_value = freelist->pop_reg[0];
-      std::cout << std::format("pop value: {}\n", pop_value);
       freelist->pop_en = 1;
     });
     EXPECT_EQ(pop_value, pushed_value[i]);
   }
-  /*
 
-  dut->do_posedge([&pop_value](Vfreelist *freelist){
-    pop_value = freelist->pop_reg[0];
+  dut->do_posedge([](Vfreelist *freelist){
     freelist->pop_en = 0;
   });
-  EXPECT_EQ(pop_value, pushed_value.back());
-  pushed_value.pop_back();
-  */
+  dut->next_clock();
+  dut->next_clock();
+}
 
+TEST (FreelistTest, NumFree) {
+  auto dut = std::make_unique<FreelistTester>("freelist_test.vcd");
+  auto count = 0;
+  dut->init();
+
+  count = dut->top->num_free;
+  auto max_free = count;
+  auto num_free = 0;
+  for (; count >= max_free >> 1; count--) {
+    dut->do_posedge([&num_free](Vfreelist *freelist){
+      num_free = freelist->num_free;
+      freelist->pop_en = 1;
+    });
+    EXPECT_EQ(num_free, count);
+  }
+
+  if (max_free & 1) {
+    dut->do_posedge([&num_free](Vfreelist *freelist){
+      num_free = freelist->num_free;
+      freelist->pop_en = 1;
+    });
+    EXPECT_EQ(num_free, count);
+    count--;
+  }
+
+  for(; count >= 0; count -= 2) {
+    dut->do_posedge([&num_free](Vfreelist *freelist){
+      num_free = freelist->num_free;
+      freelist->pop_en = 3;
+    });
+    EXPECT_EQ(num_free, count);
+  }
 
 }
