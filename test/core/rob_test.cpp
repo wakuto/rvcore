@@ -56,7 +56,7 @@ TEST (ROBTest, OrderdWriteback) {
     for(auto i = 0; i < 2; i++) {
       rob->dispatch_en[i] = 0;
     }
-    if (!rob->full) {
+    if (!rob->dispatch_full) {
       rob->dispatch_phys_rd[0] = 32;
       rob->dispatch_arch_rd[0] = 0;
       rob->dispatch_en[0] = 1;
@@ -68,7 +68,7 @@ TEST (ROBTest, OrderdWriteback) {
     for(auto i = 0; i < 2; i++) {
       rob->dispatch_en[i] = 0;
     }
-    if (!rob->full) {
+    if (!rob->dispatch_full) {
       rob->dispatch_phys_rd[1] = 33;
       rob->dispatch_arch_rd[1] = 1;
       rob->dispatch_en[1] = 1;
@@ -87,7 +87,7 @@ TEST (ROBTest, OrderdWriteback) {
     for(auto i = 0; i < 2; i++) {
       rob->dispatch_en[i] = 0;
     }
-    if (!rob->full) {
+    if (!rob->dispatch_full) {
       rob->dispatch_phys_rd[0] = 34;
       rob->dispatch_arch_rd[0] = 2;
       rob->dispatch_en[0] = 1;
@@ -203,7 +203,7 @@ TEST (ROBTest, UnOrderedWriteback) {
     for(auto i = 0; i < 2; i++) {
       rob->dispatch_en[i] = 0;
     }
-    if (!rob->full) {
+    if (!rob->dispatch_full) {
       rob->dispatch_phys_rd[0] = 32;
       rob->dispatch_arch_rd[0] = 0;
       rob->dispatch_en[0] = 1;
@@ -215,7 +215,7 @@ TEST (ROBTest, UnOrderedWriteback) {
     for(auto i = 0; i < 2; i++) {
       rob->dispatch_en[i] = 0;
     }
-    if (!rob->full) {
+    if (!rob->dispatch_full) {
       rob->dispatch_phys_rd[1] = 33;
       rob->dispatch_arch_rd[1] = 1;
       rob->dispatch_en[1] = 1;
@@ -234,7 +234,7 @@ TEST (ROBTest, UnOrderedWriteback) {
     for(auto i = 0; i < 2; i++) {
       rob->dispatch_en[i] = 0;
     }
-    if (!rob->full) {
+    if (!rob->dispatch_full) {
       rob->dispatch_phys_rd[0] = 34;
       rob->dispatch_arch_rd[0] = 2;
       rob->dispatch_en[0] = 1;

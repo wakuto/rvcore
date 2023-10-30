@@ -158,7 +158,9 @@ gtest_discover_tests(rob_test)
 verilate(rob_test
     SOURCES
         ${CORE_RTL_DIR}/rob.sv
-        ${CORE_RTL_DIR}/robIf.sv
+        ${CORE_RTL_DIR}/robDispatchIf.sv
+        ${CORE_RTL_DIR}/robWbIf.sv
+        ${CORE_RTL_DIR}/robCommitIf.sv
         ${CORE_RTL_DIR}/robWrapper.sv
     PREFIX Vrob
     INCLUDE_DIRS

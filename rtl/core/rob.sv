@@ -13,7 +13,9 @@ typedef struct packed {
 module rob #(
 ) (
   input wire clk, rst,
-  robIf.rob rob_if
+  robDispatchIf.in dispatch_if,
+  robWbIf.in wb_if,
+  robCommitIf.out commit_if
 );
   import parameters::*;
   rob_entry_t rob_entry [0:ROB_SIZE-1][0:DISPATCH_WIDTH-1];
@@ -41,11 +43,11 @@ module rob #(
   always_comb begin
     dispatch_en = 0;
     for (int w = 0; w < DISPATCH_WIDTH; w++) begin
-      dispatch_en |= rob_if.dispatch_en[w];
+      dispatch_en |= dispatch_if.en[w];
     end
 
     // TODO: 条件があっているかの確認
-    rob_if.full = num_entry == ROB_ADDR_WIDTH'(ROB_SIZE-1);
+    dispatch_if.full = num_entry == ROB_ADDR_WIDTH'(ROB_SIZE-1);
   end
   // いずれかのバンクにdispatchされたら head を進める
   always_ff @(posedge clk) begin
@@ -56,13 +58,13 @@ module rob #(
 
   always_ff @(posedge clk) begin
     for (int w = 0; w < DISPATCH_WIDTH; w++) begin
-      if (rob_if.dispatch_en[w]) begin
+      if (dispatch_if.en[w]) begin
         rob_entry[head][w].entry_valid <= 1;
-        rob_entry[head][w].phys_rd     <= rob_if.dispatch_phys_rd[w];
-        rob_entry[head][w].arch_rd     <= rob_if.dispatch_arch_rd[w];
+        rob_entry[head][w].phys_rd     <= dispatch_if.phys_rd[w];
+        rob_entry[head][w].arch_rd     <= dispatch_if.arch_rd[w];
         rob_entry[head][w].commit_ready<= 0;
-        rob_if.dispatch_bank_addr[w]   <= DISPATCH_ADDR_WIDTH'(w);
-        rob_if.dispatch_rob_addr[w]    <= head;
+        dispatch_if.bank_addr[w]   <= DISPATCH_ADDR_WIDTH'(w);
+        dispatch_if.rob_addr[w]    <= head;
       end
     end
   end
@@ -74,8 +76,8 @@ module rob #(
   // 検討事項：同時にwritebackされうる命令数の最大値はDISPATCH_WIDTHとは限らなさそう
   always_ff @(posedge clk) begin
     for (int w = 0; w < DISPATCH_WIDTH; w++) begin
-      if (rob_if.writeback_en[w]) begin
-        rob_entry[rob_if.writeback_rob_addr[w]][rob_if.writeback_bank_addr[w]].commit_ready <= 1;
+      if (wb_if.en[w]) begin
+        rob_entry[wb_if.rob_addr[w]][wb_if.bank_addr[w]].commit_ready <= 1;
       end
     end
   end
@@ -103,17 +105,17 @@ module rob #(
     for (int w = 0; w < DISPATCH_WIDTH; w++) begin
       if (tail_commit_ready) begin
         if (rob_entry[tail][w].entry_valid) begin
-          rob_if.commit_phys_rd[w] <= rob_entry[tail][w].phys_rd;
-          rob_if.commit_arch_rd[w] <= rob_entry[tail][w].arch_rd;
-          rob_if.commit_en[w] <= 1;
+          commit_if.phys_rd[w] <= rob_entry[tail][w].phys_rd;
+          commit_if.arch_rd[w] <= rob_entry[tail][w].arch_rd;
+          commit_if.en[w] <= 1;
           rob_entry[tail][w].entry_valid <= 0;
           rob_entry[tail][w].commit_ready<= 0;
         end else begin
-          rob_if.commit_en[w] <= 0;
+          commit_if.en[w] <= 0;
         end
         tail <= tail + 1;
       end else begin
-        rob_if.commit_en[w] <= 0;
+        commit_if.en[w] <= 0;
       end
     end
   end
