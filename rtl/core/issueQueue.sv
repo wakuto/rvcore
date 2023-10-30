@@ -17,8 +17,9 @@ module issueQueue #(
 ) (
   input wire clk,
   input wire rst,
-  issueQueueIf.issue_din ru_issue_if,
-  issueQueueIf.issue issue_ex_if
+  isqDispatchIf.in dispatch_if,
+  isqWbIf.in wb_if,
+  isqIssueIf.out issue_if
 );
   localparam DEBUG = 0;
   logic [3:0] tag_counter;
@@ -124,12 +125,11 @@ module issueQueue #(
 
   always_comb begin
     issue_entry = search_tree[ISSUE_QUEUE_SIZE - 2];
-    issue_ex_if.alu_cmd_valid = entry_valid(issue_entry);
-    issue_ex_if.issue_alu_cmd = issue_entry.alu_cmd;
-    // issue_ex_if.alu_cmd = common::alu_cmd_t'(0);
-    issue_ex_if.issue_op1 = issue_entry.op1_data;
-    issue_ex_if.issue_op2 = issue_entry.op2_data;
-    issue_ex_if.phys_rd = issue_entry.phys_rd;
+    issue_if.valid = entry_valid(issue_entry);
+    issue_if.alu_cmd = issue_entry.alu_cmd;
+    issue_if.op1 = issue_entry.op1_data;
+    issue_if.op2 = issue_entry.op2_data;
+    issue_if.phys_rd = issue_entry.phys_rd;
   end
 
   
@@ -182,7 +182,7 @@ module issueQueue #(
     free_entry_idx = get_idx(free_search_tree[ISSUE_QUEUE_SIZE - 2]);
   end
 
-  assign ru_issue_if.full = !get_free(free_search_tree[ISSUE_QUEUE_SIZE - 2]);
+  assign dispatch_if.full = !get_free(free_search_tree[ISSUE_QUEUE_SIZE - 2]);
 
   always_ff @(posedge clk) begin
     if (rst) begin
@@ -193,7 +193,7 @@ module issueQueue #(
       if (DEBUG) $display("[verilog] reset now");
     end else begin
       // Debug
-      if (DEBUG) $display("din: %0x, v = %x, op1 = %x, op2 = %x, phys_rd = %x", ru_issue_if, ru_issue_if.write_enable, ru_issue_if.op1, ru_issue_if.op2, ru_issue_if.phys_rd);
+      if (DEBUG) $display("din: %0x, v = %x, op1 = %x, op2 = %x, phys_rd = %x", dispatch_if, dispatch_if.en, dispatch_if.op1, dispatch_if.op2, dispatch_if.phys_rd);
       for (int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
         if (DEBUG) $write("issue_queue[%0x]: %0x, v = %x, tag = %x alu_cmd = %x, op1_v = %x, op2_v = %x\n", i, issue_queue[i], issue_queue[i].entry_valid, issue_queue[i].tag, issue_queue[i].alu_cmd, issue_queue[i].op1_valid, issue_queue[i].op2_valid);
       end
@@ -206,29 +206,29 @@ module issueQueue #(
       if (DEBUG) $display("");
 
       // Dispatch
-      if (ru_issue_if.write_enable) begin
+      if (dispatch_if.en) begin
         tag_counter <= tag_counter + 4'b1;
         // 空いている領域を探してそこに書き込む
         issue_queue[free_entry_idx].entry_valid <= 1'b1;
         issue_queue[free_entry_idx].tag <= tag_counter;
-        issue_queue[free_entry_idx].alu_cmd <= ru_issue_if.alu_cmd;
-        issue_queue[free_entry_idx].op1_data <= ru_issue_if.op1;
-        issue_queue[free_entry_idx].op2_data <= ru_issue_if.op2;
-        issue_queue[free_entry_idx].op1_valid <= ru_issue_if.op1_valid;
-        issue_queue[free_entry_idx].op2_valid <= ru_issue_if.op2_valid;
-        issue_queue[free_entry_idx].phys_rd <= ru_issue_if.phys_rd;
+        issue_queue[free_entry_idx].alu_cmd <= dispatch_if.alu_cmd;
+        issue_queue[free_entry_idx].op1_data <= dispatch_if.op1;
+        issue_queue[free_entry_idx].op2_data <= dispatch_if.op2;
+        issue_queue[free_entry_idx].op1_valid <= dispatch_if.op1_valid;
+        issue_queue[free_entry_idx].op2_valid <= dispatch_if.op2_valid;
+        issue_queue[free_entry_idx].phys_rd <= dispatch_if.phys_rd;
       end
 
       // op1/op2 tag writeback
       for(int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
-        if (ru_issue_if.phys_result_valid) begin
-          if (issue_queue[i].entry_valid && !issue_queue[i].op1_valid && issue_queue[i].op1_data[7:0] == ru_issue_if.phys_result_tag) begin
+        if (wb_if.valid) begin
+          if (issue_queue[i].entry_valid && !issue_queue[i].op1_valid && issue_queue[i].op1_data[7:0] == wb_if.phys_rd) begin
             issue_queue[i].op1_valid <= 1'b1;
-            issue_queue[i].op1_data <= ru_issue_if.phys_result_data;
+            issue_queue[i].op1_data <= wb_if.data;
           end
-          if (issue_queue[i].entry_valid && !issue_queue[i].op2_valid && issue_queue[i].op2_data[7:0] == ru_issue_if.phys_result_tag) begin
+          if (issue_queue[i].entry_valid && !issue_queue[i].op2_valid && issue_queue[i].op2_data[7:0] == wb_if.phys_rd) begin
             issue_queue[i].op2_valid <= 1'b1;
-            issue_queue[i].op2_data <= ru_issue_if.phys_result_data;
+            issue_queue[i].op2_data <= wb_if.data;
           end
         end
       end

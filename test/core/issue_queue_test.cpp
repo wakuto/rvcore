@@ -17,8 +17,8 @@ struct dispatch_data_t {
 };
 
 struct writeback_data_t {
-  uint8_t phys_result_tag;
-  uint32_t phys_result_data;
+  uint8_t wb_phys_rd;
+  uint32_t wb_data;
 };
 
 class IssueQueueTester : public ModelTester<Vissue_queue> {
@@ -37,16 +37,16 @@ public:
     this->reset(1);
     this->top->eval();
     this->do_posedge([](Vissue_queue *isq){
-      isq->in_write_enable = 0;
-      isq->in_alu_cmd = 0;
-      isq->in_op1_valid = 0;
-      isq->in_op2_valid = 0;
-      isq->in_op1 = 0;
-      isq->in_op2 = 0;
-      isq->in_phys_rd = 0;
-      isq->phys_result_valid = 0;
-      isq->phys_result_tag = 0;
-      isq->phys_result_data = 0;
+      isq->dispatch_en = 0;
+      isq->dispatch_alu_cmd = 0;
+      isq->dispatch_op1_valid = 0;
+      isq->dispatch_op2_valid = 0;
+      isq->dispatch_op1 = 0;
+      isq->dispatch_op2 = 0;
+      isq->dispatch_phys_rd = 0;
+      isq->wb_valid = 0;
+      isq->wb_phys_rd = 0;
+      isq->wb_data = 0;
     });
 
     this->next_clock();
@@ -57,23 +57,23 @@ public:
   
   void dispatch(dispatch_data_t data) {
     this->do_posedge([data](Vissue_queue *isq){
-      isq->in_write_enable = 1;
-      isq->in_alu_cmd = data.alu_cmd;
-      isq->in_op1_valid = data.op1_valid;
-      isq->in_op2_valid = data.op2_valid;
-      isq->in_op1 = data.op1;
-      isq->in_op2 = data.op2;
-      isq->in_phys_rd = data.phys_rd;
-      isq->phys_result_valid = 0;
+      isq->dispatch_en = 1;
+      isq->dispatch_alu_cmd = data.alu_cmd;
+      isq->dispatch_op1_valid = data.op1_valid;
+      isq->dispatch_op2_valid = data.op2_valid;
+      isq->dispatch_op1 = data.op1;
+      isq->dispatch_op2 = data.op2;
+      isq->dispatch_phys_rd = data.phys_rd;
+      isq->wb_valid = 0;
     });
   }
 
   void writeback(writeback_data_t data) {
     this->do_posedge([data](Vissue_queue *isq){
-      isq->in_write_enable = 0;
-      isq->phys_result_valid = 1;
-      isq->phys_result_tag = data.phys_result_tag;
-      isq->phys_result_data = data.phys_result_data;
+      isq->dispatch_en = 0;
+      isq->wb_valid = 1;
+      isq->wb_phys_rd = data.wb_phys_rd;
+      isq->wb_data = data.wb_data;
     });
   }
 
@@ -81,8 +81,8 @@ public:
     data->alu_cmd = this->top->issue_alu_cmd;
     data->op1 = this->top->issue_op1;
     data->op2 = this->top->issue_op2;
-    data->phys_rd = this->top->phys_rd;
-    return this->top->alu_cmd_valid;
+    data->phys_rd = this->top->issue_phys_rd;
+    return this->top->issue_valid;
   }
 
   bool check_issue(dispatch_data_t *data, dispatch_data_t *expected) {
@@ -156,7 +156,7 @@ TEST (IssueQueueTest, Basic) {
 
   dut->writeback(writeback_data[0]);
   dut->do_posedge([] (Vissue_queue *isq) {
-    isq->phys_result_valid = 0;
+    isq->wb_valid = 0;
   });
   EXPECT_FALSE(dut->get_issue_data(&buffer));
 
@@ -182,8 +182,8 @@ TEST (IssueQueueTest, Basic) {
   EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[4]));
 
   dut->do_posedge([](Vissue_queue *isq) {
-    isq->phys_result_valid = 0;
-    isq->in_write_enable = 0;
+    isq->wb_valid = 0;
+    isq->dispatch_en = 0;
   });
 
   EXPECT_TRUE(dut->get_issue_data(&buffer));

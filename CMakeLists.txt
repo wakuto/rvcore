@@ -131,7 +131,9 @@ gtest_discover_tests(issue_queue_test)
 verilate(issue_queue_test
     SOURCES
         ${CORE_RTL_DIR}/issueQueue.sv
-        ${CORE_RTL_DIR}/issueQueueIf.sv
+        ${CORE_RTL_DIR}/isqDispatchIf.sv
+        ${CORE_RTL_DIR}/isqWbIf.sv
+        ${CORE_RTL_DIR}/isqIssueIf.sv
         ${CORE_RTL_DIR}/issueQueueWrapper.sv
     PREFIX Vissue_queue
     INCLUDE_DIRS

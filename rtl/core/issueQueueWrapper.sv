@@ -5,54 +5,58 @@ module issueQueueWrapper #(
   input wire clk,
   input wire rst,
 
-  input  wire              in_write_enable,
-  output logic             out_full,
-  input  common::alu_cmd_t in_alu_cmd,
-  input                    in_op1_valid, in_op2_valid,
-  input  wire [31:0]       in_op1, in_op2,
-  input  wire [ 7:0]       in_phys_rd,
+  input  wire              dispatch_en,
+  output logic             full,
+  input  common::alu_cmd_t dispatch_alu_cmd,
+  input                    dispatch_op1_valid, dispatch_op2_valid,
+  input  wire [31:0]       dispatch_op1, dispatch_op2,
+  input  wire [ 7:0]       dispatch_phys_rd,
 
 // 他の命令の結果の適用
-  input  wire              phys_result_valid,
-  input  wire [ 7:0]       phys_result_tag,
-  input  wire [31:0]       phys_result_data,
+  input  wire              wb_valid,
+  input  wire [ 7:0]       wb_phys_rd,
+  input  wire [31:0]       wb_data,
 
-  output logic             alu_cmd_valid,
+  output logic             issue_valid,
   output common::alu_cmd_t issue_alu_cmd,
   output logic [31:0]      issue_op1,
   output logic [31:0]      issue_op2,
-  output logic [ 7:0]      phys_rd
+  output logic [ 7:0]      issue_phys_rd
 );
 
-  issueQueueIf iq_if;
+  isqDispatchIf dispatch_if;
+  isqWbIf wb_if;
+  isqIssueIf issue_if;
 
   issueQueue #(
     .ISSUE_QUEUE_SIZE(ISSUE_QUEUE_SIZE)
   ) issue_queue_1 (
     .clk,
     .rst,
-    .ru_issue_if(iq_if.issue_din),
-    .issue_ex_if(iq_if.issue)
+    .dispatch_if(dispatch_if.in),
+    .wb_if(wb_if.in),
+    .issue_if(issue_if.out)
   );
 
   always_comb begin
-    iq_if.write_enable = in_write_enable;
-    out_full = iq_if.full;
-    iq_if.alu_cmd = in_alu_cmd;
-    iq_if.op1     = in_op1;
-    iq_if.op2     = in_op2;
-    iq_if.op1_valid = in_op1_valid;
-    iq_if.op2_valid = in_op2_valid;
-    iq_if.phys_rd = in_phys_rd;
-    iq_if.phys_result_valid = phys_result_valid;
-    iq_if.phys_result_tag = phys_result_tag;
-    iq_if.phys_result_data = phys_result_data;
+    full = dispatch_if.full;
+    dispatch_if.en = dispatch_en;
+    dispatch_if.alu_cmd = dispatch_alu_cmd;
+    dispatch_if.op1     = dispatch_op1;
+    dispatch_if.op2     = dispatch_op2;
+    dispatch_if.op1_valid = dispatch_op1_valid;
+    dispatch_if.op2_valid = dispatch_op2_valid;
+    dispatch_if.phys_rd = dispatch_phys_rd;
 
-    alu_cmd_valid = iq_if.alu_cmd_valid;
-    issue_alu_cmd   = iq_if.issue_alu_cmd;
-    issue_op1       = iq_if.issue_op1;
-    issue_op2       = iq_if.issue_op2;
-    phys_rd   = iq_if.phys_rd;
+    wb_if.valid = wb_valid;
+    wb_if.phys_rd = wb_phys_rd;
+    wb_if.data = wb_data;
+
+    issue_valid = issue_if.valid;
+    issue_alu_cmd   = issue_if.alu_cmd;
+    issue_op1       = issue_if.op1;
+    issue_op2       = issue_if.op2;
+    issue_phys_rd   = issue_if.phys_rd;
   end
 endmodule
 
