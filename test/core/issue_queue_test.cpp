@@ -56,7 +56,6 @@ public:
 
   
   void dispatch(dispatch_data_t data) {
-    this->top->eval();
     this->do_posedge([data](Vissue_queue *isq){
       isq->in_write_enable = 1;
       isq->in_alu_cmd = data.alu_cmd;
@@ -78,26 +77,29 @@ public:
     });
   }
 
-  bool check_issue(dispatch_data_t data) {
-    this->top->eval();
-    if (this->top->alu_cmd_valid != 1) {
-      std::cout << std::format("alu_cmd_valid: expect 0x{:02x}, actual 0x{:02x}\n", 1, this->top->alu_cmd_valid);
+  bool get_issue_data(dispatch_data_t *data) {
+    data->alu_cmd = this->top->issue_alu_cmd;
+    data->op1 = this->top->issue_op1;
+    data->op2 = this->top->issue_op2;
+    data->phys_rd = this->top->phys_rd;
+    return this->top->alu_cmd_valid;
+  }
+
+  bool check_issue(dispatch_data_t *data, dispatch_data_t *expected) {
+    if ((data->alu_cmd) != (expected->alu_cmd)) {
+      std::cout << std::format("alu_cmd: expect 0x{:02x}, actual 0x{:02x}\n", expected->alu_cmd, data->alu_cmd);
       return false;
     }
-    if ((this->top->issue_alu_cmd & 0x1f) != (data.alu_cmd & 0x1f)) {
-      std::cout << std::format("alu_cmd: expect 0x{:02x}, actual 0x{:02x}\n", data.alu_cmd & 0x1f, this->top->issue_alu_cmd & 0x1f);
+    if (expected->op1 != data->op1) {
+      std::cout << std::format("op1: expect 0x{:08x}, actual 0x{:08x}\n", expected->op1, data->op1);
       return false;
     }
-    if (this->top->issue_op1 != data.op1) {
-      std::cout << std::format("op1: expect 0x{:08x}, actual 0x{:08x}\n", data.op1, this->top->issue_op1);
+    if (expected->op2 != data->op2) {
+      std::cout << std::format("op2: expect 0x{:08x}, actual 0x{:08x}\n", expected->op2, data->op2);
       return false;
     }
-    if (this->top->issue_op2 != data.op2) {
-      std::cout << std::format("op2: expect 0x{:08x}, actual 0x{:08x}\n", data.op2, this->top->issue_op2);
-      return false;
-    }
-    if (this->top->phys_rd != data.phys_rd) {
-      std::cout << std::format("phys_rd: expect 0x{:02x}, actual 0x{:02x}\n", data.phys_rd, this->top->phys_rd);
+    if (expected->phys_rd != data->phys_rd) {
+      std::cout << std::format("phys_rd: expect 0x{:02x}, actual 0x{:02x}\n", expected->phys_rd, data->phys_rd);
       return false;
     }
     return true;
@@ -120,6 +122,7 @@ TEST (IssueQueueTest, Basic) {
   };
 
   writeback_data_t writeback_data[] = {
+    writeback_data_t{0x4, 0xdddddddd},
     writeback_data_t{0x6, 0xffffffff},
     writeback_data_t{0x2, 0xbbbbbbbb},
     writeback_data_t{0x5, 0xeeeeeeee},
@@ -128,48 +131,66 @@ TEST (IssueQueueTest, Basic) {
   };
 
   dispatch_data_t issue_expected[] = {
-    dispatch_data_t{0xdd, 0x00000004, 1, 0x00000004, 1, 0x1},
-    dispatch_data_t{0xff, 0xffffffff, 1, 0xffffffff, 1, 0x1},
-    dispatch_data_t{0xbb, 0x00000002, 1, 0xbbbbbbbb, 1, 0x1},
-    dispatch_data_t{0xee, 0xeeeeeeee, 1, 0xeeeeeeee, 1, 0x1},
-    dispatch_data_t{0xcc, 0xcccccccc, 1, 0x00000003, 1, 0x1},
-    dispatch_data_t{0xaa, 0xaaaaaaaa, 1, 0xaaaaaaaa, 1, 0x1},
+    dispatch_data_t{0x1d, 0x00000004, 1, 0x00000004, 1, 0x1},
+    dispatch_data_t{0x1f, 0xffffffff, 1, 0xffffffff, 1, 0x1},
+    dispatch_data_t{0x1b, 0x00000002, 1, 0xbbbbbbbb, 1, 0x1},
+    dispatch_data_t{0x0e, 0xeeeeeeee, 1, 0xeeeeeeee, 1, 0x1},
+    dispatch_data_t{0x0c, 0xcccccccc, 1, 0x00000003, 1, 0x1},
+    dispatch_data_t{0x0a, 0xaaaaaaaa, 1, 0xaaaaaaaa, 1, 0x1},
   };
+
+  dispatch_data_t buffer = {0, 0, 0, 0, 0, 0};
 
   dut->init();
 
   dut->dispatch(data[0]);
   dut->dispatch(data[1]);
   dut->dispatch(data[2]);
-
   dut->dispatch(data[3]);
-
   dut->dispatch(data[4]);
 
-  dut->writeback(writeback_data[0]);
-  EXPECT_TRUE(dut->check_issue(issue_expected[0]));
+  EXPECT_TRUE(dut->get_issue_data(&buffer));
+  EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[0]));
 
   dut->dispatch(data[5]);
 
-  dut->writeback(writeback_data[1]);
-  EXPECT_TRUE(dut->check_issue(issue_expected[1]));
+  dut->writeback(writeback_data[0]);
+  dut->do_posedge([] (Vissue_queue *isq) {
+    isq->phys_result_valid = 0;
+  });
+  EXPECT_FALSE(dut->get_issue_data(&buffer));
 
+  dut->writeback(writeback_data[1]);
   dut->writeback(writeback_data[2]);
 
+  EXPECT_TRUE(dut->get_issue_data(&buffer));
+  EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[1]));
+
   dut->writeback(writeback_data[3]);
-  EXPECT_TRUE(dut->check_issue(issue_expected[2]));
+
+  EXPECT_TRUE(dut->get_issue_data(&buffer));
+  EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[2]));
 
   dut->writeback(writeback_data[4]);
-  EXPECT_TRUE(dut->check_issue(issue_expected[3]));
+
+  EXPECT_TRUE(dut->get_issue_data(&buffer));
+  EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[3]));
+
+  dut->writeback(writeback_data[5]);
+
+  EXPECT_TRUE(dut->get_issue_data(&buffer));
+  EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[4]));
 
   dut->do_posedge([](Vissue_queue *isq) {
     isq->phys_result_valid = 0;
     isq->in_write_enable = 0;
   });
-  EXPECT_TRUE(dut->check_issue(issue_expected[4]));
+
+  EXPECT_TRUE(dut->get_issue_data(&buffer));
+  EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[5]));
 
 
   dut->next_clock();
-  EXPECT_TRUE(dut->check_issue(issue_expected[5]));
+  // EXPECT_TRUE(dut->check_issue(issue_expected[5]));
   dut->next_clock();
 }

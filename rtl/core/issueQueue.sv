@@ -20,6 +20,7 @@ module issueQueue #(
   issueQueueIf.issue_din ru_issue_if,
   issueQueueIf.issue issue_ex_if
 );
+  localparam DEBUG = 0;
   logic [3:0] tag_counter;
   localparam ISSUE_QUEUE_ADDR_WIDTH = $clog2(ISSUE_QUEUE_SIZE);
   issue_queue_entry_t issue_queue [0:ISSUE_QUEUE_SIZE-1];
@@ -189,19 +190,20 @@ module issueQueue #(
         issue_queue[i].entry_valid <= 1'b0;
         tag_counter <= 4'b0;
       end
-      $display("[verilog] reset now");
+      if (DEBUG) $display("[verilog] reset now");
     end else begin
       // Debug
-      $display("din: %0x, v = %x, op1 = %x, op2 = %x, phys_rd = %x", ru_issue_if, ru_issue_if.write_enable, ru_issue_if.op1, ru_issue_if.op2, ru_issue_if.phys_rd);
+      if (DEBUG) $display("din: %0x, v = %x, op1 = %x, op2 = %x, phys_rd = %x", ru_issue_if, ru_issue_if.write_enable, ru_issue_if.op1, ru_issue_if.op2, ru_issue_if.phys_rd);
       for (int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
-        $write("issue_queue[%0x]: %0x, v = %x, tag = %x alu_cmd = %x, op1_v = %x, op2_v = %x\n", i, issue_queue[i], issue_queue[i].entry_valid, issue_queue[i].tag, issue_queue[i].alu_cmd, issue_queue[i].op1_valid, issue_queue[i].op2_valid);
+        if (DEBUG) $write("issue_queue[%0x]: %0x, v = %x, tag = %x alu_cmd = %x, op1_v = %x, op2_v = %x\n", i, issue_queue[i], issue_queue[i].entry_valid, issue_queue[i].tag, issue_queue[i].alu_cmd, issue_queue[i].op1_valid, issue_queue[i].op2_valid);
       end
       // Invalidate issued entry
       if (issue_entry.entry_valid) begin
-        $display("[invalidate] issue_queue[%0x]: %0x", addr_search_tree[ISSUE_QUEUE_SIZE - 2], issue_entry);
+        if (DEBUG) $display("[invalidate] issue_queue[%0x]: %0x", addr_search_tree[ISSUE_QUEUE_SIZE - 2], issue_entry);
+        if (DEBUG) $display("[issue] v=%x, tag=%x, alu_cmd=%x, op1_v=%x, op2_v=%x", issue_entry.entry_valid, issue_entry.tag, issue_entry.alu_cmd, issue_entry.op1_valid, issue_entry.op2_valid);
         issue_queue[addr_search_tree[ISSUE_QUEUE_SIZE - 2]].entry_valid <= 1'b0;
       end
-      $display("");
+      if (DEBUG) $display("");
 
       // Dispatch
       if (ru_issue_if.write_enable) begin
