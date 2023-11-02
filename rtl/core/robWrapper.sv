@@ -19,16 +19,26 @@ module robWrapper(
   // commit port
   output logic [PHYS_REGS_ADDR_WIDTH-1: 0] commit_phys_rd      [0:DISPATCH_WIDTH-1],
   output logic [ 4: 0]                     commit_arch_rd      [0:DISPATCH_WIDTH-1],
-  output logic                             commit_en           [0:DISPATCH_WIDTH-1]
+  output logic                             commit_en           [0:DISPATCH_WIDTH-1],
+
+  // operand fetch port
+  input  logic [ 4: 0]                     op_fetch_arch_rs1  [0:DISPATCH_WIDTH-1],
+  output logic [PHYS_REGS_ADDR_WIDTH-1: 0] op_fetch_phys_rs1  [0:DISPATCH_WIDTH-1],
+  output logic                             op_fetch_rs1_valid [0:DISPATCH_WIDTH-1],
+  input  logic [ 4: 0]                     op_fetch_arch_rs2  [0:DISPATCH_WIDTH-1],
+  output logic [PHYS_REGS_ADDR_WIDTH-1: 0] op_fetch_phys_rs2  [0:DISPATCH_WIDTH-1],
+  output logic                             op_fetch_rs2_valid [0:DISPATCH_WIDTH-1]
 );
+
   import parameters::*;
 
 
   robDispatchIf dispatch_if;
   robWbIf wb_if;
   robCommitIf commit_if;
+  robOpFetchIf op_fetch_if;
 
-  rob rob (.clk, .rst, .dispatch_if, .wb_if, .commit_if);
+  rob rob (.clk, .rst, .dispatch_if, .wb_if, .commit_if, .op_fetch_if);
 
   always_comb begin
     // dispatch
@@ -48,6 +58,14 @@ module robWrapper(
     commit_phys_rd = commit_if.phys_rd;
     commit_arch_rd = commit_if.arch_rd;
     commit_en = commit_if.en;
+
+    // operand fetch
+    op_fetch_if.arch_rs1 = op_fetch_arch_rs1;
+    op_fetch_phys_rs1 = op_fetch_if.phys_rs1;
+    op_fetch_rs1_valid = op_fetch_if.rs1_valid;
+    op_fetch_if.arch_rs2 = op_fetch_arch_rs2;
+    op_fetch_phys_rs2 = op_fetch_if.phys_rs2;
+    op_fetch_rs2_valid = op_fetch_if.rs2_valid;
   end
 endmodule
 

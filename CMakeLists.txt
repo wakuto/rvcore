@@ -161,6 +161,7 @@ verilate(rob_test
         ${CORE_RTL_DIR}/robDispatchIf.sv
         ${CORE_RTL_DIR}/robWbIf.sv
         ${CORE_RTL_DIR}/robCommitIf.sv
+        ${CORE_RTL_DIR}/robOpFetchIf.sv
         ${CORE_RTL_DIR}/robWrapper.sv
     PREFIX Vrob
     INCLUDE_DIRS

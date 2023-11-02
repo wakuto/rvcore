@@ -27,15 +27,16 @@ module rob #(
   // dispatch_width個のバンク*rob_size個の中からrs1 == arch_rdとなるエントリを探す
   // rs2 についても同様
   // dispatch_width分だけ繰り返す
-  logic [1:0][DISPATH_WIDTH-1:0][ROB_SIZE-1:0] hit [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_WIDTH-1:0][ROB_SIZE-1:0] hit_rs1 [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_WIDTH-1:0][ROB_SIZE-1:0] hit_rs2 [0:DISPATCH_WIDTH-1];
 
   always_comb begin
     // hit テーブルの作成
     for (int i = 0; i < DISPATCH_WIDTH; i++) begin
       for (int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
         for (int j = 0; j < ROB_SIZE; j++) begin
-          hit[0][bank][j][i] = rob_entry[j][bank].entry_valid && (rob_entry[j][bank].arch_rd == op_fetch_if.rs1[i]);
-          hit[1][bank][j][i] = rob_entry[j][bank].entry_valid && (rob_entry[j][bank].arch_rd == op_fetch_if.rs2[i]);
+          hit_rs1[i][bank][j] = rob_entry[j][bank].entry_valid && (rob_entry[j][bank].arch_rd == op_fetch_if.arch_rs1[i]);
+          hit_rs2[i][bank][j] = rob_entry[j][bank].entry_valid && (rob_entry[j][bank].arch_rd == op_fetch_if.arch_rs2[i]);
         end
       end
     end
@@ -46,19 +47,52 @@ module rob #(
     // else if (hit[bank0]) phys_rd = rob_entry[bank0].phys_rd
     // else if (hit[bank1]) phys_rd = rob_entry[bank1].phys_rd
     // else phys_rd = 0
-    for (int j = 0; j < ROB_SIZE; j++) begin
-      if (hit[j][bank0] | hit[j][bank1]) begin
-        // ともにhitの場合はbank0を優先
-        if (hit[j][bank0]) begin
-          phys_rd = rob_entry[j][bank0].phys_rd;
-          op_fetch_if.valid = rob_entry[j][bank0].commit_ready;
-        end else if (hit[j][bank1]) begin
-          phys_rd = rob_entry[j][bank1].phys_rd;
-          op_fetch_if.valid = rob_entry[j][bank1].commit_ready;
+
+    for (int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
+      // rs1
+      for (int j = 0; j < ROB_SIZE; j++) begin
+        // ほんとは以下のif文を任意のbank数分だけ作りたいけど
+        // 実装面倒なのでbank0とbank1のみ対応
+        // if (|hit[j]) begin
+        if (hit_rs1[bank][0][tail-(ROB_ADDR_WIDTH)'(j)] | hit_rs1[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
+          // ともにhit_rs1の場合はbank0を優先
+          if (hit_rs1[bank][0][tail-(ROB_ADDR_WIDTH)'(j)]) begin
+            op_fetch_if.phys_rs1[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][0].phys_rd;
+            op_fetch_if.rs1_valid[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][0].commit_ready;
+          end else if (hit_rs1[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
+            op_fetch_if.phys_rs1[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][1].phys_rd;
+            op_fetch_if.rs1_valid[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][1].commit_ready;
+          end else begin
+            op_fetch_if.phys_rs1[bank] = 0;
+            op_fetch_if.rs1_valid[bank] = 0;
+          end
+          break;
         end else begin
-          phys_rd = 0;
+          op_fetch_if.phys_rs1[bank] = 0;
+          op_fetch_if.rs1_valid[bank] = 0;
         end
-        break;
+      end
+
+      // rs2
+      for (int j = 0; j < ROB_SIZE; j++) begin
+        // if (|hit[j]) begin
+        if (hit_rs2[bank][0][tail-(ROB_ADDR_WIDTH)'(j)] | hit_rs2[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
+          // ともにhit_rs2の場合はbank0を優先
+          if (hit_rs2[bank][0][tail-(ROB_ADDR_WIDTH)'(j)]) begin
+            op_fetch_if.phys_rs2[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][0].phys_rd;
+            op_fetch_if.rs2_valid[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][0].commit_ready;
+          end else if (hit_rs2[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
+            op_fetch_if.phys_rs2[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][1].phys_rd;
+            op_fetch_if.rs2_valid[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][1].commit_ready;
+          end else begin
+            op_fetch_if.phys_rs2[bank] = 0;
+            op_fetch_if.rs2_valid[bank] = 0;
+          end
+          break;
+        end else begin
+          op_fetch_if.phys_rs2[bank] = 0;
+          op_fetch_if.rs2_valid[bank] = 0;
+        end
       end
     end
   end
