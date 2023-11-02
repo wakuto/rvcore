@@ -1,6 +1,7 @@
 `default_nettype none
 
 `include "common.sv"
+`include "parameters.sv"
 
 typedef struct packed {
   logic             entry_valid;
@@ -8,7 +9,7 @@ typedef struct packed {
   common::alu_cmd_t alu_cmd;
   logic [31:0]      op1_data, op2_data;
   logic             op1_valid, op2_valid;
-  logic [7:0]       phys_rd;
+  logic [parameters::PHYS_REGS_ADDR_WIDTH-1:0]       phys_rd;
 } issue_queue_entry_t;
 
 
@@ -21,6 +22,7 @@ module issueQueue #(
   isqWbIf.in wb_if,
   isqIssueIf.out issue_if
 );
+  import parameters::*;
   localparam DEBUG = 0;
   logic [3:0] tag_counter;
   localparam ISSUE_QUEUE_ADDR_WIDTH = $clog2(ISSUE_QUEUE_SIZE);
@@ -220,15 +222,17 @@ module issueQueue #(
       end
 
       // op1/op2 tag writeback
-      for(int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
-        if (wb_if.valid) begin
-          if (issue_queue[i].entry_valid && !issue_queue[i].op1_valid && issue_queue[i].op1_data[7:0] == wb_if.phys_rd) begin
-            issue_queue[i].op1_valid <= 1'b1;
-            issue_queue[i].op1_data <= wb_if.data;
-          end
-          if (issue_queue[i].entry_valid && !issue_queue[i].op2_valid && issue_queue[i].op2_data[7:0] == wb_if.phys_rd) begin
-            issue_queue[i].op2_valid <= 1'b1;
-            issue_queue[i].op2_data <= wb_if.data;
+      for(int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
+        for(int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
+          if (wb_if.valid[bank]) begin
+            if (issue_queue[i].entry_valid && !issue_queue[i].op1_valid && issue_queue[i].op1_data[PHYS_REGS_ADDR_WIDTH-1:0] == wb_if.phys_rd[bank]) begin
+              issue_queue[i].op1_valid <= 1'b1;
+              issue_queue[i].op1_data <= wb_if.data[bank];
+            end
+            if (issue_queue[i].entry_valid && !issue_queue[i].op2_valid && issue_queue[i].op2_data[PHYS_REGS_ADDR_WIDTH-1:0] == wb_if.phys_rd[bank]) begin
+              issue_queue[i].op2_valid <= 1'b1;
+              issue_queue[i].op2_data <= wb_if.data[bank];
+            end
           end
         end
       end

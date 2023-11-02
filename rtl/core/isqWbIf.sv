@@ -1,10 +1,13 @@
 `default_nettype none
 
 `include "common.sv"
+`include "parameters.sv"
+
 interface isqWbIf;
-  logic             valid;
-  logic [7:0]       phys_rd;
-  logic [31:0]      data;
+  import parameters::*;
+  logic                            valid   [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     data    [0:DISPATCH_WIDTH-1];
 
   modport out (
     output valid,

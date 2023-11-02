@@ -44,9 +44,11 @@ public:
       isq->dispatch_op1 = 0;
       isq->dispatch_op2 = 0;
       isq->dispatch_phys_rd = 0;
-      isq->wb_valid = 0;
-      isq->wb_phys_rd = 0;
-      isq->wb_data = 0;
+      for(auto i = 0; i < 2; i++) {
+        isq->wb_valid[i] = 0;
+        isq->wb_phys_rd[i] = 0;
+        isq->wb_data[i] = 0;
+      }
     });
 
     this->next_clock();
@@ -64,16 +66,33 @@ public:
       isq->dispatch_op1 = data.op1;
       isq->dispatch_op2 = data.op2;
       isq->dispatch_phys_rd = data.phys_rd;
-      isq->wb_valid = 0;
+      for(auto i = 0; i < 2; i++) {
+        isq->wb_valid[i] = 0;
+      }
     });
   }
 
-  void writeback(writeback_data_t data) {
-    this->do_posedge([data](Vissue_queue *isq){
+  void writeback(writeback_data_t data, size_t port) {
+    this->do_posedge([data, port](Vissue_queue *isq){
       isq->dispatch_en = 0;
-      isq->wb_valid = 1;
-      isq->wb_phys_rd = data.wb_phys_rd;
-      isq->wb_data = data.wb_data;
+      for(auto i = 0; i < 2; i++) {
+        isq->wb_valid[i] = 0;
+      }
+      isq->wb_valid[port] = 1;
+      isq->wb_phys_rd[port] = data.wb_phys_rd;
+      isq->wb_data[port] = data.wb_data;
+    });
+  }
+
+  void dual_writeback(writeback_data_t data1, writeback_data_t data2) {
+    this->do_posedge([data1, data2](Vissue_queue *isq){
+      isq->dispatch_en = 0;
+      isq->wb_valid[0] = 1;
+      isq->wb_phys_rd[0] = data1.wb_phys_rd;
+      isq->wb_data[0] = data1.wb_data;
+      isq->wb_valid[1] = 1;
+      isq->wb_phys_rd[1] = data2.wb_phys_rd;
+      isq->wb_data[1] = data2.wb_data;
     });
   }
 
@@ -132,11 +151,11 @@ TEST (IssueQueueTest, Basic) {
 
   dispatch_data_t issue_expected[] = {
     dispatch_data_t{0x1d, 0x00000004, 1, 0x00000004, 1, 0x1},
-    dispatch_data_t{0x1f, 0xffffffff, 1, 0xffffffff, 1, 0x1},
     dispatch_data_t{0x1b, 0x00000002, 1, 0xbbbbbbbb, 1, 0x1},
     dispatch_data_t{0x0e, 0xeeeeeeee, 1, 0xeeeeeeee, 1, 0x1},
     dispatch_data_t{0x0c, 0xcccccccc, 1, 0x00000003, 1, 0x1},
     dispatch_data_t{0x0a, 0xaaaaaaaa, 1, 0xaaaaaaaa, 1, 0x1},
+    dispatch_data_t{0x1f, 0xffffffff, 1, 0xffffffff, 1, 0x1},
   };
 
   dispatch_data_t buffer = {0, 0, 0, 0, 0, 0};
@@ -154,43 +173,46 @@ TEST (IssueQueueTest, Basic) {
 
   dut->dispatch(data[5]);
 
-  dut->writeback(writeback_data[0]);
+  dut->writeback(writeback_data[0], 0);
   dut->do_posedge([] (Vissue_queue *isq) {
-    isq->wb_valid = 0;
+    for(auto i = 0; i < 2; i++) {
+      isq->wb_valid[i] = 0;
+    }
   });
   EXPECT_FALSE(dut->get_issue_data(&buffer));
 
-  dut->writeback(writeback_data[1]);
-  dut->writeback(writeback_data[2]);
+  dut->dual_writeback(writeback_data[1], writeback_data[2]);
+
+  dut->writeback(writeback_data[3], 0);
 
   EXPECT_TRUE(dut->get_issue_data(&buffer));
   EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[1]));
 
-  dut->writeback(writeback_data[3]);
+  dut->writeback(writeback_data[4], 1);
 
   EXPECT_TRUE(dut->get_issue_data(&buffer));
   EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[2]));
 
-  dut->writeback(writeback_data[4]);
+  dut->writeback(writeback_data[5], 1);
 
   EXPECT_TRUE(dut->get_issue_data(&buffer));
   EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[3]));
 
-  dut->writeback(writeback_data[5]);
-
-  EXPECT_TRUE(dut->get_issue_data(&buffer));
-  EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[4]));
-
   dut->do_posedge([](Vissue_queue *isq) {
-    isq->wb_valid = 0;
+    for(auto i = 0; i < 2; i++) {
+      isq->wb_valid[i] = 0;
+    }
     isq->dispatch_en = 0;
   });
 
   EXPECT_TRUE(dut->get_issue_data(&buffer));
-  EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[5]));
-
+  EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[4]));
 
   dut->next_clock();
-  // EXPECT_TRUE(dut->check_issue(issue_expected[5]));
+
+  EXPECT_TRUE(dut->get_issue_data(&buffer));
+  EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[5]));
+
+  dut->next_clock();
   dut->next_clock();
 }

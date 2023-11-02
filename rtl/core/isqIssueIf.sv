@@ -1,11 +1,13 @@
 `default_nettype none
 
 `include "common.sv"
+`include "parameters.sv"
 interface isqIssueIf;
-  logic             valid;
-  common::alu_cmd_t alu_cmd;
-  logic [31:0]      op1, op2;
-  logic [7:0]       phys_rd;
+  import parameters::*;
+  logic                            valid;
+  common::alu_cmd_t                alu_cmd;
+  logic [31:0]                     op1, op2;
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd;
 
   // Issue queue ->
   modport out (
