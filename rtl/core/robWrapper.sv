@@ -33,10 +33,10 @@ module robWrapper(
   import parameters::*;
 
 
-  robDispatchIf dispatch_if;
-  robWbIf wb_if;
-  robCommitIf commit_if;
-  robOpFetchIf op_fetch_if;
+  robDispatchIf dispatch_if();
+  robWbIf wb_if();
+  robCommitIf commit_if();
+  robOpFetchIf op_fetch_if();
 
   rob rob (.clk, .rst, .dispatch_if, .wb_if, .commit_if, .op_fetch_if);
 

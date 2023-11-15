@@ -12,7 +12,7 @@ module freelistWrapper(
 );
   import parameters::*;
 
-  freelistIf freelist_if;
+  freelistIf freelist_if();
 
   freelist freelist(
     .clk,

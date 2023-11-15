@@ -28,9 +28,9 @@ module issueQueueWrapper #(
 );
   import parameters::*;
 
-  isqDispatchIf dispatch_if;
-  isqWbIf wb_if;
-  isqIssueIf issue_if;
+  isqDispatchIf dispatch_if();
+  isqWbIf wb_if();
+  isqIssueIf issue_if();
 
   issueQueue #(
     .ISSUE_QUEUE_SIZE(ISSUE_QUEUE_SIZE)
