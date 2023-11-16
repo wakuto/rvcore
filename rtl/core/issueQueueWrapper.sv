@@ -22,11 +22,12 @@ module issueQueueWrapper #(
   input  wire [PHYS_REGS_ADDR_WIDTH-1:0]  wb_phys_rd [0:DISPATCH_WIDTH-1],
   input  wire [31:0]                      wb_data    [0:DISPATCH_WIDTH-1],
 
-  output logic                            issue_valid   [0:DISPATCH_WIDTH-1],
-  output common::alu_cmd_t                issue_alu_cmd [0:DISPATCH_WIDTH-1],
-  output logic [31:0]                     issue_op1     [0:DISPATCH_WIDTH-1],
-  output logic [31:0]                     issue_op2     [0:DISPATCH_WIDTH-1],
-  output logic [PHYS_REGS_ADDR_WIDTH-1:0] issue_phys_rd [0:DISPATCH_WIDTH-1]
+  output logic                            issue_valid    [0:DISPATCH_WIDTH-1],
+  output common::alu_cmd_t                issue_alu_cmd  [0:DISPATCH_WIDTH-1],
+  output logic [31:0]                     issue_op1      [0:DISPATCH_WIDTH-1],
+  output common::op_type_t                issue_op2_type [0:DISPATCH_WIDTH-1],
+  output logic [31:0]                     issue_op2      [0:DISPATCH_WIDTH-1],
+  output logic [PHYS_REGS_ADDR_WIDTH-1:0] issue_phys_rd  [0:DISPATCH_WIDTH-1]
 );
   import parameters::*;
 
@@ -61,11 +62,12 @@ module issueQueueWrapper #(
     wb_if.data = wb_data;
 
     for (int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
-      issue_valid[bank]   = issue_if.valid[bank];
-      issue_alu_cmd[bank] = issue_if.alu_cmd[bank];
-      issue_op1[bank]     = issue_if.op1[bank];
-      issue_op2[bank]     = issue_if.op2[bank];
-      issue_phys_rd[bank] = issue_if.phys_rd[bank];
+      issue_valid[bank]    = issue_if.valid[bank];
+      issue_alu_cmd[bank]  = issue_if.alu_cmd[bank];
+      issue_op1[bank]      = issue_if.op1[bank];
+      issue_op2_type[bank] = issue_if.op2_type[bank];
+      issue_op2[bank]      = issue_if.op2[bank];
+      issue_phys_rd[bank]  = issue_if.phys_rd[bank];
     end
   end
 endmodule

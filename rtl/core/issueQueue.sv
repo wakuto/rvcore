@@ -8,6 +8,7 @@ typedef struct packed {
   logic [3:0]       tag;
   common::alu_cmd_t alu_cmd;
   logic [31:0]      op1_data, op2_data;
+  common::op_type_t op2_type;
   logic             op1_valid, op2_valid;
   logic [parameters::PHYS_REGS_ADDR_WIDTH-1:0]       phys_rd;
 } issue_queue_entry_t;
@@ -131,6 +132,7 @@ module issueQueue #(
       issue_if.valid[bank] = entry_valid(issue_entry[bank]);
       issue_if.alu_cmd[bank] = issue_entry[bank].alu_cmd;
       issue_if.op1[bank] = issue_entry[bank].op1_data;
+      issue_if.op2_type[bank] = issue_entry[bank].op2_type;
       issue_if.op2[bank] = issue_entry[bank].op2_data;
       issue_if.phys_rd[bank] = issue_entry[bank].phys_rd;
     end
@@ -226,6 +228,7 @@ module issueQueue #(
           issue_queue[free_entry_idx[bank]].tag <= tag_counter + 4'(dispatch_enable_count == 2 && bank == 1);
           issue_queue[free_entry_idx[bank]].alu_cmd <= dispatch_if.alu_cmd[bank];
           issue_queue[free_entry_idx[bank]].op1_data <= dispatch_if.op1[bank];
+          issue_queue[free_entry_idx[bank]].op2_type <= dispatch_if.op2_type[bank];
           issue_queue[free_entry_idx[bank]].op2_data <= dispatch_if.op2[bank];
           issue_queue[free_entry_idx[bank]].op1_valid <= dispatch_if.op1_valid[bank];
           issue_queue[free_entry_idx[bank]].op2_valid <= dispatch_if.op2_valid[bank];
