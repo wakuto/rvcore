@@ -5,11 +5,13 @@
 interface isqDispatchIf;
   import parameters::*;
   logic                            full;
-  logic                            en;
-  common::alu_cmd_t                alu_cmd;
-  logic                            op1_valid, op2_valid;
-  logic [31:0]                     op1, op2;
-  logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd;
+  logic                            en       [0:DISPATCH_WIDTH-1];
+  common::alu_cmd_t                alu_cmd  [0:DISPATCH_WIDTH-1];
+  logic                            op1_valid[0:DISPATCH_WIDTH-1];
+  logic                            op2_valid[0:DISPATCH_WIDTH-1];
+  logic [31:0]                     op1      [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     op2      [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd  [0:DISPATCH_WIDTH-1];
 
   // Rename unit -> 
   modport out (

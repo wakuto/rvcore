@@ -77,35 +77,33 @@ module issueQueue #(
 
   // 発行する命令の決定
   // 検索のための比較回路をツリーで構成
-  issue_queue_entry_t search_tree [ 0 : ISSUE_QUEUE_SIZE - 2 ][0:DISPATCH_WIDTH-1];
-  logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] addr_search_tree [ 0 : ISSUE_QUEUE_SIZE - 2 ][0:DISPATCH_WIDTH-1];
+  issue_queue_entry_t search_tree [ 0 : ISSUE_QUEUE_SIZE - 2 ];
+  logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] addr_search_tree [ 0 : ISSUE_QUEUE_SIZE - 2 ];
   // verilator lint_off UNUSEDSIGNAL
   issue_queue_entry_t issue_entry[0:DISPATCH_WIDTH-1];
   // verilator lint_on UNUSEDSIGNAL
   localparam half = ISSUE_QUEUE_SIZE >> 1;
-  int offset [0:ISSUE_QUEUE_ADDR_WIDTH][0:DISPATCH_WIDTH-1];
+  int offset [0:ISSUE_QUEUE_ADDR_WIDTH];
   always_comb begin
-    for (int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
-      for (int _i = 0; _i < half; _i++) begin
-        {addr_search_tree[_i][bank], search_tree[_i][bank]} = chose_entry(
-          issue_queue[(_i << 1)],
-          issue_queue[(_i << 1) + 1],
-          ISSUE_QUEUE_ADDR_WIDTH'(_i << 1),
-          ISSUE_QUEUE_ADDR_WIDTH'(_i << 1) + 1
+    for (int _i = 0; _i < half; _i++) begin
+      {addr_search_tree[_i], search_tree[_i]} = chose_entry(
+        issue_queue[(_i << 1)],
+        issue_queue[(_i << 1) + 1],
+        ISSUE_QUEUE_ADDR_WIDTH'(_i << 1),
+        ISSUE_QUEUE_ADDR_WIDTH'(_i << 1) + 1
+      );
+    end
+    offset[1] = half;
+    for (int _j = 2; _j < ISSUE_QUEUE_ADDR_WIDTH+1; _j++) begin
+      for (int _i = offset[_j-1]; _i < offset[_j-1] + (ISSUE_QUEUE_SIZE >> _j); _i++) begin
+        {addr_search_tree[_i], search_tree[_i]} = chose_entry(
+          search_tree[((_i-half) << 1)],
+          search_tree[((_i-half) << 1) + 1],
+          addr_search_tree[((_i-half) << 1)],
+          addr_search_tree[((_i-half) << 1) + 1]
         );
       end
-      offset[1] = half;
-      for (int _j = 2; _j < ISSUE_QUEUE_ADDR_WIDTH+1; _j++) begin
-        for (int _i = offset[_j-1]; _i < offset[_j-1] + (ISSUE_QUEUE_SIZE >> _j); _i++) begin
-          {addr_search_tree[_i], search_tree[_i]} = chose_entry(
-            search_tree[((_i-half) << 1)],
-            search_tree[((_i-half) << 1) + 1],
-            addr_search_tree[((_i-half) << 1)],
-            addr_search_tree[((_i-half) << 1) + 1]
-          );
-        end
-        offset[_j] = offset[_j-1] + (ISSUE_QUEUE_SIZE >> _j);
-      end
+      offset[_j] = offset[_j-1] + (ISSUE_QUEUE_SIZE >> _j);
     end
   end
 
@@ -128,12 +126,14 @@ module issueQueue #(
 */
 
   always_comb begin
-    issue_entry = search_tree[ISSUE_QUEUE_SIZE - 2];
-    issue_if.valid = entry_valid(issue_entry);
-    issue_if.alu_cmd = issue_entry.alu_cmd;
-    issue_if.op1 = issue_entry.op1_data;
-    issue_if.op2 = issue_entry.op2_data;
-    issue_if.phys_rd = issue_entry.phys_rd;
+    for(int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
+      issue_entry[bank] = search_tree[ISSUE_QUEUE_SIZE - 2 - bank];
+      issue_if.valid[bank] = entry_valid(issue_entry[bank]);
+      issue_if.alu_cmd[bank] = issue_entry[bank].alu_cmd;
+      issue_if.op1[bank] = issue_entry[bank].op1_data;
+      issue_if.op2[bank] = issue_entry[bank].op2_data;
+      issue_if.phys_rd[bank] = issue_entry[bank].phys_rd;
+    end
   end
 
   
@@ -161,8 +161,9 @@ module issueQueue #(
   // verilator lint_on UNUSEDSIGNAL
 
   logic [ISSUE_QUEUE_ADDR_WIDTH:0] free_search_tree [ 0 : ISSUE_QUEUE_SIZE - 2 ];
-  logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] free_entry_idx;
+  logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] free_entry_idx [0:DISPATCH_WIDTH-1];
   int free_offset [0:ISSUE_QUEUE_ADDR_WIDTH];
+  logic [DISPATCH_ADDR_WIDTH:0] dispatch_enable_count;
   always_comb begin
     for (int _i = 0; _i < half; _i++) begin
       free_search_tree[_i] = chose_free(
@@ -183,7 +184,12 @@ module issueQueue #(
       end
       free_offset[_j] = free_offset[_j-1] + (ISSUE_QUEUE_SIZE >> _j);
     end
-    free_entry_idx = get_idx(free_search_tree[ISSUE_QUEUE_SIZE - 2]);
+
+    dispatch_enable_count = 0;
+    for (int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
+      dispatch_enable_count = dispatch_enable_count + dispatch_if.en[bank];
+      free_entry_idx[bank] = get_idx(free_search_tree[ISSUE_QUEUE_SIZE - 2 - bank]);
+    end
   end
 
   assign dispatch_if.full = !get_free(free_search_tree[ISSUE_QUEUE_SIZE - 2]);
@@ -202,25 +208,29 @@ module issueQueue #(
         if (DEBUG) $write("issue_queue[%0x]: %0x, v = %x, tag = %x alu_cmd = %x, op1_v = %x, op2_v = %x\n", i, issue_queue[i], issue_queue[i].entry_valid, issue_queue[i].tag, issue_queue[i].alu_cmd, issue_queue[i].op1_valid, issue_queue[i].op2_valid);
       end
       // Invalidate issued entry
-      if (issue_entry.entry_valid) begin
-        if (DEBUG) $display("[invalidate] issue_queue[%0x]: %0x", addr_search_tree[ISSUE_QUEUE_SIZE - 2], issue_entry);
-        if (DEBUG) $display("[issue] v=%x, tag=%x, alu_cmd=%x, op1_v=%x, op2_v=%x", issue_entry.entry_valid, issue_entry.tag, issue_entry.alu_cmd, issue_entry.op1_valid, issue_entry.op2_valid);
-        issue_queue[addr_search_tree[ISSUE_QUEUE_SIZE - 2]].entry_valid <= 1'b0;
+      for (int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
+        if (issue_entry[bank].entry_valid) begin
+          if (DEBUG) $display("[invalidate] issue_queue[%0x]: %0x", addr_search_tree[ISSUE_QUEUE_SIZE - 2 - bank], issue_entry[bank]);
+          if (DEBUG) $display("[issue] v=%x, tag=%x, alu_cmd=%x, op1_v=%x, op2_v=%x", issue_entry[bank].entry_valid, issue_entry[bank].tag, issue_entry[bank].alu_cmd, issue_entry[bank].op1_valid, issue_entry[bank].op2_valid);
+          issue_queue[addr_search_tree[ISSUE_QUEUE_SIZE - 2 - bank]].entry_valid <= 1'b0;
+        end
+        if (DEBUG) $display("");
       end
-      if (DEBUG) $display("");
 
       // Dispatch
-      if (dispatch_if.en) begin
-        tag_counter <= tag_counter + 4'b1;
-        // 空いている領域を探してそこに書き込む
-        issue_queue[free_entry_idx].entry_valid <= 1'b1;
-        issue_queue[free_entry_idx].tag <= tag_counter;
-        issue_queue[free_entry_idx].alu_cmd <= dispatch_if.alu_cmd;
-        issue_queue[free_entry_idx].op1_data <= dispatch_if.op1;
-        issue_queue[free_entry_idx].op2_data <= dispatch_if.op2;
-        issue_queue[free_entry_idx].op1_valid <= dispatch_if.op1_valid;
-        issue_queue[free_entry_idx].op2_valid <= dispatch_if.op2_valid;
-        issue_queue[free_entry_idx].phys_rd <= dispatch_if.phys_rd;
+      for(int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
+        if (dispatch_if.en[bank]) begin
+          tag_counter <= tag_counter + 4'(dispatch_enable_count);
+          // 空いている領域を探してそこに書き込む
+          issue_queue[free_entry_idx[bank]].entry_valid <= dispatch_if.en[bank];
+          issue_queue[free_entry_idx[bank]].tag <= tag_counter + 4'(dispatch_enable_count == 2 && bank == 1);
+          issue_queue[free_entry_idx[bank]].alu_cmd <= dispatch_if.alu_cmd[bank];
+          issue_queue[free_entry_idx[bank]].op1_data <= dispatch_if.op1[bank];
+          issue_queue[free_entry_idx[bank]].op2_data <= dispatch_if.op2[bank];
+          issue_queue[free_entry_idx[bank]].op1_valid <= dispatch_if.op1_valid[bank];
+          issue_queue[free_entry_idx[bank]].op2_valid <= dispatch_if.op2_valid[bank];
+          issue_queue[free_entry_idx[bank]].phys_rd <= dispatch_if.phys_rd[bank];
+        end
       end
 
       // op1/op2 tag writeback
