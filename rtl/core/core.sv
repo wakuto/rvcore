@@ -126,6 +126,16 @@ module core (
   logic [DISPATCH_WIDTH-1:0] bank_addr_ex [0:DISPATCH_WIDTH-1];
   logic [ROB_ADDR_WIDTH-1:0] rob_addr_ex  [0:DISPATCH_WIDTH-1];
 
+  // EX stage
+  logic [31:0]               alu_out_ex   [0:DISPATCH_WIDTH-1];
+
+  // EX/WB regs
+  logic                      valid_wb     [0:DISPATCH_WIDTH-1];
+  logic [31:0]               result_wb    [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REG_WIDTH-1:0] phys_rd_wb   [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_WIDTH-1:0] bank_addr_wb [0:DISPATCH_WIDTH-1];
+  logic [ROB_ADDR_WIDTH-1:0] rob_addr_wb  [0:DISPATCH_WIDTH-1];
+
   always_ff @(posedge clk) begin
     if (rst) begin
       pc <= 0;
@@ -200,23 +210,23 @@ module core (
   // REN/DISP regs
   always_ff @(posedge clk) begin
     if (rst) begin
-      valid_disp    = 0;
-      alu_cmd_disp  = 0;
-      rs1_disp      = 0;
-      op2_type_disp = 0;
-      rs2_disp      = 0;
-      imm_disp      = 0;
-      phys_rd_disp  = 0;
-      arch_rd_disp  = 0;
+      valid_disp    <= 0;
+      alu_cmd_disp  <= 0;
+      rs1_disp      <= 0;
+      op2_type_disp <= 0;
+      rs2_disp      <= 0;
+      imm_disp      <= 0;
+      phys_rd_disp  <= 0;
+      arch_rd_disp  <= 0;
     end else begin
-      valid_disp    = valid_rn;
-      alu_cmd_disp  = alu_cmd_rn;
-      rs1_disp      = rs1_data_rn;
-      op2_type_disp = op2_type_rn;
-      rs2_disp      = rs2_data_rn;
-      imm_disp      = imm_rn;
-      phys_rd_disp  = pop_reg_rn;
-      arch_rd_disp  = arch_rd_rn;
+      valid_disp    <= valid_rn;
+      alu_cmd_disp  <= alu_cmd_rn;
+      rs1_disp      <= rs1_data_rn;
+      op2_type_disp <= op2_type_rn;
+      rs2_disp      <= rs2_data_rn;
+      imm_disp      <= imm_rn;
+      phys_rd_disp  <= pop_reg_rn;
+      arch_rd_disp  <= arch_rd_rn;
     end
   end
 
@@ -256,29 +266,29 @@ module core (
   // DISP/ISSUE regs
   always_ff @(posedge clk) begin
     if (rst) begin
-      valid_issue     = 0;
-      alu_cmd_issue   = 0;
-      rs1_issue       = 0;
-      rs1_valid_issue = 0;
-      op2_type_issue  = 0;
-      rs2_issue       = 0;
-      rs2_valid_issue = 0;
-      imm_issue       = 0;
-      phys_rd_issue   = 0;
-      bank_addr_issue = 0;
-      rob_addr_issue  = 0;
+      valid_issue     <= 0;
+      alu_cmd_issue   <= 0;
+      rs1_issue       <= 0;
+      rs1_valid_issue <= 0;
+      op2_type_issue  <= 0;
+      rs2_issue       <= 0;
+      rs2_valid_issue <= 0;
+      imm_issue       <= 0;
+      phys_rd_issue   <= 0;
+      bank_addr_issue <= 0;
+      rob_addr_issue  <= 0;
     end else begin
-      valid_issue     = valid_disp;
-      alu_cmd_issue   = alu_cmd_disp;
-      rs1_issue       = phys_rs1_disp;
-      rs1_valid_issue = rs1_valid_disp;
-      op2_type_issue  = op2_type_disp;
-      rs2_issue       = phys_rs2_disp;
-      rs2_valid_issue = rs2_valid_disp;
-      imm_issue       = imm_disp;
-      phys_rd_issue   = phys_rd_disp;
-      bank_addr_issue = bank_addr_disp;
-      rob_addr_issue  = rob_addr_disp;
+      valid_issue     <= valid_disp;
+      alu_cmd_issue   <= alu_cmd_disp;
+      rs1_issue       <= phys_rs1_disp;
+      rs1_valid_issue <= rs1_valid_disp;
+      op2_type_issue  <= op2_type_disp;
+      rs2_issue       <= phys_rs2_disp;
+      rs2_valid_issue <= rs2_valid_disp;
+      imm_issue       <= imm_disp;
+      phys_rd_issue   <= phys_rd_disp;
+      bank_addr_issue <= bank_addr_disp;
+      rob_addr_issue  <= rob_addr_disp;
     end
   end
 
@@ -291,7 +301,14 @@ module core (
     .op2_valid(op2_valid_issue)
   );
 
-  issueQueue issue_queue(
+  issueQueue #(
+    .ISSUE_QUEUE_SIZE(ISSUE_QUEUE_SIZE)
+  ) issue_queue (
+    .clk,
+    .rst,
+    .dispatch_if(dispatch_if_issue.in),
+    .wb_if(wb_if_issue.in),
+    .issue_if(issue_if_issue.out)
   );
 
   always_comb begin
@@ -317,23 +334,23 @@ module core (
   // ISSUE/RREAD regs
   always_ff @(posedge clk) begin
     if(rst) begin
-      valid_rread     = 0;
-      alu_cmd_rread   = 0;
-      op1_rread       = 0;
-      op2_type_rread  = 0;
-      op2_rread       = 0;
-      phys_rd_rread   = 0;
-      bank_addr_rread = 0;
-      rob_addr_rread  = 0;
+      valid_rread     <= 0;
+      alu_cmd_rread   <= 0;
+      op1_rread       <= 0;
+      op2_type_rread  <= 0;
+      op2_rread       <= 0;
+      phys_rd_rread   <= 0;
+      bank_addr_rread <= 0;
+      rob_addr_rread  <= 0;
     end else begin
-      valid_rread     = issue_valid_issue;
-      alu_cmd_rread   = issue_alu_cmd_issue;
-      op1_rread       = issue_op1_issue;
-      op2_type_rread  = issue_op2_type_issue;
-      op2_rread       = issue_op2_issue;
-      phys_rd_rread   = issue_phys_rd_issue;
-      bank_addr_rread = bank_addr_issue;
-      rob_addr_rread  = rob_addr_issue;
+      valid_rread     <= issue_valid_issue;
+      alu_cmd_rread   <= issue_alu_cmd_issue;
+      op1_rread       <= issue_op1_issue;
+      op2_type_rread  <= issue_op2_type_issue;
+      op2_rread       <= issue_op2_issue;
+      phys_rd_rread   <= issue_phys_rd_issue;
+      bank_addr_rread <= bank_addr_issue;
+      rob_addr_rread  <= rob_addr_issue;
     end
   end
 
@@ -345,8 +362,9 @@ module core (
     .rst,
     .addr_rs1(op1_rread),
     .addr_rs2(op2_rread),
-    .addr_rd(),
-    .rd_wen(),
+    .addr_rd(phys_rd_wb),
+    .rd_data(result_wb),
+    .rd_wen(valid_wb),
     .rs1_data(rs1_data_rread),
     .rs2_data(rs2_data_rread),
   );
@@ -354,27 +372,55 @@ module core (
   // RREAD/EX regs
   always_ff @(posedge clk) begin
     if (rst) begin
-      valid_ex     = 0;
-      alu_cmd_ex   = 0;
-      op1_ex       = 0;
-      op2_ex       = 0;
-      phys_rd_ex   = 0;
-      bank_addr_ex = 0;
-      rob_addr_ex  = 0;
+      valid_ex     <= 0;
+      alu_cmd_ex   <= 0;
+      op1_ex       <= 0;
+      op2_ex       <= 0;
+      phys_rd_ex   <= 0;
+      bank_addr_ex <= 0;
+      rob_addr_ex  <= 0;
     end else begin
-      valid_ex     = valid_rread;
-      alu_cmd_ex   = alu_cmd_rread;
-      op1_ex       = rs1_data_rread;
+      valid_ex     <= valid_rread;
+      alu_cmd_ex   <= alu_cmd_rread;
+      op1_ex       <= rs1_data_rread;
       for (int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
         case(op2_type_rread[bank])
-          common::IMM: op2_ex[bank] = imm_rread[bank];
-          common::REG: op2_ex[bank] = rs2_data_rread[bank];
-          default: op2_ex[bank] = 0;
+          common::IMM: op2_ex[bank] <= imm_rread[bank];
+          common::REG: op2_ex[bank] <= rs2_data_rread[bank];
+          default: op2_ex[bank] <= 0;
         endcase
       end
-      phys_rd_ex   = phys_rd_rread;
-      bank_addr_ex = bank_addr_rread;
-      rob_addr_ex  = rob_addr_rread;
+      phys_rd_ex   <= phys_rd_rread;
+      bank_addr_ex <= bank_addr_rread;
+      rob_addr_ex  <= rob_addr_rread;
+    end
+  end
+
+  generate
+    genvar bank;
+    for(bank = 0; bank < DISPATCH_WIDTH; bank++) begin
+      alu alu(
+        .op1(op1_ex[bank]),
+        .op2(op2_ex[bank]),
+        .alu_ops(alu_cmd_ex[bank]),
+        .alu_out(alu_out_ex[bank])
+      );
+    end
+  endgenerate
+
+  always_ff @(posedge clk) begin
+    if (rst) begin
+      valid_wb     <= 0;
+      result_wb    <= 0;
+      phys_rd_wb   <= 0;
+      bank_addr_wb <= 0;
+      rob_addr_wb  <= 0;
+    end else begin
+      valid_wb     <= valid_ex;
+      result_wb    <= alu_out_ex;
+      phys_rd_wb   <= phys_rd_ex;
+      bank_addr_wb <= bank_addr_ex;
+      rob_addr_wb  <= rob_addr_ex;
     end
   end
 
