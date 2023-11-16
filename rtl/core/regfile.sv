@@ -1,37 +1,42 @@
 `default_nettype none
-module regfile(
-    input wire logic clock,
-    input wire logic reset,
-    input wire logic [4:0] addr_rs1,
-    input wire logic [4:0] addr_rs2,
-    input wire logic [4:0] addr_rd,
-    input wire logic [31:0] rd_data,
-    input wire logic wen,
-    output     logic [31:0] rs1,
-    output     logic [31:0] rs2,
-    output     logic [31:0] debug_reg [0:31]
+`include "parameters.sv"
+
+module regfile #(
+    parameter NUM_REGS = 32,
+    parameter REG_WIDTH = 32
+    )(
+    input  wire  clk,
+    input  wire  rst,
+    input  wire  [NUM_REGS_WIDTH-1:0] addr_rs1 [0:DISPATCH_WIDTH-1],
+    input  wire  [NUM_REGS_WIDTH-1:0] addr_rs2 [0:DISPATCH_WIDTH-1],
+    input  wire  [NUM_REGS_WIDTH-1:0] addr_rd  [0:DISPATCH_WIDTH-1],
+    input  wire  [REG_WIDTH-1:0]      rd_data  [0:DISPATCH_WIDTH-1],
+    input  wire                       rd_wen   [0:DISPATCH_WIDTH-1],
+
+    output logic [REG_WIDTH-1:0]      rs1_data [0:DISPATCH_WIDTH-1],
+    output logic [REG_WIDTH-1:0]      rs2_data [0:DISPATCH_WIDTH-1]
 );
-    logic [31:0] regfile[0:31];
+    parameter NUM_REGS_WIDTH = $clog2(NUM_REGS);
+    logic [NUM_REGS_WIDTH-1:0] regfile[0:REG_WIDTH-1];
     
     always_comb begin
-        for(int i = 0; i < 32; i++) begin
-            debug_reg[i] = regfile[i];
+        for (int i = 0; i < DISPATCH_WIDTH; i++) begin
+            rs1[i] = regfile[addr_rs1[i]];
+            rs2[i] = regfile[addr_rs2[i]];
         end
-
-        rs1 = regfile[addr_rs1];
-        rs2 = regfile[addr_rs2];
     end
     
-    always_ff @(posedge clock) begin
-        if (reset) begin
-            int i;
-            for (i = 0; i < 32; i++) begin
-                regfile[i] <= 32'd0;
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            for (int i = 0; i < NUM_REGS; i++) begin
+                regfile[i] <= REG_WIDTH'd0;
             end
         end
         else begin
-            if (wen) begin
-                regfile[addr_rd] <= rd_data;
+            for (int i = 0; i < DISPATCH_WIDTH; i++) begin
+                if (rd_wen[i]) begin
+                    regfile[addr_rd[i]] <= rd_data[i];
+                end
             end
         end
     end

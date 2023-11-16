@@ -77,33 +77,35 @@ module issueQueue #(
 
   // 発行する命令の決定
   // 検索のための比較回路をツリーで構成
-  issue_queue_entry_t search_tree [ 0 : ISSUE_QUEUE_SIZE - 2 ];
-  logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] addr_search_tree [ 0 : ISSUE_QUEUE_SIZE - 2 ];
+  issue_queue_entry_t search_tree [ 0 : ISSUE_QUEUE_SIZE - 2 ][0:DISPATCH_WIDTH-1];
+  logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] addr_search_tree [ 0 : ISSUE_QUEUE_SIZE - 2 ][0:DISPATCH_WIDTH-1];
   // verilator lint_off UNUSEDSIGNAL
-  issue_queue_entry_t issue_entry;
+  issue_queue_entry_t issue_entry[0:DISPATCH_WIDTH-1];
   // verilator lint_on UNUSEDSIGNAL
   localparam half = ISSUE_QUEUE_SIZE >> 1;
-  int offset [0:ISSUE_QUEUE_ADDR_WIDTH];
+  int offset [0:ISSUE_QUEUE_ADDR_WIDTH][0:DISPATCH_WIDTH-1];
   always_comb begin
-    for (int _i = 0; _i < half; _i++) begin
-      {addr_search_tree[_i], search_tree[_i]} = chose_entry(
-        issue_queue[(_i << 1)],
-        issue_queue[(_i << 1) + 1],
-        ISSUE_QUEUE_ADDR_WIDTH'(_i << 1),
-        ISSUE_QUEUE_ADDR_WIDTH'(_i << 1) + 1
-      );
-    end
-    offset[1] = half;
-    for (int _j = 2; _j < ISSUE_QUEUE_ADDR_WIDTH+1; _j++) begin
-      for (int _i = offset[_j-1]; _i < offset[_j-1] + (ISSUE_QUEUE_SIZE >> _j); _i++) begin
-        {addr_search_tree[_i], search_tree[_i]} = chose_entry(
-          search_tree[((_i-half) << 1)],
-          search_tree[((_i-half) << 1) + 1],
-          addr_search_tree[((_i-half) << 1)],
-          addr_search_tree[((_i-half) << 1) + 1]
+    for (int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
+      for (int _i = 0; _i < half; _i++) begin
+        {addr_search_tree[_i][bank], search_tree[_i][bank]} = chose_entry(
+          issue_queue[(_i << 1)],
+          issue_queue[(_i << 1) + 1],
+          ISSUE_QUEUE_ADDR_WIDTH'(_i << 1),
+          ISSUE_QUEUE_ADDR_WIDTH'(_i << 1) + 1
         );
       end
-      offset[_j] = offset[_j-1] + (ISSUE_QUEUE_SIZE >> _j);
+      offset[1] = half;
+      for (int _j = 2; _j < ISSUE_QUEUE_ADDR_WIDTH+1; _j++) begin
+        for (int _i = offset[_j-1]; _i < offset[_j-1] + (ISSUE_QUEUE_SIZE >> _j); _i++) begin
+          {addr_search_tree[_i], search_tree[_i]} = chose_entry(
+            search_tree[((_i-half) << 1)],
+            search_tree[((_i-half) << 1) + 1],
+            addr_search_tree[((_i-half) << 1)],
+            addr_search_tree[((_i-half) << 1) + 1]
+          );
+        end
+        offset[_j] = offset[_j-1] + (ISSUE_QUEUE_SIZE >> _j);
+      end
     end
   end
 

@@ -4,10 +4,11 @@
 `include "parameters.sv"
 interface isqIssueIf;
   import parameters::*;
-  logic                            valid;
-  common::alu_cmd_t                alu_cmd;
-  logic [31:0]                     op1, op2;
-  logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd;
+  logic                            valid   [0:DISPATCH_WIDTH-1];
+  common::alu_cmd_t                alu_cmd [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     op1     [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     op2     [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd [0:DISPATCH_WIDTH-1];
 
   // Issue queue ->
   modport out (
