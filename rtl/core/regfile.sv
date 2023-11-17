@@ -16,13 +16,14 @@ module regfile #(
   output logic [REG_WIDTH-1:0]      rs1_data [0:DISPATCH_WIDTH-1],
   output logic [REG_WIDTH-1:0]      rs2_data [0:DISPATCH_WIDTH-1]
 );
+  import parameters::*;
   parameter NUM_REGS_WIDTH = $clog2(NUM_REGS);
   logic [NUM_REGS_WIDTH-1:0] regfile[0:REG_WIDTH-1];
 
   always_comb begin
     for (int i = 0; i < DISPATCH_WIDTH; i++) begin
-      rs1[i] = regfile[addr_rs1[i]];
-      rs2[i] = regfile[addr_rs2[i]];
+      rs1_data[i] = regfile[addr_rs1[i]];
+      rs2_data[i] = regfile[addr_rs2[i]];
     end
   end
 

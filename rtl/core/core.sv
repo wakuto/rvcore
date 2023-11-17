@@ -31,6 +31,7 @@ module core (
   input wire logic        soft_int,
   input wire logic        ext_int
 );
+  import parameters::*;
 
   // ID stage
   logic             valid_id    [0:DISPATCH_WIDTH-1];
@@ -51,90 +52,96 @@ module core (
   common::op_type_t op2_type_rn [0:DISPATCH_WIDTH-1];
 
   // REN stage
-  logic [31:0]               rs1_data_rn [0:DISPATCH_WIDTH-1];
-  logic [31:0]               rs2_data_rn [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REG_WIDTH-1:0] pop_reg_rn  [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     rs1_data_rn [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     rs2_data_rn [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] pop_reg_rn  [0:DISPATCH_WIDTH-1];
   freelistIf freelist_if_rn();
 
   // REN/DISP regs
-  logic                      valid_disp    [0:DISPATCH_WIDTH-1];
-  common::alu_cmd_t          alu_cmd_disp  [0:DISPATCH_WIDTH-1];
-  logic [4:0]                rs1_disp      [0:DISPATCH_WIDTH-1];
-  common::op_type_t          op2_type_disp [0:DISPATCH_WIDTH-1];
-  logic [4:0]                rs2_disp      [0:DISPATCH_WIDTH-1];
-  logic [31:0]               imm_disp      [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REG_WIDTH-1:0] phys_rd_disp  [0:DISPATCH_WIDTH-1];
-  logic [4:0]                arch_rd_disp  [0:DISPATCH_WIDTH-1];
+  logic                            valid_disp    [0:DISPATCH_WIDTH-1];
+  common::alu_cmd_t                alu_cmd_disp  [0:DISPATCH_WIDTH-1];
+  logic [4:0]                      rs1_disp      [0:DISPATCH_WIDTH-1];
+  common::op_type_t                op2_type_disp [0:DISPATCH_WIDTH-1];
+  logic [4:0]                      rs2_disp      [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     imm_disp      [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd_disp  [0:DISPATCH_WIDTH-1];
+  logic [4:0]                      arch_rd_disp  [0:DISPATCH_WIDTH-1];
 
   // DISP stage
-  logic [DISPATCH_WIDTH-1:0] bank_addr_disp [0:DISPATCH_WIDTH-1];
-  logic [ROB_ADDR_WIDTH-1:0] rob_addr_disp  [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REG_WIDTH-1:0] phys_rs1_disp  [0:DISPATCH_WIDTH-1];
-  logic                      phys_rs1_valid [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REG_WIDTH-1:0] phys_rs2_disp  [0:DISPATCH_WIDTH-1];
-  logic                      phys_rs2_valid [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_WIDTH-1:0]       bank_addr_disp      [0:DISPATCH_WIDTH-1];
+  logic [ROB_ADDR_WIDTH-1:0]       rob_addr_disp       [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rs1_disp       [0:DISPATCH_WIDTH-1];
+  logic                            phys_rs1_valid_disp [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rs2_disp       [0:DISPATCH_WIDTH-1];
+  logic                            phys_rs2_valid_disp [0:DISPATCH_WIDTH-1];
   robDispatchIf dispatch_if_disp();
   robWbIf       wb_if_disp();
   robCommitIf   commit_if_disp();
   robOpFetchIf  op_fetch_if_disp();
 
   // DISP/ISSUE regs
-  logic                      valid_issue     [0:DISPATCH_WIDTH-1];
-  common::alu_cmd_t          alu_cmd_issue   [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REG_WIDTH-1:0] rs1_issue       [0:DISPATCH_WIDTH-1];
-  logic                      rs1_valid_issue [0:DISPATCH_WIDTH-1];
-  common::op_type_t          op2_type_issue  [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REG_WIDTH-1:0] rs2_issue       [0:DISPATCH_WIDTH-1];
-  logic                      rs2_valid_issue [0:DISPATCH_WIDTH-1];
-  logic [31:0]               imm_issue       [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REG_WIDTH-1:0] phys_rd_issue   [0:DISPATCH_WIDTH-1];
-  logic [DISPATCH_WIDTH-1:0] bank_addr_issue [0:DISPATCH_WIDTH-1];
-  logic [ROB_ADDR_WIDTH-1:0] rob_addr_issue  [0:DISPATCH_WIDTH-1];
+  logic                            valid_issue     [0:DISPATCH_WIDTH-1];
+  common::alu_cmd_t                alu_cmd_issue   [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] rs1_issue       [0:DISPATCH_WIDTH-1];
+  logic                            rs1_valid_issue [0:DISPATCH_WIDTH-1];
+  common::op_type_t                op2_type_issue  [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] rs2_issue       [0:DISPATCH_WIDTH-1];
+  logic                            rs2_valid_issue [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     imm_issue       [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd_issue   [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_WIDTH-1:0]       bank_addr_issue [0:DISPATCH_WIDTH-1];
+  logic [ROB_ADDR_WIDTH-1:0]       rob_addr_issue  [0:DISPATCH_WIDTH-1];
 
   // ISSUE stage
-  logic [31:0]           op2_issue           [0:DISPATCH_WIDTH-1];
-  logic                  op2_valid_issue     [0:DISPATCH_WIDTH-1];
-  logic                  issue_valid_issue   [0:DISPATCH_WIDTH-1];
-  common::alu_cmd_t      issue_alu_cmd_issue [0:DISPATCH_WIDTH-1];
-  logic [31:0]           issue_op1_issue     [0:DISPATCH_WIDTH-1];
-  logic [31:0]           issue_op2_issue     [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REG_WIDTH] issue_phys_rd_issue [0:DISPATCH_WIDTH-1];
-  isqDispatchIf          dispatch_if_issue();
-  isqWbIf                wb_if_issue();
-  isqIssueIf             issue_if_issue();
+  logic [31:0]                     op2_issue            [0:DISPATCH_WIDTH-1];
+  logic                            op2_valid_issue      [0:DISPATCH_WIDTH-1];
+  logic                            issue_valid_issue    [0:DISPATCH_WIDTH-1];
+  common::alu_cmd_t                issue_alu_cmd_issue  [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     issue_op1_issue      [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     issue_op2_issue      [0:DISPATCH_WIDTH-1];
+  common::op_type_t                issue_op2_type_issue [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] issue_phys_rd_issue  [0:DISPATCH_WIDTH-1];
+  isqDispatchIf                    dispatch_if_issue();
+  isqWbIf                          wb_if_issue();
+  isqIssueIf                       issue_if_issue();
 
   // ISSUE/REGREAD regs
-  logic                      valid_rread     [0:DISPATCH_WIDTH-1];
-  common::alu_cmd_t          alu_cmd_rread   [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REG_WIDTH-1:0] op1_rread       [0:DISPATCH_WIDTH-1];
-  common::op_type_t          op2_type_rread  [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REG_WIDTH-1:0] op2_rread       [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REG_WIDTH-1:0] phys_rd_rread   [0:DISPATCH_WIDTH-1];
-  logic [DISPATCH_WIDTH-1:0] bank_addr_rread [0:DISPATCH_WIDTH-1];
-  logic [ROB_ADDR_WIDTH-1:0] rob_addr_rread  [0:DISPATCH_WIDTH-1];
+  logic                            valid_rread     [0:DISPATCH_WIDTH-1];
+  common::alu_cmd_t                alu_cmd_rread   [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] op1_rread       [0:DISPATCH_WIDTH-1];
+  common::op_type_t                op2_type_rread  [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] op2_rread       [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd_rread   [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_WIDTH-1:0]       bank_addr_rread [0:DISPATCH_WIDTH-1];
+  logic [ROB_ADDR_WIDTH-1:0]       rob_addr_rread  [0:DISPATCH_WIDTH-1];
 
   // REGREAD stage
   logic [31:0]               rs1_data_rread  [0:DISPATCH_WIDTH-1];
   logic [31:0]               rs2_data_rread  [0:DISPATCH_WIDTH-1];
 
   // REGREAD/EX regs
-  logic                      valid_ex     [0:DISPATCH_WIDTH-1];
-  common::alu_cmd_t          alu_cmd_ex   [0:DISPATCH_WIDTH-1];
-  logic [31:0]               op1_ex       [0:DISPATCH_WIDTH-1];
-  logic [31:0]               op2_ex       [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REG_WIDTH-1:0] phys_rd_ex   [0:DISPATCH_WIDTH-1];
-  logic [DISPATCH_WIDTH-1:0] bank_addr_ex [0:DISPATCH_WIDTH-1];
-  logic [ROB_ADDR_WIDTH-1:0] rob_addr_ex  [0:DISPATCH_WIDTH-1];
+  logic                            valid_ex     [0:DISPATCH_WIDTH-1];
+  common::alu_cmd_t                alu_cmd_ex   [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     op1_ex       [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     op2_ex       [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd_ex   [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_WIDTH-1:0]       bank_addr_ex [0:DISPATCH_WIDTH-1];
+  logic [ROB_ADDR_WIDTH-1:0]       rob_addr_ex  [0:DISPATCH_WIDTH-1];
 
   // EX stage
   logic [31:0]               alu_out_ex   [0:DISPATCH_WIDTH-1];
 
   // EX/WB regs
-  logic                      valid_wb     [0:DISPATCH_WIDTH-1];
-  logic [31:0]               result_wb    [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REG_WIDTH-1:0] phys_rd_wb   [0:DISPATCH_WIDTH-1];
-  logic [DISPATCH_WIDTH-1:0] bank_addr_wb [0:DISPATCH_WIDTH-1];
-  logic [ROB_ADDR_WIDTH-1:0] rob_addr_wb  [0:DISPATCH_WIDTH-1];
+  logic                            valid_wb     [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     result_wb    [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd_wb   [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_WIDTH-1:0]       bank_addr_wb [0:DISPATCH_WIDTH-1];
+  logic [ROB_ADDR_WIDTH-1:0]       rob_addr_wb  [0:DISPATCH_WIDTH-1];
+
+  // COMMIT stage
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd_commit [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     arch_rd_commit [0:DISPATCH_WIDTH-1];
+  logic                            en_commit      [0:DISPATCH_WIDTH-1];
 
   always_ff @(posedge clk) begin
     if (rst) begin
@@ -160,27 +167,27 @@ module core (
   // ID/REN regs
   always_ff @(posedge clk) begin
     if (rst) begin
-      valid_ex    <= 0;
-      rs1_ex      <= 0;
-      rs2_ex      <= 0;
-      rd_ex       <= 0;
-      alu_cmd_ex  <= 0;
-      imm_ex      <= 0;
-      op2_type_ex <= 0;
+      valid_rn    <= 0;
+      rs1_rn      <= 0;
+      rs2_rn      <= 0;
+      rd_rn       <= 0;
+      alu_cmd_rn  <= 0;
+      imm_rn      <= 0;
+      op2_type_rn <= 0;
     end else begin
-      valid_ex    <= valid_id;
-      rs1_ex      <= rs1_id;
-      rs2_ex      <= rs2_id;
-      rd_ex       <= rd_id;
-      alu_cmd_ex  <= alu_cmd_id;
-      imm_ex      <= imm_id;
-      op2_type_ex <= op2_type_id;
+      valid_rn    <= valid_id;
+      rs1_rn      <= rs1_id;
+      rs2_rn      <= rs2_id;
+      rd_rn       <= rd_id;
+      alu_cmd_rn  <= alu_cmd_id;
+      imm_rn      <= imm_id;
+      op2_type_rn <= op2_type_id;
     end
   end
 
   regfile #(
     .NUM_REGS(32),
-    .WIDTH(PHYS_REG_WIDTH)
+    .REG_WIDTH(PHYS_REGS_ADDR_WIDTH)
   )
   rename_map_table(
     .clk,
@@ -188,9 +195,10 @@ module core (
     .addr_rs1(rs1_rn),
     .addr_rs2(rs2_rn),
     .addr_rd(rd_rn),
+    .rd_data(pop_reg_rn),
     .rd_wen(valid_rn),
     .rs1_data(rs1_data_rn),
-    .rs2_data(rs2_data_rn),
+    .rs2_data(rs2_data_rn)
   );
 
   freelist freelist(
@@ -200,8 +208,8 @@ module core (
   );
 
   always_comb begin
-    freelist_if_rn.push_reg = ;
-    freelist_if_rn.push_en  = ;
+    freelist_if_rn.push_reg = phys_rd_commit;
+    freelist_if_rn.push_en  = en_commit;
 
     freelist_if_rn.pop_en   = valid_rn;
     pop_reg_rn = freelist_if_rn.pop_reg;
@@ -226,7 +234,7 @@ module core (
       rs2_disp      <= rs2_data_rn;
       imm_disp      <= imm_rn;
       phys_rd_disp  <= pop_reg_rn;
-      arch_rd_disp  <= arch_rd_rn;
+      arch_rd_disp  <= rd_rn;
     end
   end
 
@@ -246,21 +254,21 @@ module core (
     bank_addr_disp = dispatch_if_disp.bank_addr;
     rob_addr_disp  = dispatch_if_disp.rob_addr;
 
-    wb_if_disp.en        = ;
-    wb_if_disp.bank_addr = ;
-    wb_if_disp.rob_addr  = ;
+    wb_if_disp.en        = valid_wb;
+    wb_if_disp.bank_addr = bank_addr_wb;
+    wb_if_disp.rob_addr  = rob_addr_wb;
 
-    commit_if_disp.phys_rd;
-    commit_if_disp.arch_rd;
-    commit_if_disp.en;
+    arch_rd_commit = commit_if_disp.arch_rd;
+    phys_rd_commit = commit_if_disp.phys_rd;
+    en_commit      = commit_if_disp.en;
 
-    op_fetch_if.arch_rs1 = rs1_disp;
-    op_fetch_if.arch_rs2 = rs2_disp;
+    op_fetch_if_disp.arch_rs1 = rs1_disp;
+    op_fetch_if_disp.arch_rs2 = rs2_disp;
 
-    phys_rs1_disp  = op_fetch_if.phys_rs1;
-    rs1_valid_disp = op_fetch_if.rs1_valid;
-    phys_rs2_disp  = op_fetch_if.phys_rs2;
-    rs2_valid_disp = op_fetch_if.rs2_valid;
+    phys_rs1_disp       = op_fetch_if_disp.phys_rs1;
+    phys_rs1_valid_disp = op_fetch_if_disp.rs1_valid;
+    phys_rs2_disp       = op_fetch_if_disp.phys_rs2;
+    phys_rs2_valid_disp = op_fetch_if_disp.rs2_valid;
   end
 
   // DISP/ISSUE regs
@@ -281,10 +289,10 @@ module core (
       valid_issue     <= valid_disp;
       alu_cmd_issue   <= alu_cmd_disp;
       rs1_issue       <= phys_rs1_disp;
-      rs1_valid_issue <= rs1_valid_disp;
+      rs1_valid_issue <= phys_rs1_valid_disp;
       op2_type_issue  <= op2_type_disp;
       rs2_issue       <= phys_rs2_disp;
-      rs2_valid_issue <= rs2_valid_disp;
+      rs2_valid_issue <= phys_rs2_valid_disp;
       imm_issue       <= imm_disp;
       phys_rd_issue   <= phys_rd_disp;
       bank_addr_issue <= bank_addr_disp;
@@ -302,7 +310,7 @@ module core (
   );
 
   issueQueue #(
-    .ISSUE_QUEUE_SIZE(ISSUE_QUEUE_SIZE)
+    .ISSUE_QUEUE_SIZE(8)
   ) issue_queue (
     .clk,
     .rst,
@@ -320,9 +328,9 @@ module core (
     dispatch_if_issue.op2_valid = op2_valid_issue;
     dispatch_if_issue.phys_rd   = phys_rd_issue;
 
-    wb_if.valid = ;
-    wb_if.phys_rd = ;
-    wb_if.data = ;
+    wb_if_issue.valid = valid_wb;
+    wb_if_issue.phys_rd = phys_rd_wb;
+    wb_if_issue.data = result_wb;
 
     issue_valid_issue   = issue_if_issue.valid;
     issue_alu_cmd_issue = issue_if_issue.alu_cmd;
@@ -356,7 +364,7 @@ module core (
 
   regfile #(
     .NUM_REGS(PHYS_REGS),
-    .WIDTH(PHYS_REG_WIDTH)
+    .REG_WIDTH(PHYS_REGS_ADDR_WIDTH)
   ) phys_regfile(
     .clk,
     .rst,
@@ -366,7 +374,7 @@ module core (
     .rd_data(result_wb),
     .rd_wen(valid_wb),
     .rs1_data(rs1_data_rread),
-    .rs2_data(rs2_data_rread),
+    .rs2_data(rs2_data_rread)
   );
 
   // RREAD/EX regs
@@ -385,7 +393,7 @@ module core (
       op1_ex       <= rs1_data_rread;
       for (int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
         case(op2_type_rread[bank])
-          common::IMM: op2_ex[bank] <= imm_rread[bank];
+          common::IMM: op2_ex[bank] <= op2_rread[bank];
           common::REG: op2_ex[bank] <= rs2_data_rread[bank];
           default: op2_ex[bank] <= 0;
         endcase
@@ -423,6 +431,21 @@ module core (
       rob_addr_wb  <= rob_addr_ex;
     end
   end
+
+  regfile #(
+    .NUM_REGS(32),
+    .REG_WIDTH(PHYS_REGS_ADDR_WIDTH)
+  ) bank_regfile(
+    .clk,
+    .rst,
+    .addr_rs1(),
+    .addr_rs2(),
+    .addr_rd(arch_rd_commit),
+    .rd_data(phys_rd_commit),
+    .rd_wen(en_commit),
+    .rs1_data(),
+    .rs2_data()
+  );
 
 endmodule
 `default_nettype wire

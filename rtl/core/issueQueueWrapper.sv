@@ -1,6 +1,7 @@
 `default_nettype none
 
 `include "parameters.sv"
+`include "common.sv"
 
 module issueQueueWrapper #(
   parameter ISSUE_QUEUE_SIZE = 8
@@ -15,6 +16,7 @@ module issueQueueWrapper #(
   input  wire                            dispatch_op2_valid [0:DISPATCH_WIDTH-1],
   input  wire [31:0]                     dispatch_op1       [0:DISPATCH_WIDTH-1],
   input  wire [31:0]                     dispatch_op2       [0:DISPATCH_WIDTH-1],
+  input  common::op_type_t               dispatch_op2_type  [0:DISPATCH_WIDTH-1],
   input  wire [PHYS_REGS_ADDR_WIDTH-1:0] dispatch_phys_rd   [0:DISPATCH_WIDTH-1],
 
 // 他の命令の結果の適用
@@ -54,6 +56,7 @@ module issueQueueWrapper #(
       dispatch_if.op2[bank]       = dispatch_op2[bank];
       dispatch_if.op1_valid[bank] = dispatch_op1_valid[bank];
       dispatch_if.op2_valid[bank] = dispatch_op2_valid[bank];
+      dispatch_if.op2_type[bank]  = dispatch_op2_type[bank];
       dispatch_if.phys_rd[bank]   = dispatch_phys_rd[bank];
     end
 

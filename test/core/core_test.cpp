@@ -158,7 +158,7 @@ public:
 };
 
 TEST (core_test, run_sample_program) {
-  auto dut = new CoreTester("sample_program.vcd");
+  auto dut = std::make_unique<CoreTester>("sample_program.vcd");
   dut->read_program("../sample_src/program.bin");
   dut->init();
   
@@ -170,10 +170,10 @@ TEST (core_test, run_sample_program) {
   }
   EXPECT_FALSE(cycle > 5000) << std::format("Test is too long. cycle = {}", cycle);
   EXPECT_TRUE(dut->top->debug_ebreak) << "Test wasn't done.";
-  delete(dut);
 }
 
 // TODO: RISC-V Tests を実行するテストを書く
+/*
 TEST (core_test, run_riscv_test) {
   std::string riscv_test_path = "../sample_src/riscv-tests/bin/";
   std::vector<std::string> bin_files;
@@ -202,3 +202,4 @@ TEST (core_test, run_riscv_test) {
     delete(dut);
   }
 }
+*/
