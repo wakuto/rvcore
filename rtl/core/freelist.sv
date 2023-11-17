@@ -41,10 +41,10 @@ module freelist(
       num_free <= (PHYS_REGS_ADDR_WIDTH+1)'(PHYS_REGS);
     end else begin
       if (|freelist_if.pop_en && (PHYS_REGS_ADDR_WIDTH+1)'(num_pop) <= num_free) begin
-        case(freelist_if.pop_en[DISPATCH_WIDTH-1:0]) 
-          'b01: freelist_if.pop_reg[0] <= freelist_queue[tail+0];
-          'b10: freelist_if.pop_reg[1] <= freelist_queue[tail+0];
-          'b11: begin
+        case(freelist_if.pop_en) 
+          2'b01: freelist_if.pop_reg[0] <= freelist_queue[tail+0];
+          2'b10: freelist_if.pop_reg[1] <= freelist_queue[tail+0];
+          2'b11: begin
             freelist_if.pop_reg[0] <= freelist_queue[tail+0];
             freelist_if.pop_reg[1] <= freelist_queue[tail+1];
           end

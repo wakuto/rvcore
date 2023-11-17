@@ -14,7 +14,7 @@ module issueQueueWrapper #(
   input  common::alu_cmd_t               dispatch_alu_cmd   [0:DISPATCH_WIDTH-1],
   input  wire                            dispatch_op1_valid [0:DISPATCH_WIDTH-1],
   input  wire                            dispatch_op2_valid [0:DISPATCH_WIDTH-1],
-  input  wire [31:0]                     dispatch_op1       [0:DISPATCH_WIDTH-1],
+  input  wire [PHYS_REGS_ADDR_WIDTH-1:0] dispatch_op1       [0:DISPATCH_WIDTH-1],
   input  wire [31:0]                     dispatch_op2       [0:DISPATCH_WIDTH-1],
   input  common::op_type_t               dispatch_op2_type  [0:DISPATCH_WIDTH-1],
   input  wire [PHYS_REGS_ADDR_WIDTH-1:0] dispatch_phys_rd   [0:DISPATCH_WIDTH-1],
@@ -26,7 +26,7 @@ module issueQueueWrapper #(
 
   output logic                            issue_valid    [0:DISPATCH_WIDTH-1],
   output common::alu_cmd_t                issue_alu_cmd  [0:DISPATCH_WIDTH-1],
-  output logic [31:0]                     issue_op1      [0:DISPATCH_WIDTH-1],
+  output logic [PHYS_REGS_ADDR_WIDTH-1:0] issue_op1      [0:DISPATCH_WIDTH-1],
   output common::op_type_t                issue_op2_type [0:DISPATCH_WIDTH-1],
   output logic [31:0]                     issue_op2      [0:DISPATCH_WIDTH-1],
   output logic [PHYS_REGS_ADDR_WIDTH-1:0] issue_phys_rd  [0:DISPATCH_WIDTH-1]

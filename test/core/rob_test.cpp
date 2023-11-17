@@ -463,7 +463,7 @@ TEST (ROBTest, OperandFetchTest) {
   // +---------+---------+---+--------------+---------+---------+---+--------------+
   // bank0でrs1(=x1)をfetch
   dut->do_posedge([](Vrob *rob) {
-    rob->op_fetch_arch_rs1[0] = 1;
+    rob->op_fetch_phys_rs1[0] = 1;
   });
 
   EXPECT_EQ((int)dut->top->op_fetch_phys_rs1[0], 33);
@@ -471,7 +471,7 @@ TEST (ROBTest, OperandFetchTest) {
 
   // bank1でrs2(=x2)をfetch
   dut->do_posedge([](Vrob *rob) {
-    rob->op_fetch_arch_rs1[1] = 2;
+    rob->op_fetch_phys_rs1[1] = 2;
   });
 
   EXPECT_EQ((int)dut->top->op_fetch_phys_rs1[1], 36);
@@ -510,8 +510,8 @@ TEST (ROBTest, OperandFetchTest) {
 
   // bank0でrs1(=x2), rs2(=x3)をfetch
   dut->do_posedge([](Vrob *rob) {
-    rob->op_fetch_arch_rs1[0] = 2;
-    rob->op_fetch_arch_rs2[0] = 3;
+    rob->op_fetch_phys_rs1[0] = 2;
+    rob->op_fetch_phys_rs2[0] = 3;
   });
 
   EXPECT_EQ((int)dut->top->op_fetch_phys_rs1[0], 36);
@@ -552,8 +552,8 @@ TEST (ROBTest, OperandFetchTest) {
     for(auto i = 0; i < 2; i++) {
       rob->writeback_en[i] = 0;
     }
-    rob->op_fetch_arch_rs1[1] = 2;
-    rob->op_fetch_arch_rs2[1] = 3;
+    rob->op_fetch_phys_rs1[1] = 2;
+    rob->op_fetch_phys_rs2[1] = 3;
   });
 
   EXPECT_EQ((int)dut->top->op_fetch_phys_rs1[1], 36);

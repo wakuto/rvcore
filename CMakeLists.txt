@@ -68,6 +68,7 @@ verilate(core_test
         ${CORE_RTL_DIR}/robOpFetchIf.sv
         ${CORE_RTL_DIR}/freelist.sv
         ${CORE_RTL_DIR}/freelistIf.sv
+        ${CORE_RTL_DIR}/op2ValidLogic.sv
     PREFIX Vcore
     INCLUDE_DIRS
         ${CORE_RTL_DIR}/include

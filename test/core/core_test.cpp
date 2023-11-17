@@ -24,19 +24,21 @@ public:
   CoreTester(std::string dump_filename) : ModelTester("core_test_vcd", dump_filename) {}
   
   void clock(uint32_t signal) {
-    this->top->clock = signal;
+    this->top->clk = signal;
   }
 
   void reset(uint32_t signal) {
-    this->top->reset = signal;
+    this->top->rst = signal;
   }
 
   void init() {
     this->reset(1);
     this->change_signal([](Vcore *core){
       // instruction data
-      core->instruction = 0;
-      core->instr_valid = 0;
+      for(auto i = 0; i < 2; i++) {
+        core->instruction[i] = 0;
+        core->instr_valid[i] = 0;
+      }
       
       // memory data
       core->read_data = 0;
@@ -129,8 +131,10 @@ public:
   void run_one_cycle(uint32_t mem_delay) {
     static uint32_t delay_counter = 0;
     this->do_posedge([&](Vcore *core) {
-      core->instruction = this->read_imem(core->pc);
-      core->instr_valid = 1;
+      for(auto i = 0; i < 2; i++) {
+        core->instruction[i] = this->read_imem(core->pc + 4*i);
+        core->instr_valid[i] = 1;
+      }
       
       // delay_counter = 0 -> read_valid = write_ready = 0
       if (core->read_enable) {

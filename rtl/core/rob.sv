@@ -35,8 +35,8 @@ module rob #(
     for (int i = 0; i < DISPATCH_WIDTH; i++) begin
       for (int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
         for (int j = 0; j < ROB_SIZE; j++) begin
-          hit_rs1[i][bank][j] = rob_entry[j][bank].entry_valid && (rob_entry[j][bank].arch_rd == op_fetch_if.arch_rs1[i]);
-          hit_rs2[i][bank][j] = rob_entry[j][bank].entry_valid && (rob_entry[j][bank].arch_rd == op_fetch_if.arch_rs2[i]);
+          hit_rs1[i][bank][j] = rob_entry[j][bank].entry_valid && (rob_entry[j][bank].phys_rd == op_fetch_if.phys_rs1[i]);
+          hit_rs2[i][bank][j] = rob_entry[j][bank].entry_valid && (rob_entry[j][bank].phys_rd == op_fetch_if.phys_rs2[i]);
         end
       end
     end
@@ -57,18 +57,14 @@ module rob #(
         if (hit_rs1[bank][0][tail-(ROB_ADDR_WIDTH)'(j)] | hit_rs1[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
           // ともにhit_rs1の場合はbank0を優先
           if (hit_rs1[bank][0][tail-(ROB_ADDR_WIDTH)'(j)]) begin
-            op_fetch_if.phys_rs1[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][0].phys_rd;
             op_fetch_if.rs1_valid[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][0].commit_ready;
           end else if (hit_rs1[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
-            op_fetch_if.phys_rs1[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][1].phys_rd;
             op_fetch_if.rs1_valid[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][1].commit_ready;
           end else begin
-            op_fetch_if.phys_rs1[bank] = 0;
             op_fetch_if.rs1_valid[bank] = 0;
           end
           break;
         end else begin
-          op_fetch_if.phys_rs1[bank] = 0;
           op_fetch_if.rs1_valid[bank] = 0;
         end
       end
@@ -79,18 +75,14 @@ module rob #(
         if (hit_rs2[bank][0][tail-(ROB_ADDR_WIDTH)'(j)] | hit_rs2[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
           // ともにhit_rs2の場合はbank0を優先
           if (hit_rs2[bank][0][tail-(ROB_ADDR_WIDTH)'(j)]) begin
-            op_fetch_if.phys_rs2[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][0].phys_rd;
             op_fetch_if.rs2_valid[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][0].commit_ready;
           end else if (hit_rs2[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
-            op_fetch_if.phys_rs2[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][1].phys_rd;
             op_fetch_if.rs2_valid[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][1].commit_ready;
           end else begin
-            op_fetch_if.phys_rs2[bank] = 0;
             op_fetch_if.rs2_valid[bank] = 0;
           end
           break;
         end else begin
-          op_fetch_if.phys_rs2[bank] = 0;
           op_fetch_if.rs2_valid[bank] = 0;
         end
       end

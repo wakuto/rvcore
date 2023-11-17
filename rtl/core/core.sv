@@ -10,8 +10,8 @@ module core (
 
   // instruction data
   output     logic [31:0] pc,
-  input wire logic [31:0] instruction,
-  input wire logic        instr_valid,
+  input wire logic [31:0] instruction[0:DISPATCH_WIDTH-1],
+  input wire logic        instr_valid[0:DISPATCH_WIDTH-1],
 
   // memory data
   output     logic [31:0] address,
@@ -52,23 +52,23 @@ module core (
   common::op_type_t op2_type_rn [0:DISPATCH_WIDTH-1];
 
   // REN stage
-  logic [31:0]                     rs1_data_rn [0:DISPATCH_WIDTH-1];
-  logic [31:0]                     rs2_data_rn [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] rs1_data_rn [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] rs2_data_rn [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] pop_reg_rn  [0:DISPATCH_WIDTH-1];
   freelistIf freelist_if_rn();
 
   // REN/DISP regs
   logic                            valid_disp    [0:DISPATCH_WIDTH-1];
   common::alu_cmd_t                alu_cmd_disp  [0:DISPATCH_WIDTH-1];
-  logic [4:0]                      rs1_disp      [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] rs1_disp      [0:DISPATCH_WIDTH-1];
   common::op_type_t                op2_type_disp [0:DISPATCH_WIDTH-1];
-  logic [4:0]                      rs2_disp      [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] rs2_disp      [0:DISPATCH_WIDTH-1];
   logic [31:0]                     imm_disp      [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd_disp  [0:DISPATCH_WIDTH-1];
   logic [4:0]                      arch_rd_disp  [0:DISPATCH_WIDTH-1];
 
   // DISP stage
-  logic [DISPATCH_WIDTH-1:0]       bank_addr_disp      [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_ADDR_WIDTH-1:0]  bank_addr_disp      [0:DISPATCH_WIDTH-1];
   logic [ROB_ADDR_WIDTH-1:0]       rob_addr_disp       [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rs1_disp       [0:DISPATCH_WIDTH-1];
   logic                            phys_rs1_valid_disp [0:DISPATCH_WIDTH-1];
@@ -89,7 +89,7 @@ module core (
   logic                            rs2_valid_issue [0:DISPATCH_WIDTH-1];
   logic [31:0]                     imm_issue       [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd_issue   [0:DISPATCH_WIDTH-1];
-  logic [DISPATCH_WIDTH-1:0]       bank_addr_issue [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_ADDR_WIDTH-1:0]  bank_addr_issue [0:DISPATCH_WIDTH-1];
   logic [ROB_ADDR_WIDTH-1:0]       rob_addr_issue  [0:DISPATCH_WIDTH-1];
 
   // ISSUE stage
@@ -97,7 +97,7 @@ module core (
   logic                            op2_valid_issue      [0:DISPATCH_WIDTH-1];
   logic                            issue_valid_issue    [0:DISPATCH_WIDTH-1];
   common::alu_cmd_t                issue_alu_cmd_issue  [0:DISPATCH_WIDTH-1];
-  logic [31:0]                     issue_op1_issue      [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] issue_op1_issue      [0:DISPATCH_WIDTH-1];
   logic [31:0]                     issue_op2_issue      [0:DISPATCH_WIDTH-1];
   common::op_type_t                issue_op2_type_issue [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] issue_phys_rd_issue  [0:DISPATCH_WIDTH-1];
@@ -110,9 +110,9 @@ module core (
   common::alu_cmd_t                alu_cmd_rread   [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] op1_rread       [0:DISPATCH_WIDTH-1];
   common::op_type_t                op2_type_rread  [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REGS_ADDR_WIDTH-1:0] op2_rread       [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     op2_rread       [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd_rread   [0:DISPATCH_WIDTH-1];
-  logic [DISPATCH_WIDTH-1:0]       bank_addr_rread [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_ADDR_WIDTH-1:0]  bank_addr_rread [0:DISPATCH_WIDTH-1];
   logic [ROB_ADDR_WIDTH-1:0]       rob_addr_rread  [0:DISPATCH_WIDTH-1];
 
   // REGREAD stage
@@ -125,7 +125,7 @@ module core (
   logic [31:0]                     op1_ex       [0:DISPATCH_WIDTH-1];
   logic [31:0]                     op2_ex       [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd_ex   [0:DISPATCH_WIDTH-1];
-  logic [DISPATCH_WIDTH-1:0]       bank_addr_ex [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_ADDR_WIDTH-1:0]  bank_addr_ex [0:DISPATCH_WIDTH-1];
   logic [ROB_ADDR_WIDTH-1:0]       rob_addr_ex  [0:DISPATCH_WIDTH-1];
 
   // EX stage
@@ -135,12 +135,12 @@ module core (
   logic                            valid_wb     [0:DISPATCH_WIDTH-1];
   logic [31:0]                     result_wb    [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd_wb   [0:DISPATCH_WIDTH-1];
-  logic [DISPATCH_WIDTH-1:0]       bank_addr_wb [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_ADDR_WIDTH-1:0]  bank_addr_wb [0:DISPATCH_WIDTH-1];
   logic [ROB_ADDR_WIDTH-1:0]       rob_addr_wb  [0:DISPATCH_WIDTH-1];
 
   // COMMIT stage
   logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd_commit [0:DISPATCH_WIDTH-1];
-  logic [31:0]                     arch_rd_commit [0:DISPATCH_WIDTH-1];
+  logic [4:0]                      arch_rd_commit [0:DISPATCH_WIDTH-1];
   logic                            en_commit      [0:DISPATCH_WIDTH-1];
 
   always_ff @(posedge clk) begin
@@ -153,27 +153,34 @@ module core (
     end
   end
 
-  decoder decoder0(
-    .instruction,
-    .instr_valid,
-    .rs1(rs1_id),
-    .rs2(rs2_id),
-    .rd(rd_id),
-    .alu_cmd(alu_cmd_id),
-    .imm(imm_id),
-    .op2_type(op2_type_id)
-  );
+  genvar bank;
+  generate
+    for(bank = 0; bank < DISPATCH_WIDTH; bank++) begin
+      decoder decoder(
+        .instruction(instruction[bank]),
+        .instr_valid(instr_valid[bank]),
+        .rs1(rs1_id[bank]),
+        .rs2(rs2_id[bank]),
+        .rd(rd_id[bank]),
+        .alu_cmd(alu_cmd_id[bank]),
+        .imm(imm_id[bank]),
+        .op2_type(op2_type_id[bank])
+      );
+    end
+  endgenerate
 
   // ID/REN regs
   always_ff @(posedge clk) begin
     if (rst) begin
-      valid_rn    <= 0;
-      rs1_rn      <= 0;
-      rs2_rn      <= 0;
-      rd_rn       <= 0;
-      alu_cmd_rn  <= 0;
-      imm_rn      <= 0;
-      op2_type_rn <= 0;
+      for(int i = 0; i < DISPATCH_WIDTH; i++) begin
+        valid_rn[i]    <= 0;
+        rs1_rn[i]      <= 0;
+        rs2_rn[i]      <= 0;
+        rd_rn[i]       <= 0;
+        alu_cmd_rn[i]  <= common::alu_cmd_t'(0);
+        imm_rn[i]      <= 0;
+        op2_type_rn[i] <= common::op_type_t'(0);
+      end
     end else begin
       valid_rn    <= valid_id;
       rs1_rn      <= rs1_id;
@@ -209,23 +216,27 @@ module core (
 
   always_comb begin
     freelist_if_rn.push_reg = phys_rd_commit;
-    freelist_if_rn.push_en  = en_commit;
+    for(int i = 0; i < DISPATCH_WIDTH; i++) begin
+      freelist_if_rn.push_en[i]  = en_commit[i];
+      freelist_if_rn.pop_en[i]   = valid_rn[i];
+    end
 
-    freelist_if_rn.pop_en   = valid_rn;
     pop_reg_rn = freelist_if_rn.pop_reg;
   end
 
   // REN/DISP regs
   always_ff @(posedge clk) begin
     if (rst) begin
-      valid_disp    <= 0;
-      alu_cmd_disp  <= 0;
-      rs1_disp      <= 0;
-      op2_type_disp <= 0;
-      rs2_disp      <= 0;
-      imm_disp      <= 0;
-      phys_rd_disp  <= 0;
-      arch_rd_disp  <= 0;
+      for(int i = 0; i < DISPATCH_WIDTH; i++) begin
+        valid_disp[i]    <= 0;
+        alu_cmd_disp[i]  <= common::alu_cmd_t'(0);
+        rs1_disp[i]      <= 0;
+        op2_type_disp[i] <= common::op_type_t'(0);
+        rs2_disp[i]      <= 0;
+        imm_disp[i]      <= 0;
+        phys_rd_disp[i]  <= 0;
+        arch_rd_disp[i]  <= 0;
+      end
     end else begin
       valid_disp    <= valid_rn;
       alu_cmd_disp  <= alu_cmd_rn;
@@ -262,36 +273,36 @@ module core (
     phys_rd_commit = commit_if_disp.phys_rd;
     en_commit      = commit_if_disp.en;
 
-    op_fetch_if_disp.arch_rs1 = rs1_disp;
-    op_fetch_if_disp.arch_rs2 = rs2_disp;
+    op_fetch_if_disp.phys_rs1 = rs1_disp;
+    op_fetch_if_disp.phys_rs2 = rs2_disp;
 
-    phys_rs1_disp       = op_fetch_if_disp.phys_rs1;
     phys_rs1_valid_disp = op_fetch_if_disp.rs1_valid;
-    phys_rs2_disp       = op_fetch_if_disp.phys_rs2;
     phys_rs2_valid_disp = op_fetch_if_disp.rs2_valid;
   end
 
   // DISP/ISSUE regs
   always_ff @(posedge clk) begin
     if (rst) begin
-      valid_issue     <= 0;
-      alu_cmd_issue   <= 0;
-      rs1_issue       <= 0;
-      rs1_valid_issue <= 0;
-      op2_type_issue  <= 0;
-      rs2_issue       <= 0;
-      rs2_valid_issue <= 0;
-      imm_issue       <= 0;
-      phys_rd_issue   <= 0;
-      bank_addr_issue <= 0;
-      rob_addr_issue  <= 0;
+      for(int i = 0; i < DISPATCH_WIDTH; i++) begin
+        valid_issue[i]     <= 0;
+        alu_cmd_issue[i]   <= common::alu_cmd_t'(0);
+        rs1_issue[i]       <= 0;
+        rs1_valid_issue[i] <= 0;
+        op2_type_issue[i]  <= common::op_type_t'(0);
+        rs2_issue[i]       <= 0;
+        rs2_valid_issue[i] <= 0;
+        imm_issue[i]       <= 0;
+        phys_rd_issue[i]   <= 0;
+        bank_addr_issue[i] <= 0;
+        rob_addr_issue[i]  <= 0;
+      end
     end else begin
       valid_issue     <= valid_disp;
       alu_cmd_issue   <= alu_cmd_disp;
-      rs1_issue       <= phys_rs1_disp;
+      rs1_issue       <= rs1_disp;
       rs1_valid_issue <= phys_rs1_valid_disp;
       op2_type_issue  <= op2_type_disp;
-      rs2_issue       <= phys_rs2_disp;
+      rs2_issue       <= rs2_disp;
       rs2_valid_issue <= phys_rs2_valid_disp;
       imm_issue       <= imm_disp;
       phys_rd_issue   <= phys_rd_disp;
@@ -342,14 +353,16 @@ module core (
   // ISSUE/RREAD regs
   always_ff @(posedge clk) begin
     if(rst) begin
-      valid_rread     <= 0;
-      alu_cmd_rread   <= 0;
-      op1_rread       <= 0;
-      op2_type_rread  <= 0;
-      op2_rread       <= 0;
-      phys_rd_rread   <= 0;
-      bank_addr_rread <= 0;
-      rob_addr_rread  <= 0;
+      for(int i = 0; i < DISPATCH_WIDTH; i++) begin
+        valid_rread[i]     <= 0;
+        alu_cmd_rread[i]   <= common::alu_cmd_t'(0);
+        op1_rread[i]       <= 0;
+        op2_type_rread[i]  <= common::op_type_t'(0);
+        op2_rread[i]       <= 0;
+        phys_rd_rread[i]   <= 0;
+        bank_addr_rread[i] <= 0;
+        rob_addr_rread[i]  <= 0;
+      end
     end else begin
       valid_rread     <= issue_valid_issue;
       alu_cmd_rread   <= issue_alu_cmd_issue;
@@ -362,14 +375,21 @@ module core (
     end
   end
 
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] op2_rread_bit_cast [0:DISPATCH_WIDTH-1];
+  always_comb begin
+    for(int i = 0; i < DISPATCH_WIDTH; i++) begin
+      op2_rread_bit_cast[i] = PHYS_REGS_ADDR_WIDTH'(op2_rread[i]);
+    end
+  end
+
   regfile #(
     .NUM_REGS(PHYS_REGS),
-    .REG_WIDTH(PHYS_REGS_ADDR_WIDTH)
+    .REG_WIDTH(32)
   ) phys_regfile(
     .clk,
     .rst,
     .addr_rs1(op1_rread),
-    .addr_rs2(op2_rread),
+    .addr_rs2(op2_rread_bit_cast),
     .addr_rd(phys_rd_wb),
     .rd_data(result_wb),
     .rd_wen(valid_wb),
@@ -380,13 +400,15 @@ module core (
   // RREAD/EX regs
   always_ff @(posedge clk) begin
     if (rst) begin
-      valid_ex     <= 0;
-      alu_cmd_ex   <= 0;
-      op1_ex       <= 0;
-      op2_ex       <= 0;
-      phys_rd_ex   <= 0;
-      bank_addr_ex <= 0;
-      rob_addr_ex  <= 0;
+      for(int i = 0; i < DISPATCH_WIDTH; i++) begin
+        valid_ex[i]     <= 0;
+        alu_cmd_ex[i]   <= common::alu_cmd_t'(0);
+        op1_ex[i]       <= 0;
+        op2_ex[i]       <= 0;
+        phys_rd_ex[i]   <= 0;
+        bank_addr_ex[i] <= 0;
+        rob_addr_ex[i]  <= 0;
+      end
     end else begin
       valid_ex     <= valid_rread;
       alu_cmd_ex   <= alu_cmd_rread;
@@ -405,7 +427,6 @@ module core (
   end
 
   generate
-    genvar bank;
     for(bank = 0; bank < DISPATCH_WIDTH; bank++) begin
       alu alu(
         .op1(op1_ex[bank]),
@@ -418,11 +439,13 @@ module core (
 
   always_ff @(posedge clk) begin
     if (rst) begin
-      valid_wb     <= 0;
-      result_wb    <= 0;
-      phys_rd_wb   <= 0;
-      bank_addr_wb <= 0;
-      rob_addr_wb  <= 0;
+      for(int i = 0; i < DISPATCH_WIDTH; i++) begin
+        valid_wb[i]     <= 0;
+        result_wb[i]    <= 0;
+        phys_rd_wb[i]   <= 0;
+        bank_addr_wb[i] <= 0;
+        rob_addr_wb[i]  <= 0;
+      end
     end else begin
       valid_wb     <= valid_ex;
       result_wb    <= alu_out_ex;

@@ -7,7 +7,8 @@ typedef struct packed {
   logic             entry_valid;
   logic [3:0]       tag;
   common::alu_cmd_t alu_cmd;
-  logic [31:0]      op1_data, op2_data;
+  logic [parameters::PHYS_REGS_ADDR_WIDTH-1:0]       op1_data;
+  logic [31:0]      op2_data;
   common::op_type_t op2_type;
   logic             op1_valid, op2_valid;
   logic [parameters::PHYS_REGS_ADDR_WIDTH-1:0]       phys_rd;
@@ -242,7 +243,6 @@ module issueQueue #(
           if (wb_if.valid[bank]) begin
             if (issue_queue[i].entry_valid && !issue_queue[i].op1_valid && issue_queue[i].op1_data[PHYS_REGS_ADDR_WIDTH-1:0] == wb_if.phys_rd[bank]) begin
               issue_queue[i].op1_valid <= 1'b1;
-              issue_queue[i].op1_data <= wb_if.data[bank];
             end
             if (issue_queue[i].entry_valid && !issue_queue[i].op2_valid && issue_queue[i].op2_data[PHYS_REGS_ADDR_WIDTH-1:0] == wb_if.phys_rd[bank]) begin
               issue_queue[i].op2_valid <= 1'b1;
