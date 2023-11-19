@@ -65,7 +65,7 @@ module rob #(
           end
           break;
         end else begin
-          op_fetch_if.rs1_valid[bank] = 0;
+          op_fetch_if.rs1_valid[bank] = 1;
         end
       end
 
@@ -83,7 +83,7 @@ module rob #(
           end
           break;
         end else begin
-          op_fetch_if.rs2_valid[bank] = 0;
+          op_fetch_if.rs2_valid[bank] = 1;
         end
       end
     end

@@ -32,6 +32,9 @@ module core (
   input wire logic        ext_int
 );
   import parameters::*;
+  // IF stage
+  logic [31:0]      instruction_if [0:DISPATCH_WIDTH-1];
+  logic             instr_valid_if [0:DISPATCH_WIDTH-1];
 
   // ID stage
   logic             valid_id    [0:DISPATCH_WIDTH-1];
@@ -95,17 +98,11 @@ module core (
   // ISSUE stage
   logic [31:0]                     op2_issue            [0:DISPATCH_WIDTH-1];
   logic                            op2_valid_issue      [0:DISPATCH_WIDTH-1];
-  logic                            issue_valid_issue    [0:DISPATCH_WIDTH-1];
-  common::alu_cmd_t                issue_alu_cmd_issue  [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REGS_ADDR_WIDTH-1:0] issue_op1_issue      [0:DISPATCH_WIDTH-1];
-  logic [31:0]                     issue_op2_issue      [0:DISPATCH_WIDTH-1];
-  common::op_type_t                issue_op2_type_issue [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REGS_ADDR_WIDTH-1:0] issue_phys_rd_issue  [0:DISPATCH_WIDTH-1];
   isqDispatchIf                    dispatch_if_issue();
   isqWbIf                          wb_if_issue();
   isqIssueIf                       issue_if_issue();
 
-  // ISSUE/REGREAD regs
+  // REGREAD stage
   logic                            valid_rread     [0:DISPATCH_WIDTH-1];
   common::alu_cmd_t                alu_cmd_rread   [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] op1_rread       [0:DISPATCH_WIDTH-1];
@@ -114,10 +111,8 @@ module core (
   logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd_rread   [0:DISPATCH_WIDTH-1];
   logic [DISPATCH_ADDR_WIDTH-1:0]  bank_addr_rread [0:DISPATCH_WIDTH-1];
   logic [ROB_ADDR_WIDTH-1:0]       rob_addr_rread  [0:DISPATCH_WIDTH-1];
-
-  // REGREAD stage
-  logic [31:0]               rs1_data_rread  [0:DISPATCH_WIDTH-1];
-  logic [31:0]               rs2_data_rread  [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     rs1_data_rread  [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     rs2_data_rread  [0:DISPATCH_WIDTH-1];
 
   // REGREAD/EX regs
   logic                            valid_ex     [0:DISPATCH_WIDTH-1];
@@ -145,11 +140,25 @@ module core (
 
   always_ff @(posedge clk) begin
     if (rst) begin
-      pc <= 0;
+      pc <= 32'h80000000;
     end else begin
-      if (instr_valid) begin
+      if (&instr_valid) begin
+        pc <= pc + 8;
+      end else if (|instr_valid) begin
         pc <= pc + 4;
       end
+    end
+  end
+
+  always_ff @(posedge clk) begin
+    if (rst) begin
+      for(int i = 0; i < DISPATCH_WIDTH; i++) begin
+        instruction_if[i] <= 0;
+        instr_valid_if[i] <= 0;
+      end
+    end else begin
+      instruction_if <= instruction;
+      instr_valid_if <= instr_valid;;
     end
   end
 
@@ -157,8 +166,8 @@ module core (
   generate
     for(bank = 0; bank < DISPATCH_WIDTH; bank++) begin
       decoder decoder(
-        .instruction(instruction[bank]),
-        .instr_valid(instr_valid[bank]),
+        .instruction(instruction_if[bank]),
+        .instr_valid(instr_valid_if[bank]),
         .rs1(rs1_id[bank]),
         .rs2(rs2_id[bank]),
         .rd(rd_id[bank]),
@@ -168,6 +177,12 @@ module core (
       );
     end
   endgenerate
+
+  always_comb begin
+    for(int i = 0; i < DISPATCH_WIDTH; i++) begin
+      valid_id[i] = instr_valid[i] & (rd_id[i] != 0);
+    end
+  end
 
   // ID/REN regs
   always_ff @(posedge clk) begin
@@ -337,42 +352,21 @@ module core (
     dispatch_if_issue.op1_valid = rs1_valid_issue;
     dispatch_if_issue.op2       = op2_issue;
     dispatch_if_issue.op2_valid = op2_valid_issue;
+    dispatch_if_issue.op2_type  = op2_type_issue;
     dispatch_if_issue.phys_rd   = phys_rd_issue;
 
     wb_if_issue.valid = valid_wb;
     wb_if_issue.phys_rd = phys_rd_wb;
     wb_if_issue.data = result_wb;
 
-    issue_valid_issue   = issue_if_issue.valid;
-    issue_alu_cmd_issue = issue_if_issue.alu_cmd;
-    issue_op1_issue     = issue_if_issue.op1;
-    issue_op2_issue     = issue_if_issue.op2;
-    issue_phys_rd_issue = issue_if_issue.phys_rd;
-  end
-
-  // ISSUE/RREAD regs
-  always_ff @(posedge clk) begin
-    if(rst) begin
-      for(int i = 0; i < DISPATCH_WIDTH; i++) begin
-        valid_rread[i]     <= 0;
-        alu_cmd_rread[i]   <= common::alu_cmd_t'(0);
-        op1_rread[i]       <= 0;
-        op2_type_rread[i]  <= common::op_type_t'(0);
-        op2_rread[i]       <= 0;
-        phys_rd_rread[i]   <= 0;
-        bank_addr_rread[i] <= 0;
-        rob_addr_rread[i]  <= 0;
-      end
-    end else begin
-      valid_rread     <= issue_valid_issue;
-      alu_cmd_rread   <= issue_alu_cmd_issue;
-      op1_rread       <= issue_op1_issue;
-      op2_type_rread  <= issue_op2_type_issue;
-      op2_rread       <= issue_op2_issue;
-      phys_rd_rread   <= issue_phys_rd_issue;
-      bank_addr_rread <= bank_addr_issue;
-      rob_addr_rread  <= rob_addr_issue;
-    end
+    valid_rread     = issue_if_issue.valid;
+    alu_cmd_rread   = issue_if_issue.alu_cmd;
+    op1_rread       = issue_if_issue.op1;
+    op2_rread       = issue_if_issue.op2;
+    op2_type_rread  = issue_if_issue.op2_type;
+    phys_rd_rread   = issue_if_issue.phys_rd;
+    bank_addr_rread = issue_if_issue.bank_addr;
+    rob_addr_rread  = issue_if_issue.rob_addr;
   end
 
   logic [PHYS_REGS_ADDR_WIDTH-1:0] op2_rread_bit_cast [0:DISPATCH_WIDTH-1];
@@ -417,7 +411,7 @@ module core (
         case(op2_type_rread[bank])
           common::IMM: op2_ex[bank] <= op2_rread[bank];
           common::REG: op2_ex[bank] <= rs2_data_rread[bank];
-          default: op2_ex[bank] <= 0;
+          default: op2_ex[bank] <= 32'hcafebabe;
         endcase
       end
       phys_rd_ex   <= phys_rd_rread;
@@ -458,7 +452,7 @@ module core (
   regfile #(
     .NUM_REGS(32),
     .REG_WIDTH(PHYS_REGS_ADDR_WIDTH)
-  ) bank_regfile(
+  ) commit_map_table(
     .clk,
     .rst,
     .addr_rs1(),

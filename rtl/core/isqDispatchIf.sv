@@ -5,14 +5,16 @@
 interface isqDispatchIf;
   import parameters::*;
   logic                            full;
-  logic                            en       [0:DISPATCH_WIDTH-1];
-  common::alu_cmd_t                alu_cmd  [0:DISPATCH_WIDTH-1];
-  logic                            op1_valid[0:DISPATCH_WIDTH-1];
-  logic                            op2_valid[0:DISPATCH_WIDTH-1];
-  logic [PHYS_REGS_ADDR_WIDTH-1:0] op1      [0:DISPATCH_WIDTH-1];
-  logic [31:0]                     op2      [0:DISPATCH_WIDTH-1];
-  common::op_type_t                op2_type [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd  [0:DISPATCH_WIDTH-1];
+  logic                            en        [0:DISPATCH_WIDTH-1];
+  common::alu_cmd_t                alu_cmd   [0:DISPATCH_WIDTH-1];
+  logic                            op1_valid [0:DISPATCH_WIDTH-1];
+  logic                            op2_valid [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] op1       [0:DISPATCH_WIDTH-1];
+  logic [31:0]                     op2       [0:DISPATCH_WIDTH-1];
+  common::op_type_t                op2_type  [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd   [0:DISPATCH_WIDTH-1];
+  logic [DISPATCH_ADDR_WIDTH-1: 0] bank_addr [0:DISPATCH_WIDTH-1];
+  logic [ROB_ADDR_WIDTH-1: 0]      rob_addr  [0:DISPATCH_WIDTH-1];
 
   // Rename unit -> 
   modport out (
@@ -22,7 +24,9 @@ interface isqDispatchIf;
     output op1_valid, op2_valid,
     output op1, op2,
     output op2_type,
-    output phys_rd
+    output phys_rd,
+    output bank_addr,
+    output rob_addr
   );
 
   // -> Issue queue
@@ -33,7 +37,9 @@ interface isqDispatchIf;
     input  op1_valid, op2_valid,
     input  op1, op2,
     input  op2_type,
-    input  phys_rd
+    input  phys_rd,
+    input  bank_addr,
+    input  rob_addr
   );
 endinterface
 

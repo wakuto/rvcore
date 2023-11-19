@@ -1,0 +1,204 @@
+[*]
+[*] GTKWave Analyzer v3.3.117 (w)1999-2023 BSI
+[*] Sun Nov 19 04:02:14 2023
+[*]
+[dumpfile] "/home/wakuto/src/hobby/low_layer/rvcore/build/core_test_vcd/sample_program.vcd"
+[dumpfile_mtime] "Sun Nov 19 04:00:46 2023"
+[dumpfile_size] 408582
+[savefile] "/home/wakuto/src/hobby/low_layer/rvcore/ooo_core.gtkw"
+[timestart] 0
+[size] 1920 1008
+[pos] -1 -1
+*-2.600000 15 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.core.
+[treeopen] TOP.core.genblk2[0].
+[treeopen] TOP.core.genblk2[1].
+[treeopen] TOP.core.rob.
+[sst_width] 255
+[signals_width] 199
+[sst_expanded] 1
+[sst_vpaned_height] 425
+@28
+TOP.clk
+TOP.rst
+@22
+TOP.pc[31:0]
+@28
+#{TOP.instr_valid[0:1]} TOP.instr_valid[0] TOP.instr_valid[1]
+@24
+TOP.core.freelist.num_free[6:0]
+@28
+#{TOP.core.valid_id[0:1]} TOP.core.valid_id[0] TOP.core.valid_id[1]
+#{TOP.instr_valid[0:1]} TOP.instr_valid[0] TOP.instr_valid[1]
+#{TOP.core.valid_id[0:1]} TOP.core.valid_id[0] TOP.core.valid_id[1]
+#{TOP.core.valid_rn[0:1]} TOP.core.valid_rn[0] TOP.core.valid_rn[1]
+#{TOP.core.valid_disp[0:1]} TOP.core.valid_disp[0] TOP.core.valid_disp[1]
+#{TOP.core.valid_issue[0:1]} TOP.core.valid_issue[0] TOP.core.valid_issue[1]
+#{TOP.core.valid_rread[0:1]} TOP.core.valid_rread[0] TOP.core.valid_rread[1]
+#{TOP.core.valid_ex[0:1]} TOP.core.valid_ex[0] TOP.core.valid_ex[1]
+@29
+#{TOP.core.valid_wb[0:1]} TOP.core.valid_wb[0] TOP.core.valid_wb[1]
+@28
+#{TOP.core.rob.commit_if.en[0:1]} TOP.core.rob.commit_if.en[0] TOP.core.rob.commit_if.en[1]
+@200
+-
+@28
+#{TOP.core.op2_type_id[0:1]} TOP.core.op2_type_id[0] TOP.core.op2_type_id[1]
+#{TOP.core.op2_type_rn[0:1]} TOP.core.op2_type_rn[0] TOP.core.op2_type_rn[1]
+#{TOP.core.op2_type_disp[0:1]} TOP.core.op2_type_disp[0] TOP.core.op2_type_disp[1]
+#{TOP.core.op2_valid_issue[0:1]} TOP.core.op2_valid_issue[0] TOP.core.op2_valid_issue[1]
+#{TOP.core.op2_type_rread[0:1]} TOP.core.op2_type_rread[0] TOP.core.op2_type_rread[1]
+#{TOP.core.issue_queue.issue_if.op2_type[0:1]} TOP.core.issue_queue.issue_if.op2_type[0] TOP.core.issue_queue.issue_if.op2_type[1]
+@200
+-
+-
+@22
+TOP.core.genblk2[0].alu.op1[31:0]
+TOP.core.genblk2[0].alu.op2[31:0]
+TOP.core.genblk2[0].alu.alu_out[31:0]
+TOP.core.genblk2[1].alu.op1[31:0]
+TOP.core.genblk2[1].alu.op2[31:0]
+TOP.core.genblk2[1].alu.alu_out[31:0]
+@200
+-
+@22
+TOP.core.phys_regfile.addr_rd[0][5:0]
+TOP.core.phys_regfile.rd_data[0][31:0]
+TOP.core.phys_regfile.addr_rd[1][5:0]
+TOP.core.phys_regfile.rd_data[1][31:0]
+@200
+-
+@22
+TOP.core.rename_map_table.regfile[0][5:0]
+TOP.core.rename_map_table.regfile[1][5:0]
+TOP.core.rename_map_table.regfile[2][5:0]
+TOP.core.rename_map_table.regfile[3][5:0]
+TOP.core.rename_map_table.regfile[4][5:0]
+@200
+-
+@22
+TOP.core.commit_map_table.regfile[0][5:0]
+TOP.core.commit_map_table.regfile[1][5:0]
+TOP.core.commit_map_table.regfile[2][5:0]
+TOP.core.commit_map_table.regfile[3][5:0]
+TOP.core.commit_map_table.regfile[4][5:0]
+@200
+-
+@28
+TOP.core.issue_queue.issue_if.valid[0]
+@22
+TOP.core.issue_queue.issue_if.op1[0][5:0]
+TOP.core.issue_queue.issue_if.op2[0][31:0]
+TOP.core.issue_queue.issue_if.phys_rd[0][5:0]
+@28
+TOP.core.issue_queue.issue_if.valid[1]
+@22
+TOP.core.issue_queue.issue_if.op1[1][5:0]
+TOP.core.issue_queue.issue_if.op2[1][31:0]
+TOP.core.issue_queue.issue_if.phys_rd[1][5:0]
+@200
+-
+@28
+TOP.core.op2_valid_logic.op2_type[0][0]
+@22
+TOP.core.op2_valid_logic.imm[0][31:0]
+TOP.core.op2_valid_logic.op2[0][31:0]
+@28
+TOP.core.op2_valid_logic.op2_type[1][0]
+@22
+TOP.core.op2_valid_logic.imm[1][31:0]
+TOP.core.op2_valid_logic.op2[1][31:0]
+TOP.core.genblk1[0].decoder.imm[31:0]
+TOP.core.genblk1[1].decoder.imm[31:0]
+@200
+-
+-isq_0
+@28
+TOP.core.issue_queue.issue_queue[0].entry_valid
+TOP.core.issue_queue.issue_queue[0].op1_valid
+@22
+TOP.core.issue_queue.issue_queue[0].op1_data[5:0]
+@28
+TOP.core.issue_queue.issue_queue[0].op2_valid
+@22
+TOP.core.issue_queue.issue_queue[0].op2_data[31:0]
+@200
+-isq_1
+@28
+TOP.core.issue_queue.issue_queue[1].entry_valid
+TOP.core.issue_queue.issue_queue[1].op1_valid
+@22
+TOP.core.issue_queue.issue_queue[1].op1_data[5:0]
+@28
+TOP.core.issue_queue.issue_queue[1].op2_valid
+@22
+TOP.core.issue_queue.issue_queue[1].op2_data[31:0]
+@200
+-isq_2
+@28
+TOP.core.issue_queue.issue_queue[2].entry_valid
+TOP.core.issue_queue.issue_queue[2].op1_valid
+@22
+TOP.core.issue_queue.issue_queue[2].op1_data[5:0]
+@28
+TOP.core.issue_queue.issue_queue[2].op2_valid
+@22
+TOP.core.issue_queue.issue_queue[2].op2_data[31:0]
+@200
+-isq_3
+@28
+TOP.core.issue_queue.issue_queue[3].entry_valid
+TOP.core.issue_queue.issue_queue[3].op1_valid
+@22
+TOP.core.issue_queue.issue_queue[3].op1_data[5:0]
+@28
+TOP.core.issue_queue.issue_queue[3].op2_valid
+@22
+TOP.core.issue_queue.issue_queue[3].op2_data[31:0]
+@200
+-isq_4
+@28
+TOP.core.issue_queue.issue_queue[4].entry_valid
+TOP.core.issue_queue.issue_queue[4].op1_valid
+@22
+TOP.core.issue_queue.issue_queue[4].op1_data[5:0]
+@28
+TOP.core.issue_queue.issue_queue[4].op2_valid
+@22
+TOP.core.issue_queue.issue_queue[4].op2_data[31:0]
+@200
+-isq_5
+@28
+TOP.core.issue_queue.issue_queue[5].entry_valid
+TOP.core.issue_queue.issue_queue[5].op1_valid
+@22
+TOP.core.issue_queue.issue_queue[5].op1_data[5:0]
+@28
+TOP.core.issue_queue.issue_queue[5].op2_valid
+@22
+TOP.core.issue_queue.issue_queue[5].op2_data[31:0]
+@200
+-isq_6
+@28
+TOP.core.issue_queue.issue_queue[6].entry_valid
+TOP.core.issue_queue.issue_queue[6].op1_valid
+@22
+TOP.core.issue_queue.issue_queue[6].op1_data[5:0]
+@28
+TOP.core.issue_queue.issue_queue[6].op2_valid
+@22
+TOP.core.issue_queue.issue_queue[6].op2_data[31:0]
+@200
+-isq_7
+@28
+TOP.core.issue_queue.issue_queue[7].entry_valid
+TOP.core.issue_queue.issue_queue[7].op1_valid
+@22
+TOP.core.issue_queue.issue_queue[7].op1_data[5:0]
+@28
+TOP.core.issue_queue.issue_queue[7].op2_valid
+@22
+TOP.core.issue_queue.issue_queue[7].op2_data[31:0]
+[pattern_trace] 1
+[pattern_trace] 0

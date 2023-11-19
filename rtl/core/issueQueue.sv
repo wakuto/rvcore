@@ -7,11 +7,13 @@ typedef struct packed {
   logic             entry_valid;
   logic [3:0]       tag;
   common::alu_cmd_t alu_cmd;
-  logic [parameters::PHYS_REGS_ADDR_WIDTH-1:0]       op1_data;
+  logic [parameters::PHYS_REGS_ADDR_WIDTH-1:0] op1_data;
   logic [31:0]      op2_data;
   common::op_type_t op2_type;
   logic             op1_valid, op2_valid;
-  logic [parameters::PHYS_REGS_ADDR_WIDTH-1:0]       phys_rd;
+  logic [parameters::PHYS_REGS_ADDR_WIDTH-1:0] phys_rd;
+  logic [parameters::DISPATCH_ADDR_WIDTH -1:0] bank_addr;
+  logic [parameters::ROB_ADDR_WIDTH-1: 0]      rob_addr;
 } issue_queue_entry_t;
 
 
@@ -130,12 +132,14 @@ module issueQueue #(
   always_comb begin
     for(int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
       issue_entry[bank] = search_tree[ISSUE_QUEUE_SIZE - 2 - bank];
-      issue_if.valid[bank] = entry_valid(issue_entry[bank]);
-      issue_if.alu_cmd[bank] = issue_entry[bank].alu_cmd;
-      issue_if.op1[bank] = issue_entry[bank].op1_data;
-      issue_if.op2_type[bank] = issue_entry[bank].op2_type;
-      issue_if.op2[bank] = issue_entry[bank].op2_data;
-      issue_if.phys_rd[bank] = issue_entry[bank].phys_rd;
+      issue_if.valid[bank]     = entry_valid(issue_entry[bank]);
+      issue_if.alu_cmd[bank]   = issue_entry[bank].alu_cmd;
+      issue_if.op1[bank]       = issue_entry[bank].op1_data;
+      issue_if.op2_type[bank]  = issue_entry[bank].op2_type;
+      issue_if.op2[bank]       = issue_entry[bank].op2_data;
+      issue_if.phys_rd[bank]   = issue_entry[bank].phys_rd;
+      issue_if.bank_addr[bank] = issue_entry[bank].bank_addr;
+      issue_if.rob_addr[bank]  = issue_entry[bank].rob_addr;
     end
   end
 
@@ -216,6 +220,8 @@ module issueQueue #(
           if (DEBUG) $display("[invalidate] issue_queue[%0x]: %0x", addr_search_tree[ISSUE_QUEUE_SIZE - 2 - bank], issue_entry[bank]);
           if (DEBUG) $display("[issue] v=%x, tag=%x, alu_cmd=%x, op1_v=%x, op2_v=%x", issue_entry[bank].entry_valid, issue_entry[bank].tag, issue_entry[bank].alu_cmd, issue_entry[bank].op1_valid, issue_entry[bank].op2_valid);
           issue_queue[addr_search_tree[ISSUE_QUEUE_SIZE - 2 - bank]].entry_valid <= 1'b0;
+          issue_queue[addr_search_tree[ISSUE_QUEUE_SIZE - 2 - bank]].op1_valid <= 1'b0;
+          issue_queue[addr_search_tree[ISSUE_QUEUE_SIZE - 2 - bank]].op2_valid <= 1'b0;
         end
         if (DEBUG) $display("");
       end
@@ -226,14 +232,16 @@ module issueQueue #(
           tag_counter <= tag_counter + 4'(dispatch_enable_count);
           // 空いている領域を探してそこに書き込む
           issue_queue[free_entry_idx[bank]].entry_valid <= dispatch_if.en[bank];
-          issue_queue[free_entry_idx[bank]].tag <= tag_counter + 4'(dispatch_enable_count == 2 && bank == 1);
-          issue_queue[free_entry_idx[bank]].alu_cmd <= dispatch_if.alu_cmd[bank];
-          issue_queue[free_entry_idx[bank]].op1_data <= dispatch_if.op1[bank];
-          issue_queue[free_entry_idx[bank]].op2_type <= dispatch_if.op2_type[bank];
-          issue_queue[free_entry_idx[bank]].op2_data <= dispatch_if.op2[bank];
-          issue_queue[free_entry_idx[bank]].op1_valid <= dispatch_if.op1_valid[bank];
-          issue_queue[free_entry_idx[bank]].op2_valid <= dispatch_if.op2_valid[bank];
-          issue_queue[free_entry_idx[bank]].phys_rd <= dispatch_if.phys_rd[bank];
+          issue_queue[free_entry_idx[bank]].tag         <= tag_counter + 4'(dispatch_enable_count == 2 && bank == 1);
+          issue_queue[free_entry_idx[bank]].alu_cmd     <= dispatch_if.alu_cmd[bank];
+          issue_queue[free_entry_idx[bank]].op1_data    <= dispatch_if.op1[bank];
+          issue_queue[free_entry_idx[bank]].op2_type    <= dispatch_if.op2_type[bank];
+          issue_queue[free_entry_idx[bank]].op2_data    <= dispatch_if.op2[bank];
+          issue_queue[free_entry_idx[bank]].op1_valid   <= dispatch_if.op1_valid[bank];
+          issue_queue[free_entry_idx[bank]].op2_valid   <= dispatch_if.op2_valid[bank];
+          issue_queue[free_entry_idx[bank]].phys_rd     <= dispatch_if.phys_rd[bank];
+          issue_queue[free_entry_idx[bank]].bank_addr   <= dispatch_if.bank_addr[bank];
+          issue_queue[free_entry_idx[bank]].rob_addr    <= dispatch_if.rob_addr[bank];
         end
       end
 

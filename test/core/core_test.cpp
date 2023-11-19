@@ -53,7 +53,9 @@ public:
 
     this->next_clock();
     this->next_clock();
-    this->reset(0);
+    this->do_posedge([](Vcore *core) {
+        core->rst = 0;
+    });
   }
   
   void read_program(std::string filename) {
@@ -130,12 +132,12 @@ public:
   
   void run_one_cycle(uint32_t mem_delay) {
     static uint32_t delay_counter = 0;
-    this->do_posedge([&](Vcore *core) {
-      for(auto i = 0; i < 2; i++) {
-        core->instruction[i] = this->read_imem(core->pc + 4*i);
-        core->instr_valid[i] = 1;
-      }
+    for(auto i = 0; i < 2; i++) {
+      this->top->instruction[i] = this->read_imem(this->top->pc + 4*i);
+      this->top->instr_valid[i] = this->top->instruction[i] != 0xdeadbeef;
+    }
       
+    this->do_posedge([&](Vcore *core) {
       // delay_counter = 0 -> read_valid = write_ready = 0
       if (core->read_enable) {
         if (delay_counter < mem_delay) {
