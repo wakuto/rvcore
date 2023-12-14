@@ -78,6 +78,7 @@ verilate(core_test
         --trace-params
         --trace-structs
         --trace-underscore
+        --trace-max-array 128
 )
 
 # # top_test

@@ -174,7 +174,7 @@ module rob #(
         if (rob_entry[tail][w].entry_valid) begin
           commit_if.phys_rd[w] <= rob_entry[tail][w].phys_rd;
           commit_if.arch_rd[w] <= rob_entry[tail][w].arch_rd;
-          commit_if.en[w] <= 1;
+          commit_if.en[w] <= rob_entry[tail][w].commit_ready;
           rob_entry[tail][w].entry_valid <= 0;
           rob_entry[tail][w].commit_ready<= 0;
         end else begin

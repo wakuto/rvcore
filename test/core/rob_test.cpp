@@ -417,8 +417,6 @@ TEST (ROBTest, OperandFetchTest) {
   // +---------+---------+-------+---------+---------+-------+
   // |       34|        2|      1|       35|        3|      1|
   // +---------+---------+-------+---------+---------+-------+
-  // |       36|        2|      1|       37|        3|      1|
-  // +---------+---------+-------+---------+---------+-------+
   // |         |         |       |         |         |       | <- head
   // +---------+---------+-------+---------+---------+-------+
   // バンク0, 1に同時にdispatch
@@ -463,18 +461,16 @@ TEST (ROBTest, OperandFetchTest) {
   // +---------+---------+---+--------------+---------+---------+---+--------------+
   // bank0でrs1(=x1)をfetch
   dut->do_posedge([](Vrob *rob) {
-    rob->op_fetch_phys_rs1[0] = 1;
+    rob->op_fetch_phys_rs1[0] = 33;
   });
 
-  EXPECT_EQ((int)dut->top->op_fetch_phys_rs1[0], 33);
   EXPECT_FALSE(dut->top->op_fetch_rs1_valid[0]); // not writebacked yet
 
   // bank1でrs2(=x2)をfetch
   dut->do_posedge([](Vrob *rob) {
-    rob->op_fetch_phys_rs1[1] = 2;
+    rob->op_fetch_phys_rs1[1] = 34;
   });
 
-  EXPECT_EQ((int)dut->top->op_fetch_phys_rs1[1], 36);
   EXPECT_FALSE(dut->top->op_fetch_rs1_valid[1]); // not writebacked yet
 
   // ----------------------------
@@ -510,14 +506,12 @@ TEST (ROBTest, OperandFetchTest) {
 
   // bank0でrs1(=x2), rs2(=x3)をfetch
   dut->do_posedge([](Vrob *rob) {
-    rob->op_fetch_phys_rs1[0] = 2;
-    rob->op_fetch_phys_rs2[0] = 3;
+    rob->op_fetch_phys_rs1[0] = 34;
+    rob->op_fetch_phys_rs2[0] = 35;
   });
 
-  EXPECT_EQ((int)dut->top->op_fetch_phys_rs1[0], 36);
-  EXPECT_FALSE(dut->top->op_fetch_rs1_valid[0]); // not writebacked yet
-  EXPECT_EQ((int)dut->top->op_fetch_phys_rs2[0], 37);
-  EXPECT_FALSE(dut->top->op_fetch_rs2_valid[0]); // not writebacked yet
+  EXPECT_TRUE(dut->top->op_fetch_rs1_valid[0]); // not writebacked yet
+  EXPECT_TRUE(dut->top->op_fetch_rs2_valid[0]); // not writebacked yet
 
   // +--------------------------------------+--------------------------------------+
   // |           bank0                      |           bank1                      |
@@ -552,13 +546,11 @@ TEST (ROBTest, OperandFetchTest) {
     for(auto i = 0; i < 2; i++) {
       rob->writeback_en[i] = 0;
     }
-    rob->op_fetch_phys_rs1[1] = 2;
-    rob->op_fetch_phys_rs2[1] = 3;
+    rob->op_fetch_phys_rs1[1] = 36;
+    rob->op_fetch_phys_rs2[1] = 37;
   });
 
-  EXPECT_EQ((int)dut->top->op_fetch_phys_rs1[1], 36);
   EXPECT_TRUE(dut->top->op_fetch_rs1_valid[1]); // not writebacked yet
-  EXPECT_EQ((int)dut->top->op_fetch_phys_rs2[1], 37);
   EXPECT_TRUE(dut->top->op_fetch_rs2_valid[1]); // not writebacked yet
 
 
