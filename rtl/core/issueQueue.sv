@@ -5,7 +5,6 @@
 
 typedef struct packed {
   logic             entry_valid;
-  logic [3:0]       tag;
   common::alu_cmd_t alu_cmd;
   logic [parameters::PHYS_REGS_ADDR_WIDTH-1:0] op1_data;
   logic [31:0]      op2_data;
@@ -26,7 +25,6 @@ module issueQueue #(
   isqIssueIf.out issue_if
 );
   import parameters::*;
-  logic [3:0] tag_counter;
   localparam ISSUE_QUEUE_ADDR_WIDTH = $clog2(ISSUE_QUEUE_SIZE);
   issue_queue_entry_t issue_queue [0:ISSUE_QUEUE_SIZE-1];
   
@@ -55,11 +53,9 @@ module issueQueue #(
       disp_tail <= 0;
     end else begin
       disp_tail <= disp_tail_next;
-      tag_counter <= tag_counter + 4'(dispatch_enable_count);
       // TODO: function とか使って簡略化したい
       if (dispatch_enable_count == 2) begin
         issue_queue[disp_tail_next - 2].entry_valid <= dispatch_if.en[0];
-        issue_queue[disp_tail_next - 2].tag         <= tag_counter;
         issue_queue[disp_tail_next - 2].alu_cmd     <= dispatch_if.alu_cmd[0];
         issue_queue[disp_tail_next - 2].op1_data    <= dispatch_if.op1[0];
         issue_queue[disp_tail_next - 2].op2_type    <= dispatch_if.op2_type[0];
@@ -75,7 +71,6 @@ module issueQueue #(
         issue_queue[disp_tail_next - 2].rob_addr    <= dispatch_if.rob_addr[0];
 
         issue_queue[disp_tail_next - 1].entry_valid <= dispatch_if.en[1];
-        issue_queue[disp_tail_next - 1].tag         <= tag_counter + 1;
         issue_queue[disp_tail_next - 1].alu_cmd     <= dispatch_if.alu_cmd[1];
         issue_queue[disp_tail_next - 1].op1_data    <= dispatch_if.op1[1];
         issue_queue[disp_tail_next - 1].op2_type    <= dispatch_if.op2_type[1];
@@ -91,7 +86,6 @@ module issueQueue #(
         issue_queue[disp_tail_next - 1].rob_addr    <= dispatch_if.rob_addr[1];
       end else if(dispatch_enable_count == 1) begin
         issue_queue[disp_tail_next - 1].entry_valid <= dispatch_if.en[0];
-        issue_queue[disp_tail_next - 1].tag         <= tag_counter;
         issue_queue[disp_tail_next - 1].alu_cmd     <= dispatch_if.alu_cmd[0];
         issue_queue[disp_tail_next - 1].op1_data    <= dispatch_if.op1[0];
         issue_queue[disp_tail_next - 1].op2_type    <= dispatch_if.op2_type[0];
@@ -208,7 +202,7 @@ module issueQueue #(
         issue_queue[i].entry_valid <= 1'b0;
       end
     end else begin
-      // op1/op2 tag writeback
+      // op1/op2 writeback
       for(int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
         for(int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
           if (wb_if.valid[bank]) begin
