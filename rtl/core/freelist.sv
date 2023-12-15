@@ -28,6 +28,25 @@ module freelist(
     end
 
     freelist_if.num_free = num_free;
+    
+    case(freelist_if.pop_en)
+      2'b11: begin
+        freelist_if.pop_reg[0] = freelist_queue[tail+0];
+        freelist_if.pop_reg[1] = freelist_queue[tail+1];
+      end
+      2'b10: begin
+        freelist_if.pop_reg[0] = 0;
+        freelist_if.pop_reg[1] = freelist_queue[tail+0];
+      end
+      2'b01: begin
+        freelist_if.pop_reg[0] = freelist_queue[tail+0];
+        freelist_if.pop_reg[1] = 0;
+      end
+      default: begin
+        freelist_if.pop_reg[0] = 0;
+        freelist_if.pop_reg[1] = 0;
+      end
+    endcase
   end
 
   always_ff @(posedge clk) begin
@@ -40,34 +59,7 @@ module freelist(
       end
       num_free <= (PHYS_REGS_ADDR_WIDTH+1)'(PHYS_REGS)-1;
     end else begin
-      if (|freelist_if.pop_en && (PHYS_REGS_ADDR_WIDTH+1)'(num_pop) <= num_free) begin
-        case(freelist_if.pop_en) 
-          2'b01: freelist_if.pop_reg[0] <= freelist_queue[tail+0];
-          2'b10: freelist_if.pop_reg[1] <= freelist_queue[tail+0];
-          2'b11: begin
-            freelist_if.pop_reg[0] <= freelist_queue[tail+0];
-            freelist_if.pop_reg[1] <= freelist_queue[tail+1];
-          end
-          /*
-          DISPATCH_WIDTH'b100: freelist_if.pop_reg[2] <= freelist_queue[tail+0];
-          DISPATCH_WIDTH'b101: begin
-            freelist_if.pop_reg[0] <= freelist_queue[tail+0];
-            freelist_if.pop_reg[2] <= freelist_queue[tail+1];
-          end
-          DISPATCH_WIDTH'b110: begin
-            freelist_if.pop_reg[1] <= freelist_queue[tail+0];
-            freelist_if.pop_reg[2] <= freelist_queue[tail+1];
-          end
-          DISPATCH_WIDTH'b111: begin
-            freelist_if.pop_reg[0] <= freelist_queue[tail+0];
-            freelist_if.pop_reg[1] <= freelist_queue[tail+1];
-            freelist_if.pop_reg[2] <= freelist_queue[tail+2];
-          end
-          */
-          default :;
-        endcase
-        tail <= tail + PHYS_REGS_ADDR_WIDTH'(num_pop);
-      end
+      tail <= tail + PHYS_REGS_ADDR_WIDTH'(num_pop);
       if (|freelist_if.push_en && (PHYS_REGS_ADDR_WIDTH+1)'(num_push) + num_free <= (PHYS_REGS_ADDR_WIDTH+1)'(PHYS_REGS)) begin
         case(freelist_if.push_en)
           'b01 : freelist_queue[head+0] <= freelist_if.push_reg[0];
