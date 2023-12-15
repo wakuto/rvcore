@@ -55,36 +55,36 @@ module rob #(
         // 実装面倒なのでbank0とbank1のみ対応
         // if (|hit[j]) begin
         if (hit_rs1[bank][0][tail-(ROB_ADDR_WIDTH)'(j)] | hit_rs1[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
-          // ともにhit_rs1の場合はbank0を優先
+                    // ともにhit_rs1の場合はbank0を優先
           if (hit_rs1[bank][0][tail-(ROB_ADDR_WIDTH)'(j)]) begin
             op_fetch_if.rs1_valid[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][0].commit_ready;
-          end else if (hit_rs1[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
+                      end else if (hit_rs1[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
             op_fetch_if.rs1_valid[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][1].commit_ready;
-          end else begin
+                      end else begin
             op_fetch_if.rs1_valid[bank] = 0;
-          end
+                      end
           break;
         end else begin
-          op_fetch_if.rs1_valid[bank] = 1;
-        end
+                    op_fetch_if.rs1_valid[bank] = 1;
+                  end
       end
 
       // rs2
       for (int j = 0; j < ROB_SIZE; j++) begin
         // if (|hit[j]) begin
         if (hit_rs2[bank][0][tail-(ROB_ADDR_WIDTH)'(j)] | hit_rs2[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
-          // ともにhit_rs2の場合はbank0を優先
+                    // ともにhit_rs2の場合はbank0を優先
           if (hit_rs2[bank][0][tail-(ROB_ADDR_WIDTH)'(j)]) begin
             op_fetch_if.rs2_valid[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][0].commit_ready;
-          end else if (hit_rs2[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
+                      end else if (hit_rs2[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
             op_fetch_if.rs2_valid[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][1].commit_ready;
-          end else begin
+                      end else begin
             op_fetch_if.rs2_valid[bank] = 0;
-          end
+                      end
           break;
         end else begin
-          op_fetch_if.rs2_valid[bank] = 1;
-        end
+                    op_fetch_if.rs2_valid[bank] = 1;
+                  end
       end
     end
   end
@@ -115,6 +115,11 @@ module rob #(
 
     // TODO: 条件があっているかの確認
     dispatch_if.full = num_entry == ROB_ADDR_WIDTH'(ROB_SIZE-1);
+    
+    for (int w = 0; w < DISPATCH_WIDTH; w++) begin
+      dispatch_if.bank_addr[w] = DISPATCH_ADDR_WIDTH'(w);
+      dispatch_if.rob_addr[w]  = head;
+    end
   end
   // いずれかのバンクにdispatchされたら head を進める
   always_ff @(posedge clk) begin
@@ -130,8 +135,6 @@ module rob #(
         rob_entry[head][w].phys_rd     <= dispatch_if.phys_rd[w];
         rob_entry[head][w].arch_rd     <= dispatch_if.arch_rd[w];
         rob_entry[head][w].commit_ready<= 0;
-        dispatch_if.bank_addr[w]   <= DISPATCH_ADDR_WIDTH'(w);
-        dispatch_if.rob_addr[w]    <= head;
       end
     end
   end
