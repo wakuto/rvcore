@@ -33,12 +33,12 @@ module freelist(
   always_ff @(posedge clk) begin
     if (rst) begin
       // initial state is all free
-      tail <= 0;
+      tail <= 1;
       head <= PHYS_REGS_ADDR_WIDTH'(PHYS_REGS-1);
       for (int i = 0; i < PHYS_REGS; i++) begin
         freelist_queue[i] <= PHYS_REGS_ADDR_WIDTH'(i);
       end
-      num_free <= (PHYS_REGS_ADDR_WIDTH+1)'(PHYS_REGS);
+      num_free <= (PHYS_REGS_ADDR_WIDTH+1)'(PHYS_REGS)-1;
     end else begin
       if (|freelist_if.pop_en && (PHYS_REGS_ADDR_WIDTH+1)'(num_pop) <= num_free) begin
         case(freelist_if.pop_en) 

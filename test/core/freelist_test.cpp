@@ -53,7 +53,7 @@ TEST (FreelistTest, Pop) {
       inflight.push_back(freelist->pop_reg[0]);
       freelist->pop_en = 1;
     });
-    EXPECT_EQ(inflight.back(), count++);
+    EXPECT_EQ(inflight.back(), ++count);
   }
 
   // pop 10 items from bank 1
@@ -61,13 +61,13 @@ TEST (FreelistTest, Pop) {
     inflight.push_back(freelist->pop_reg[0]);
     freelist->pop_en = 2;
   });
-  EXPECT_EQ(inflight.back(), count++);
+  EXPECT_EQ(inflight.back(), ++count);
   for(auto i = 1; i < 10; i++) {
     dut->do_posedge([&inflight](Vfreelist *freelist){
       inflight.push_back(freelist->pop_reg[1]);
       freelist->pop_en = 2;
     });
-    EXPECT_EQ(inflight.back(), count++);
+    EXPECT_EQ(inflight.back(), ++count);
   }
 
   // pop 10 items from bank 0, 1
@@ -75,15 +75,15 @@ TEST (FreelistTest, Pop) {
     inflight.push_back(freelist->pop_reg[1]);
     freelist->pop_en = 3;
   });
-  EXPECT_EQ(inflight.back(), count++);
+  EXPECT_EQ(inflight.back(), ++count);
   for(auto i = 1; i < 10; i++) {
     dut->do_posedge([&inflight](Vfreelist *freelist){
       inflight.push_back(freelist->pop_reg[0]);
       inflight.push_back(freelist->pop_reg[1]);
       freelist->pop_en = 3;
     });
-    EXPECT_EQ(inflight.rbegin()[1], count++);
-    EXPECT_EQ(inflight.rbegin()[0], count++);
+    EXPECT_EQ(inflight.rbegin()[1], ++count);
+    EXPECT_EQ(inflight.rbegin()[0], ++count);
   }
 
   dut->do_posedge([&inflight](Vfreelist *freelist){
@@ -91,8 +91,8 @@ TEST (FreelistTest, Pop) {
     inflight.push_back(freelist->pop_reg[1]);
     freelist->pop_en = 0;
   });
-  EXPECT_EQ(inflight.rbegin()[1], count++);
-  EXPECT_EQ(inflight.rbegin()[0], count++);
+  EXPECT_EQ(inflight.rbegin()[1], ++count);
+  EXPECT_EQ(inflight.rbegin()[0], ++count);
 }
 
 TEST (FreelistTest, Push) {
