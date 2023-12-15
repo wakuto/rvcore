@@ -24,7 +24,6 @@ module issueQueueWrapper #(
 // 他の命令の結果の適用
   input  wire                             wb_valid        [0:DISPATCH_WIDTH-1],
   input  wire [PHYS_REGS_ADDR_WIDTH-1:0]  wb_phys_rd      [0:DISPATCH_WIDTH-1],
-  input  wire [31:0]                      wb_data         [0:DISPATCH_WIDTH-1],
 
   output logic                            issue_valid     [0:DISPATCH_WIDTH-1],
   output common::alu_cmd_t                issue_alu_cmd   [0:DISPATCH_WIDTH-1],
@@ -68,7 +67,6 @@ module issueQueueWrapper #(
 
     wb_if.valid = wb_valid;
     wb_if.phys_rd = wb_phys_rd;
-    wb_if.data = wb_data;
 
     for (int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
       issue_valid[bank]     = issue_if.valid[bank];

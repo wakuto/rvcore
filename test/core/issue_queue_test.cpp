@@ -18,7 +18,6 @@ struct dispatch_data_t {
 
 struct writeback_data_t {
   uint8_t wb_phys_rd;
-  uint32_t wb_data;
 };
 
 class IssueQueueTester : public ModelTester<Vissue_queue> {
@@ -49,7 +48,6 @@ public:
       for(auto i = 0; i < 2; i++) {
         isq->wb_valid[i] = 0;
         isq->wb_phys_rd[i] = 0;
-        isq->wb_data[i] = 0;
       }
     });
 
@@ -85,7 +83,6 @@ public:
       }
       isq->wb_valid[port] = 1;
       isq->wb_phys_rd[port] = data.wb_phys_rd;
-      isq->wb_data[port] = data.wb_data;
     });
   }
 
@@ -96,10 +93,8 @@ public:
       }
       isq->wb_valid[0] = 1;
       isq->wb_phys_rd[0] = data1.wb_phys_rd;
-      isq->wb_data[0] = data1.wb_data;
       isq->wb_valid[1] = 1;
       isq->wb_phys_rd[1] = data2.wb_phys_rd;
-      isq->wb_data[1] = data2.wb_data;
     });
   }
 
@@ -148,12 +143,12 @@ TEST (IssueQueueTest, Basic) {
   };
 
   writeback_data_t writeback_data[] = {
-    writeback_data_t{0x4, 0xdddddddd},
-    writeback_data_t{0x6, 0xffffffff},
-    writeback_data_t{0x2, 0xbbbbbbbb},
-    writeback_data_t{0x5, 0xeeeeeeee},
-    writeback_data_t{0x3, 0xcccccccc},
-    writeback_data_t{0x1, 0xaaaaaaaa}
+    writeback_data_t{0x4},
+    writeback_data_t{0x6},
+    writeback_data_t{0x2},
+    writeback_data_t{0x5},
+    writeback_data_t{0x3},
+    writeback_data_t{0x1}
   };
 
   dispatch_data_t issue_expected[] = {

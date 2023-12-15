@@ -210,50 +210,38 @@ module issueQueue #(
               if (issue_ready_count == 2) begin
                 if (ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[0]) begin
                   issue_queue[i].op1_valid <= 1'b1;
-                  issue_queue[i].op1_data <= PHYS_REGS_ADDR_WIDTH'(wb_if.data[bank]);
                 end else if (issue_idx[0] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[1]) begin
                   issue_queue[i-1].op1_valid <= 1'b1;
-                  issue_queue[i-1].op1_data <= PHYS_REGS_ADDR_WIDTH'(wb_if.data[bank]);
                 end else if (issue_idx[1] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < disp_tail) begin
                   issue_queue[i-2].op1_valid <= 1'b1;
-                  issue_queue[i-2].op1_data <= PHYS_REGS_ADDR_WIDTH'(wb_if.data[bank]);
                 end
               end else if (issue_ready_count == 1) begin
                 if (ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[0]) begin
                   issue_queue[i].op1_valid <= 1'b1;
-                  issue_queue[i].op1_data <= PHYS_REGS_ADDR_WIDTH'(wb_if.data[bank]);
                 end else if (issue_idx[1] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < disp_tail) begin
                   issue_queue[i-1].op1_valid <= 1'b1;
-                  issue_queue[i-1].op1_data <= PHYS_REGS_ADDR_WIDTH'(wb_if.data[bank]);
                 end
               end else begin
                 issue_queue[i].op1_valid <= 1'b1;
-                issue_queue[i].op1_data <= PHYS_REGS_ADDR_WIDTH'(wb_if.data[bank]);
               end
             end
             if (issue_queue[i].entry_valid && issue_queue[i].op2_type == common::REG && !issue_queue[i].op2_valid && issue_queue[i].op2_data[PHYS_REGS_ADDR_WIDTH-1:0] == wb_if.phys_rd[bank]) begin
               if (issue_ready_count == 2) begin
                 if (ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[0]) begin
                   issue_queue[i].op2_valid <= 1'b1;
-                  issue_queue[i].op2_data <= 32'(wb_if.data[bank][PHYS_REGS_ADDR_WIDTH-1:0]);
                 end else if (issue_idx[0] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[1]) begin
                   issue_queue[i-1].op2_valid <= 1'b1;
-                  issue_queue[i-1].op2_data <= 32'(wb_if.data[bank][PHYS_REGS_ADDR_WIDTH-1:0]);
                 end else if (issue_idx[1] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < disp_tail) begin
                   issue_queue[i-2].op2_valid <= 1'b1;
-                  issue_queue[i-2].op2_data <= 32'(wb_if.data[bank][PHYS_REGS_ADDR_WIDTH-1:0]);
                 end
               end else if (issue_ready_count == 1) begin
                 if (ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[0]) begin
                   issue_queue[i].op2_valid <= 1'b1;
-                  issue_queue[i].op2_data <= 32'(wb_if.data[bank][PHYS_REGS_ADDR_WIDTH-1:0]);
                 end else if (issue_idx[0] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < disp_tail) begin
                   issue_queue[i-1].op2_valid <= 1'b1;
-                  issue_queue[i-1].op2_data <= 32'(wb_if.data[bank][PHYS_REGS_ADDR_WIDTH-1:0]);
                 end
               end else begin
                 issue_queue[i].op2_valid <= 1'b1;
-                issue_queue[i].op2_data <= 32'(wb_if.data[bank][PHYS_REGS_ADDR_WIDTH-1:0]);
               end
             end
           end
