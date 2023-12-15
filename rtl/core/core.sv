@@ -270,7 +270,7 @@ module core (
         imm_disp[i]      <= 0;
         phys_rd_disp[i]  <= 0;
         arch_rd_disp[i]  <= 0;
-      end
+              end
     end else begin
       valid_disp    <= valid_rn;
       alu_cmd_disp  <= alu_cmd_rn;
@@ -280,7 +280,7 @@ module core (
       imm_disp      <= imm_rn;
       phys_rd_disp  <= pop_reg_rn;
       arch_rd_disp  <= rd_rn;
-    end
+          end
   end
 
   rob #() rob (
@@ -292,7 +292,7 @@ module core (
     .op_fetch_if(op_fetch_if_disp)
   );
 
-  always_comb begin
+    always_comb begin
     dispatch_if_disp.en      = valid_disp;
     dispatch_if_disp.phys_rd = phys_rd_disp;
     dispatch_if_disp.arch_rd = arch_rd_disp;
@@ -373,10 +373,9 @@ module core (
     dispatch_if_issue.op2_valid = op2_valid_issue;
     dispatch_if_issue.op2_type  = op2_type_issue;
     dispatch_if_issue.phys_rd   = phys_rd_issue;
-
+    
     wb_if_issue.valid = valid_wb;
     wb_if_issue.phys_rd = phys_rd_wb;
-    wb_if_issue.data = result_wb;
 
     valid_rread     = issue_if_issue.valid;
     alu_cmd_rread   = issue_if_issue.alu_cmd;
