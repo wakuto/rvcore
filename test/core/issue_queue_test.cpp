@@ -158,27 +158,26 @@ TEST (IssueQueueTest, Basic) {
 
   dispatch_data_t issue_expected[] = {
     dispatch_data_t{0x1d, 0x00000004, 1, 0x00000004, 1, 0x1},
-    dispatch_data_t{0x1b, 0x00000002, 1, 0xbbbbbbbb, 1, 0x1},
-    dispatch_data_t{0x0e, 0xeeeeeeee, 1, 0xeeeeeeee, 1, 0x1},
-    dispatch_data_t{0x0c, 0xcccccccc, 1, 0x00000003, 1, 0x1},
-    dispatch_data_t{0x0a, 0xaaaaaaaa, 1, 0xaaaaaaaa, 1, 0x1},
-    dispatch_data_t{0x1f, 0xffffffff, 1, 0xffffffff, 1, 0x1},
+    dispatch_data_t{0x1b, 0x00000002, 1, 0x0000003b, 1, 0x1},
+    dispatch_data_t{0x1f, 0x0000003f, 1, 0x0000003f, 1, 0x1},
+    dispatch_data_t{0x0e, 0x0000002e, 1, 0x0000002e, 1, 0x1},
+    dispatch_data_t{0x0c, 0x0000000c, 1, 0x00000003, 1, 0x1},
+    dispatch_data_t{0x0a, 0x0000002a, 1, 0x0000002a, 1, 0x1},
   };
 
   dispatch_data_t buffer = {0, 0, 0, 0, 0, 0};
 
   dut->init();
 
-  dut->dispatch(data[0], 1);
+  dut->dispatch(data[0], 0);
   dut->dispatch(data[1], 0);
-  dut->dispatch(data[2], 1);
+  dut->dispatch(data[2], 0);
   dut->dispatch(data[3], 0);
-  dut->dispatch(data[4], 1);
+  dut->dispatch(data[4], 0);
+  dut->dispatch(data[5], 0);
 
   EXPECT_TRUE(dut->get_issue_data(&buffer, 0));
   EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[0]));
-
-  dut->dispatch(data[5], 0);
 
   dut->writeback(writeback_data[0], 0);
   dut->do_posedge([] (Vissue_queue *isq) {
@@ -192,12 +191,11 @@ TEST (IssueQueueTest, Basic) {
 
   dut->writeback(writeback_data[3], 0);
 
-  EXPECT_TRUE(dut->get_issue_data(&buffer, 0));
-  EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[1]));
-
   dut->writeback(writeback_data[4], 1);
 
   EXPECT_TRUE(dut->get_issue_data(&buffer, 0));
+  EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[1]));
+  EXPECT_TRUE(dut->get_issue_data(&buffer, 1));
   EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[2]));
 
   dut->writeback(writeback_data[5], 1);

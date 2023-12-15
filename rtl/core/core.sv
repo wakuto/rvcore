@@ -157,8 +157,27 @@ module core (
         instr_valid_if[i] <= 0;
       end
     end else begin
-      instruction_if <= instruction;
-      instr_valid_if <= instr_valid;;
+      // bank 0 に優先的に投入
+      case({instr_valid[1], instr_valid[0]})
+        2'b11: begin
+          instruction_if <= instruction;
+          instr_valid_if <= instr_valid;
+        end
+        2'b10: begin
+          instruction_if[0] <= instruction[1];
+          instr_valid_if[0] <= instr_valid[1];
+          instr_valid_if[1] <= 0;
+        end
+        2'b01: begin
+          instruction_if[0] <= instruction[0];
+          instr_valid_if[0] <= instr_valid[0];
+          instr_valid_if[1] <= 0;
+        end
+        default: begin
+          instr_valid_if[0] <= 0;
+          instr_valid_if[1] <= 0;
+        end
+      endcase
     end
   end
 
