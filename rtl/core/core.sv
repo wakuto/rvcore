@@ -355,7 +355,7 @@ module core (
   );
 
   issueQueue #(
-    .ISSUE_QUEUE_SIZE(8)
+    .ISSUE_QUEUE_SIZE(32)
   ) issue_queue (
     .clk,
     .rst,
@@ -373,6 +373,8 @@ module core (
     dispatch_if_issue.op2_valid = op2_valid_issue;
     dispatch_if_issue.op2_type  = op2_type_issue;
     dispatch_if_issue.phys_rd   = phys_rd_issue;
+    dispatch_if_issue.rob_addr  = rob_addr_issue;
+    dispatch_if_issue.bank_addr = bank_addr_issue;
     
     wb_if_issue.valid = valid_wb;
     wb_if_issue.phys_rd = phys_rd_wb;

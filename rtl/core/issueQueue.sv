@@ -31,10 +31,10 @@ module issueQueue #(
   // Dispatch signals
   logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] disp_tail_next;
   logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] disp_tail; 
-  logic [1:0] dispatch_enable_count;
+  logic [DISPATCH_ADDR_WIDTH:0] dispatch_enable_count;
   
   // Issue signals
-  logic [1:0] issue_ready_count;
+  logic [ISSUE_QUEUE_ADDR_WIDTH:0] issue_ready_count;
   logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] issue_idx [0:DISPATCH_WIDTH-1];
   
 
@@ -45,7 +45,11 @@ module issueQueue #(
       dispatch_enable_count = dispatch_enable_count + dispatch_if.en[bank];
     end
     
-    disp_tail_next = disp_tail - issue_ready_count + dispatch_enable_count;
+    if (issue_ready_count <= 2) begin
+      disp_tail_next = disp_tail - ISSUE_QUEUE_ADDR_WIDTH'(issue_ready_count) + ISSUE_QUEUE_ADDR_WIDTH'(dispatch_enable_count);
+    end else begin
+      disp_tail_next = disp_tail - 2 + ISSUE_QUEUE_ADDR_WIDTH'(dispatch_enable_count);
+    end
   end
 
   always_ff @(posedge clk) begin
@@ -194,12 +198,12 @@ module issueQueue #(
     end
   end
 
-  assign dispatch_if.full = 32'(disp_tail) + 32'(dispatch_enable_count) > ISSUE_QUEUE_SIZE;
+  assign dispatch_if.full = 32'(disp_tail) + 32'(dispatch_enable_count) >= ISSUE_QUEUE_SIZE;
 
   always_ff @(posedge clk) begin
     if (rst) begin
       for (int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
-        issue_queue[i].entry_valid <= 1'b0;
+        issue_queue[i] <= issue_queue_entry_t'(0);
       end
     end else begin
       // op1/op2 writeback
