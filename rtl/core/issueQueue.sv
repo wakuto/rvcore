@@ -60,6 +60,7 @@ module issueQueue #(
       disp_tail_next = disp_tail - 2 + ISSUE_QUEUE_ADDR_WIDTH'(dispatch_enable_count);
     end
     
+    // wb と dispatch で同じレジスタを参照した場合にフォワーディング
     for (int i = 0; i < DISPATCH_WIDTH; i++) begin
       op1_valid[i] = forwarding_check(wb_if.valid, wb_if.phys_rd, dispatch_if.op1[i]) || dispatch_if.op1_valid[i];
       case(dispatch_if.op2_type[i])
@@ -93,6 +94,7 @@ module issueQueue #(
       disp_tail <= 0;
     end else begin
       disp_tail <= disp_tail_next;
+      // issue_queue の末尾にディスパッチ
       // TODO: function とか使って簡略化したい
       if (dispatch_enable_count == 2) begin
         issue_queue[disp_tail_next - 2].entry_valid <= dispatch_if.en[0];
@@ -149,6 +151,7 @@ module issueQueue #(
       end
       
       // issue_queue の詰め直し
+      // 命令発行後空きスペースとなった領域は詰めて使う
       for(int i = 0; i < ISSUE_QUEUE_SIZE - 1; i++) begin
         if (issue_ready_count >= 2) begin
           if (issue_idx[0] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[1] - 1) begin
@@ -180,6 +183,7 @@ module issueQueue #(
       end
     end
     
+    // 発行する命令は issue_queue の先頭から探す
     issue_idx[0] = 0;
     issue_idx[1] = 0;
     if (issue_ready_count >= 2) begin
@@ -230,6 +234,7 @@ module issueQueue #(
 
   assign dispatch_if.full = 32'(disp_tail) + 32'(dispatch_enable_count) >= ISSUE_QUEUE_SIZE;
 
+  // Writeback
   always_ff @(posedge clk) begin
     if (rst) begin
       for (int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
@@ -240,8 +245,9 @@ module issueQueue #(
       for(int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
         for(int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
           if (wb_if.valid[bank]) begin
+            // 有効なエントリ & op1/op2 がレジスタの場合 & wb_if で指定されたレジスタと一致する場合
             if (issue_queue[i].entry_valid && !issue_queue[i].op1_valid && issue_queue[i].op1_data[PHYS_REGS_ADDR_WIDTH-1:0] == wb_if.phys_rd[bank]) begin
-              if (issue_ready_count == 2) begin
+              if (issue_ready_count >= 2) begin
                 if (ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[0]) begin
                   issue_queue[i].op1_valid <= 1'b1;
                 end else if (issue_idx[0] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[1]) begin
@@ -260,7 +266,7 @@ module issueQueue #(
               end
             end
             if (issue_queue[i].entry_valid && issue_queue[i].op2_type == common::REG && !issue_queue[i].op2_valid && issue_queue[i].op2_data[PHYS_REGS_ADDR_WIDTH-1:0] == wb_if.phys_rd[bank]) begin
-              if (issue_ready_count == 2) begin
+              if (issue_ready_count >= 2) begin
                 if (ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[0]) begin
                   issue_queue[i].op2_valid <= 1'b1;
                 end else if (issue_idx[0] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[1]) begin
