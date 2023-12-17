@@ -29,6 +29,17 @@ module rob #(
   // dispatch_width分だけ繰り返す
   logic [DISPATCH_WIDTH-1:0][ROB_SIZE-1:0] hit_rs1 [0:DISPATCH_WIDTH-1];
   logic [DISPATCH_WIDTH-1:0][ROB_SIZE-1:0] hit_rs2 [0:DISPATCH_WIDTH-1];
+  
+  function logic forwarding_check(
+    logic valid [0:DISPATCH_WIDTH-1], 
+    logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd [0:DISPATCH_WIDTH-1],
+    logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rs
+  );
+    forwarding_check = 0;
+    for (int i = 0; i < DISPATCH_WIDTH; i++) begin
+      forwarding_check = forwarding_check || (valid[i] && (phys_rd[i] == phys_rs));
+    end
+  endfunction
 
   always_comb begin
     // hit テーブルの作成
@@ -55,36 +66,36 @@ module rob #(
         // 実装面倒なのでbank0とbank1のみ対応
         // if (|hit[j]) begin
         if (hit_rs1[bank][0][tail-(ROB_ADDR_WIDTH)'(j)] | hit_rs1[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
-                    // ともにhit_rs1の場合はbank0を優先
+          // ともにhit_rs1の場合はbank0を優先
           if (hit_rs1[bank][0][tail-(ROB_ADDR_WIDTH)'(j)]) begin
-            op_fetch_if.rs1_valid[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][0].commit_ready;
-                      end else if (hit_rs1[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
-            op_fetch_if.rs1_valid[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][1].commit_ready;
-                      end else begin
+            op_fetch_if.rs1_valid[bank] = forwarding_check(wb_if.en, wb_if.phys_rd, op_fetch_if.phys_rs1[bank]) || rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][0].commit_ready;
+          end else if (hit_rs1[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
+            op_fetch_if.rs1_valid[bank] = forwarding_check(wb_if.en, wb_if.phys_rd, op_fetch_if.phys_rs1[bank]) || rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][1].commit_ready;
+          end else begin
             op_fetch_if.rs1_valid[bank] = 0;
-                      end
+          end
           break;
         end else begin
-                    op_fetch_if.rs1_valid[bank] = 1;
-                  end
+          op_fetch_if.rs1_valid[bank] = 1;
+        end
       end
 
       // rs2
       for (int j = 0; j < ROB_SIZE; j++) begin
         // if (|hit[j]) begin
         if (hit_rs2[bank][0][tail-(ROB_ADDR_WIDTH)'(j)] | hit_rs2[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
-                    // ともにhit_rs2の場合はbank0を優先
+          // ともにhit_rs2の場合はbank0を優先
           if (hit_rs2[bank][0][tail-(ROB_ADDR_WIDTH)'(j)]) begin
-            op_fetch_if.rs2_valid[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][0].commit_ready;
-                      end else if (hit_rs2[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
-            op_fetch_if.rs2_valid[bank] = rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][1].commit_ready;
-                      end else begin
+            op_fetch_if.rs2_valid[bank] = forwarding_check(wb_if.en, wb_if.phys_rd, op_fetch_if.phys_rs2[bank]) || rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][0].commit_ready;
+          end else if (hit_rs2[bank][1][tail-(ROB_ADDR_WIDTH)'(j)]) begin
+            op_fetch_if.rs2_valid[bank] = forwarding_check(wb_if.en, wb_if.phys_rd, op_fetch_if.phys_rs2[bank]) || rob_entry[tail-(ROB_ADDR_WIDTH)'(j)][1].commit_ready;
+          end else begin
             op_fetch_if.rs2_valid[bank] = 0;
-                      end
+          end
           break;
         end else begin
-                    op_fetch_if.rs2_valid[bank] = 1;
-                  end
+          op_fetch_if.rs2_valid[bank] = 1;
+        end
       end
     end
   end

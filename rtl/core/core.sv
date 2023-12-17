@@ -247,7 +247,7 @@ module core (
     .rst,
     .freelist_if(freelist_if_rn)
   );
-
+  
   always_comb begin
     freelist_if_rn.push_reg = phys_rd_commit;
     for(int i = 0; i < DISPATCH_WIDTH; i++) begin
@@ -270,17 +270,19 @@ module core (
         imm_disp[i]      <= 0;
         phys_rd_disp[i]  <= 0;
         arch_rd_disp[i]  <= 0;
-              end
+      end
     end else begin
       valid_disp    <= valid_rn;
       alu_cmd_disp  <= alu_cmd_rn;
-      rs1_disp      <= rs1_data_rn;
+      rs1_disp[0]   <= rs1_data_rn[0];
+      rs1_disp[1]   <= rd_rn[0] == rs1_rn[1] ? pop_reg_rn[0] : rs1_data_rn[1];
       op2_type_disp <= op2_type_rn;
-      rs2_disp      <= rs2_data_rn;
+      rs2_disp[0]   <= rs2_data_rn[0];
+      rs2_disp[1]   <= rd_rn[0] == rs2_rn[1] ? pop_reg_rn[0] : rs2_data_rn[1];
       imm_disp      <= imm_rn;
       phys_rd_disp  <= pop_reg_rn;
       arch_rd_disp  <= rd_rn;
-          end
+    end
   end
 
   rob #() rob (
@@ -300,6 +302,7 @@ module core (
     rob_addr_disp  = dispatch_if_disp.rob_addr;
 
     wb_if_disp.en        = valid_wb;
+    wb_if_disp.phys_rd   = phys_rd_wb;
     wb_if_disp.bank_addr = bank_addr_wb;
     wb_if_disp.rob_addr  = rob_addr_wb;
 
@@ -334,10 +337,12 @@ module core (
       valid_issue     <= valid_disp;
       alu_cmd_issue   <= alu_cmd_disp;
       rs1_issue       <= rs1_disp;
-      rs1_valid_issue <= phys_rs1_valid_disp;
+      rs1_valid_issue[0] <= phys_rs1_valid_disp[0];
+      rs1_valid_issue[1] <= phys_rd_disp[0] == rs1_disp[1] ? 0 : phys_rs1_valid_disp[1];
       op2_type_issue  <= op2_type_disp;
       rs2_issue       <= rs2_disp;
-      rs2_valid_issue <= phys_rs2_valid_disp;
+      rs2_valid_issue[0] <= phys_rs2_valid_disp[0];
+      rs2_valid_issue[1] <= phys_rd_disp[0] == rs2_disp[1] ? 0 : phys_rs2_valid_disp[1];
       imm_issue       <= imm_disp;
       phys_rd_issue   <= phys_rd_disp;
       bank_addr_issue <= bank_addr_disp;

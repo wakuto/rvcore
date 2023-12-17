@@ -15,6 +15,7 @@ module robWrapper(
   input  wire  [DISPATCH_ADDR_WIDTH-1: 0]  writeback_bank_addr [0:DISPATCH_WIDTH-1],
   input  wire  [ROB_ADDR_WIDTH-1: 0]       writeback_rob_addr  [0:DISPATCH_WIDTH-1],
   input  wire                              writeback_en        [0:DISPATCH_WIDTH-1],
+  input  wire  [PHYS_REGS_ADDR_WIDTH-1: 0] writeback_phys_rd   [0:DISPATCH_WIDTH-1],
 
   // commit port
   output logic [PHYS_REGS_ADDR_WIDTH-1: 0] commit_phys_rd      [0:DISPATCH_WIDTH-1],
@@ -51,6 +52,7 @@ module robWrapper(
     wb_if.bank_addr = writeback_bank_addr;
     wb_if.rob_addr = writeback_rob_addr;
     wb_if.en = writeback_en;
+    wb_if.phys_rd = writeback_phys_rd;
 
     // commit
     commit_phys_rd = commit_if.phys_rd;
