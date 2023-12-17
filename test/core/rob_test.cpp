@@ -64,6 +64,12 @@ TEST (ROBTest, OrderdWriteback) {
     }
   });
 
+  // bank0にdispatchした内容をテスト
+  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[0]);
+  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[0]);
+  EXPECT_EQ(dut->top->dispatch_bank_addr[0], 0);
+  EXPECT_EQ(dut->top->dispatch_rob_addr[0], 0);
+
   // バンク1にdispatch
   dut->do_posedge([](Vrob *rob) {
     for(auto i = 0; i < 2; i++) {
@@ -76,12 +82,12 @@ TEST (ROBTest, OrderdWriteback) {
     }
   });
 
-  // 1クロック遅れてbank0にdispatchした内容をテスト
-  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[0]);
-  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[0]);
-  EXPECT_EQ(dut->top->dispatch_bank_addr[0], 0);
-  EXPECT_EQ(dut->top->dispatch_rob_addr[0], 0);
+  // bank1にdispatchした内容をテスト
+  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[1]);
+  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[1]);
 
+  EXPECT_EQ(dut->top->dispatch_bank_addr[1], 1);
+  EXPECT_EQ(dut->top->dispatch_rob_addr[1], 1);
 
   // バンク0, 1に同時にdispatch
   dut->do_posedge([](Vrob *rob) {
@@ -98,18 +104,7 @@ TEST (ROBTest, OrderdWriteback) {
     }
   });
 
-  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[1]);
-  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[1]);
-
-  EXPECT_EQ(dut->top->dispatch_bank_addr[1], 1);
-  EXPECT_EQ(dut->top->dispatch_rob_addr[1], 1);
-
-  dut->do_posedge([](Vrob *rob) {
-    for(auto i = 0; i < 2; i++) {
-      rob->dispatch_en[i] = 0;
-    }
-  });
-
+  // bank0, bank1にdispatchした内容をテスト
   instr_bank_addr.push_back(dut->top->dispatch_bank_addr[0]);
   instr_bank_addr.push_back(dut->top->dispatch_bank_addr[1]);
   instr_rob_addr.push_back(dut->top->dispatch_rob_addr[0]);
@@ -119,6 +114,12 @@ TEST (ROBTest, OrderdWriteback) {
   EXPECT_EQ(dut->top->dispatch_bank_addr[1], 1);
   EXPECT_EQ(dut->top->dispatch_rob_addr[0], 2);
   EXPECT_EQ(dut->top->dispatch_rob_addr[1], 2);
+
+  dut->do_posedge([](Vrob *rob) {
+    for(auto i = 0; i < 2; i++) {
+      rob->dispatch_en[i] = 0;
+    }
+  });
 
   dut->next_clock();
   dut->next_clock();
@@ -212,6 +213,12 @@ TEST (ROBTest, UnOrderedWriteback) {
     }
   });
 
+  // bank0 にdispatchした内容をテスト
+  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[0]);
+  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[0]);
+  EXPECT_EQ(dut->top->dispatch_bank_addr[0], 0);
+  EXPECT_EQ(dut->top->dispatch_rob_addr[0], 0);
+
   // バンク1にdispatch
   dut->do_posedge([](Vrob *rob) {
     for(auto i = 0; i < 2; i++) {
@@ -224,12 +231,12 @@ TEST (ROBTest, UnOrderedWriteback) {
     }
   });
 
-  // 1クロック遅れてbank0にdispatchした内容をテスト
-  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[0]);
-  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[0]);
-  EXPECT_EQ(dut->top->dispatch_bank_addr[0], 0);
-  EXPECT_EQ(dut->top->dispatch_rob_addr[0], 0);
+  // bank1 にdispatchした内容をテスト
+  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[1]);
+  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[1]);
 
+  EXPECT_EQ(dut->top->dispatch_bank_addr[1], 1);
+  EXPECT_EQ(dut->top->dispatch_rob_addr[1], 1);
 
   // バンク0, 1に同時にdispatch
   dut->do_posedge([](Vrob *rob) {
@@ -246,18 +253,6 @@ TEST (ROBTest, UnOrderedWriteback) {
     }
   });
 
-  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[1]);
-  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[1]);
-
-  EXPECT_EQ(dut->top->dispatch_bank_addr[1], 1);
-  EXPECT_EQ(dut->top->dispatch_rob_addr[1], 1);
-
-  dut->do_posedge([](Vrob *rob) {
-    for(auto i = 0; i < 2; i++) {
-      rob->dispatch_en[i] = 0;
-    }
-  });
-
   instr_bank_addr.push_back(dut->top->dispatch_bank_addr[0]);
   instr_bank_addr.push_back(dut->top->dispatch_bank_addr[1]);
   instr_rob_addr.push_back(dut->top->dispatch_rob_addr[0]);
@@ -267,6 +262,12 @@ TEST (ROBTest, UnOrderedWriteback) {
   EXPECT_EQ(dut->top->dispatch_bank_addr[1], 1);
   EXPECT_EQ(dut->top->dispatch_rob_addr[0], 2);
   EXPECT_EQ(dut->top->dispatch_rob_addr[1], 2);
+
+  dut->do_posedge([](Vrob *rob) {
+    for(auto i = 0; i < 2; i++) {
+      rob->dispatch_en[i] = 0;
+    }
+  });
 
   dut->next_clock();
   dut->next_clock();

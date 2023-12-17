@@ -142,6 +142,7 @@ TEST (IssueQueueTest, Basic) {
     dispatch_data_t{0xff, 0x00000006, 0, 0x00000006, 0, 0x1},
   };
 
+  // reg read は isq より後ろのステージなので、 wb された レジスタ番号のみを知らせる
   writeback_data_t writeback_data[] = {
     writeback_data_t{0x4},
     writeback_data_t{0x6},
@@ -153,11 +154,11 @@ TEST (IssueQueueTest, Basic) {
 
   dispatch_data_t issue_expected[] = {
     dispatch_data_t{0x1d, 0x00000004, 1, 0x00000004, 1, 0x1},
-    dispatch_data_t{0x1b, 0x00000002, 1, 0x0000003b, 1, 0x1},
-    dispatch_data_t{0x1f, 0x0000003f, 1, 0x0000003f, 1, 0x1},
-    dispatch_data_t{0x0e, 0x0000002e, 1, 0x0000002e, 1, 0x1},
-    dispatch_data_t{0x0c, 0x0000000c, 1, 0x00000003, 1, 0x1},
-    dispatch_data_t{0x0a, 0x0000002a, 1, 0x0000002a, 1, 0x1},
+    dispatch_data_t{0x1b, 0x00000002, 1, 0x00000002, 1, 0x1},
+    dispatch_data_t{0x1f, 0x00000006, 1, 0x00000006, 1, 0x1},
+    dispatch_data_t{0x0e, 0x00000005, 1, 0x00000005, 1, 0x1},
+    dispatch_data_t{0x0c, 0x00000003, 1, 0x00000003, 1, 0x1},
+    dispatch_data_t{0x0a, 0x00000001, 1, 0x00000001, 1, 0x1},
   };
 
   dispatch_data_t buffer = {0, 0, 0, 0, 0, 0};
