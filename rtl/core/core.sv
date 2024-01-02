@@ -137,6 +137,23 @@ module core (
   logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd_commit [0:DISPATCH_WIDTH-1];
   logic [4:0]                      arch_rd_commit [0:DISPATCH_WIDTH-1];
   logic                            en_commit      [0:DISPATCH_WIDTH-1];
+  
+  // hazard logic
+  logic stall_if;
+  logic stall_rn;
+  logic stall_disp;
+  logic stall_issue;
+  
+  // hazard unit
+  hazard hazard(
+    .freelist_empty(freelist_if_rn.num_free < 2),
+    .rob_full(dispatch_if_disp.full),
+    .issue_queue_full(dispatch_if_issue.full),
+    .stall_if(stall_if),
+    .stall_rn(stall_rn),
+    .stall_disp(stall_disp),
+    .stall_issue(stall_issue)
+  );
 
   always_ff @(posedge clk) begin
     if (rst) begin

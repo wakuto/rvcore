@@ -69,6 +69,7 @@ verilate(core_test
         ${CORE_RTL_DIR}/freelist.sv
         ${CORE_RTL_DIR}/freelistIf.sv
         ${CORE_RTL_DIR}/op2ValidLogic.sv
+        ${CORE_RTL_DIR}/hazard.sv
     PREFIX Vcore
     INCLUDE_DIRS
         ${CORE_RTL_DIR}/include

@@ -40,35 +40,115 @@ _start:
   addi x5, x6, 0
   add  x6, x4, x5
 
-#  addi x1, x2, 0
-#  addi x2, x3, 0
-#  add  x3, x1, x2
-#
-#  addi x4, x5, 0
-#  addi x5, x6, 0
-#  add  x6, x4, x5
-#
-#  addi x1, x2, 0
-#  addi x2, x3, 0
-#  add  x3, x1, x2
-#
-#  addi x4, x5, 0
-#  addi x5, x6, 0
-#  add  x6, x4, x5
-#
-#  addi x1, x2, 0
-#  addi x2, x3, 0
-#  add  x3, x1, x2
-#
-#  addi x4, x5, 0
-#  addi x5, x6, 0
-#  add  x6, x4, x5
-#
-#  addi x1, x2, 0
-#  addi x2, x3, 0
-#  add  x3, x1, x2
-#
-#  addi x4, x5, 0
-#  addi x5, x6, 0
-#  add  x6, x4, x5
-#
+  addi x1, x2, 0
+  addi x2, x3, 0
+  add  x3, x1, x2
+
+  addi x4, x5, 0
+  addi x5, x6, 0
+  add  x6, x4, x5
+
+  addi x1, x2, 0
+  addi x2, x3, 0
+  add  x3, x1, x2
+
+  addi x4, x5, 0
+  addi x5, x6, 0
+  add  x6, x4, x5
+
+  addi x1, x2, 0
+  addi x2, x3, 0
+  add  x3, x1, x2
+
+  addi x4, x5, 0
+  addi x5, x6, 0
+  add  x6, x4, x5
+
+  addi x1, x2, 0
+  addi x2, x3, 0
+  add  x3, x1, x2
+
+  addi x4, x5, 0
+  addi x5, x6, 0
+  add  x6, x4, x5
+
+  addi x1, x2, 0
+  addi x2, x3, 0
+  add  x3, x1, x2
+
+  addi x4, x5, 0
+  addi x5, x6, 0
+  add  x6, x4, x5
+
+  addi x1, x2, 0
+  addi x2, x3, 0
+  add  x3, x1, x2
+
+  addi x4, x5, 0
+  addi x5, x6, 0
+  add  x6, x4, x5
+
+  addi x1, x2, 0
+  addi x2, x3, 0
+  add  x3, x1, x2
+
+  addi x4, x5, 0
+  addi x5, x6, 0
+  add  x6, x4, x5
+
+  addi x1, x2, 0
+  addi x2, x3, 0
+  add  x3, x1, x2
+
+  addi x4, x5, 0
+  addi x5, x6, 0
+  add  x6, x4, x5
+
+  addi x1, x2, 0
+  addi x2, x3, 0
+  add  x3, x1, x2
+
+  addi x4, x5, 0
+  addi x5, x6, 0
+  add  x6, x4, x5
+
+  addi x1, x2, 0
+  addi x2, x3, 0
+  add  x3, x1, x2
+
+  addi x4, x5, 0
+  addi x5, x6, 0
+  add  x6, x4, x5
+
+  addi x1, x2, 0
+  addi x2, x3, 0
+  add  x3, x1, x2
+
+  addi x4, x5, 0
+  addi x5, x6, 0
+  add  x6, x4, x5
+
+  addi x1, x2, 0
+  addi x2, x3, 0
+  add  x3, x1, x2
+
+  addi x4, x5, 0
+  addi x5, x6, 0
+  add  x6, x4, x5
+
+  addi x1, x2, 0
+  addi x2, x3, 0
+  add  x3, x1, x2
+
+  addi x4, x5, 0
+  addi x5, x6, 0
+  add  x6, x4, x5
+
+  addi x1, x2, 0
+  addi x2, x3, 0
+  add  x3, x1, x2
+
+  addi x4, x5, 0
+  addi x5, x6, 0
+  add  x6, x4, x5
+
