@@ -8,6 +8,8 @@ typedef struct packed {
   logic [parameters::PHYS_REGS_ADDR_WIDTH-1:0] phys_rd;
   logic [4:0]       arch_rd;
   logic             commit_ready;
+  logic [31:0]      pc;
+  logic [31:0]      instr;
 } rob_entry_t;
 
 module rob #(
@@ -146,6 +148,8 @@ module rob #(
         rob_entry[head][w].phys_rd     <= dispatch_if.phys_rd[w];
         rob_entry[head][w].arch_rd     <= dispatch_if.arch_rd[w];
         rob_entry[head][w].commit_ready<= 0;
+        rob_entry[head][w].pc          <= dispatch_if.pc[w];
+        rob_entry[head][w].instr       <= dispatch_if.instr[w];
       end
     end
   end
@@ -189,6 +193,8 @@ module rob #(
           commit_if.phys_rd[w] <= rob_entry[tail][w].phys_rd;
           commit_if.arch_rd[w] <= rob_entry[tail][w].arch_rd;
           commit_if.en[w] <= rob_entry[tail][w].commit_ready;
+          commit_if.pc[w] <= rob_entry[tail][w].pc;
+          commit_if.instr[w] <= rob_entry[tail][w].instr;
           rob_entry[tail][w].entry_valid <= 0;
           rob_entry[tail][w].commit_ready<= 0;
         end else begin

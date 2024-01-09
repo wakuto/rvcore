@@ -11,6 +11,8 @@ interface robDispatchIf;
   logic [DISPATCH_ADDR_WIDTH-1: 0]  bank_addr [0:DISPATCH_WIDTH-1];
   logic [ROB_ADDR_WIDTH-1: 0]       rob_addr  [0:DISPATCH_WIDTH-1];
   logic                             full;
+  logic [31:0]                      pc        [0:DISPATCH_WIDTH-1];
+  logic [31:0]                      instr     [0:DISPATCH_WIDTH-1];
 
   modport out (
     output phys_rd,
@@ -18,7 +20,9 @@ interface robDispatchIf;
     output en,
     input  bank_addr,
     input  rob_addr,
-    input  full
+    input  full,
+    output pc,
+    output instr
   );
 
   modport in (
@@ -27,7 +31,9 @@ interface robDispatchIf;
     input  en,
     output bank_addr,
     output rob_addr,
-    output full
+    output full,
+    input  pc,
+    input  instr
   );
 endinterface
 

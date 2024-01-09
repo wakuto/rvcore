@@ -13,6 +13,8 @@ typedef struct packed {
   logic [parameters::PHYS_REGS_ADDR_WIDTH-1:0] phys_rd;
   logic [parameters::DISPATCH_ADDR_WIDTH -1:0] bank_addr;
   logic [parameters::ROB_ADDR_WIDTH-1: 0]      rob_addr;
+  logic [31:0]      pc;
+  logic [31:0]      instr;
 } issue_queue_entry_t;
 
 module issueQueue #(
@@ -87,6 +89,8 @@ module issueQueue #(
     replace_entry.phys_rd     = entry.phys_rd;
     replace_entry.bank_addr   = entry.bank_addr;
     replace_entry.rob_addr    = entry.rob_addr;
+    replace_entry.pc          = entry.pc;
+    replace_entry.instr       = entry.instr;
   endfunction
   /* verilator lint_on UNUSED */
   always_ff @(posedge clk) begin
@@ -107,6 +111,8 @@ module issueQueue #(
         issue_queue[disp_tail_next - 2].phys_rd     <= dispatch_if.phys_rd[0];
         issue_queue[disp_tail_next - 2].bank_addr   <= dispatch_if.bank_addr[0];
         issue_queue[disp_tail_next - 2].rob_addr    <= dispatch_if.rob_addr[0];
+        issue_queue[disp_tail_next - 2].pc          <= dispatch_if.pc[0];
+        issue_queue[disp_tail_next - 2].instr       <= dispatch_if.instr[0];
 
         issue_queue[disp_tail_next - 1].entry_valid <= dispatch_if.en[1];
         issue_queue[disp_tail_next - 1].alu_cmd     <= dispatch_if.alu_cmd[1];
@@ -118,6 +124,8 @@ module issueQueue #(
         issue_queue[disp_tail_next - 1].phys_rd     <= dispatch_if.phys_rd[1];
         issue_queue[disp_tail_next - 1].bank_addr   <= dispatch_if.bank_addr[1];
         issue_queue[disp_tail_next - 1].rob_addr    <= dispatch_if.rob_addr[1];
+        issue_queue[disp_tail_next - 1].pc          <= dispatch_if.pc[1];
+        issue_queue[disp_tail_next - 1].instr       <= dispatch_if.instr[1];
       end else if(dispatch_enable_count == 1) begin
         issue_queue[disp_tail_next - 1].entry_valid <= dispatch_if.en[0];
         issue_queue[disp_tail_next - 1].alu_cmd     <= dispatch_if.alu_cmd[0];
@@ -129,6 +137,8 @@ module issueQueue #(
         issue_queue[disp_tail_next - 1].phys_rd     <= dispatch_if.phys_rd[0];
         issue_queue[disp_tail_next - 1].bank_addr   <= dispatch_if.bank_addr[0];
         issue_queue[disp_tail_next - 1].rob_addr    <= dispatch_if.rob_addr[0];
+        issue_queue[disp_tail_next - 1].pc          <= dispatch_if.pc[0];
+        issue_queue[disp_tail_next - 1].instr       <= dispatch_if.instr[0];
         if (issue_ready_count >= 2) begin
           issue_queue[disp_tail_next].entry_valid <= 0;
           issue_queue[disp_tail_next].alu_cmd     <= common::alu_cmd_t'(0);
@@ -220,6 +230,8 @@ module issueQueue #(
       issue_if.phys_rd[0]   <= issue_ready_count >= 1 ? issue_queue[issue_idx[0]].phys_rd : 0;
       issue_if.bank_addr[0] <= issue_queue[issue_idx[0]].bank_addr;
       issue_if.rob_addr[0]  <= issue_queue[issue_idx[0]].rob_addr;
+      issue_if.pc[0]        <= issue_queue[issue_idx[0]].pc;
+      issue_if.instr[0]     <= issue_queue[issue_idx[0]].instr;
 
       issue_if.valid[1]     <= issue_queue[issue_idx[1]].entry_valid & issue_ready_count >= 2;
       issue_if.alu_cmd[1]   <= issue_queue[issue_idx[1]].alu_cmd;
@@ -229,10 +241,12 @@ module issueQueue #(
       issue_if.phys_rd[1]   <= issue_ready_count >= 2 ? issue_queue[issue_idx[1]].phys_rd : 0;
       issue_if.bank_addr[1] <= issue_queue[issue_idx[1]].bank_addr;
       issue_if.rob_addr[1]  <= issue_queue[issue_idx[1]].rob_addr;
+      issue_if.pc[1]        <= issue_queue[issue_idx[1]].pc;
+      issue_if.instr[1]     <= issue_queue[issue_idx[1]].instr;
     end
   end
 
-  assign dispatch_if.full = 32'(disp_tail) + 32'(dispatch_enable_count) >= ISSUE_QUEUE_SIZE;
+  assign dispatch_if.full = 32'(disp_tail) >= ISSUE_QUEUE_SIZE - DISPATCH_WIDTH;
 
   // Writeback
   always_ff @(posedge clk) begin
