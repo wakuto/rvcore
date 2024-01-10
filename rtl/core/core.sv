@@ -65,6 +65,7 @@ module core (
 
   // ID/REN regs
   logic             valid_rn    [0:DISPATCH_WIDTH-1];
+  logic             rd_wen_rn   [0:DISPATCH_WIDTH-1];
   logic [4:0]       rs1_rn      [0:DISPATCH_WIDTH-1];
   logic [4:0]       rs2_rn      [0:DISPATCH_WIDTH-1];
   logic [4:0]       rd_rn       [0:DISPATCH_WIDTH-1];
@@ -309,7 +310,7 @@ module core (
     .addr_rs2(rs2_rn),
     .addr_rd(rd_rn),
     .rd_data(pop_reg_rn),
-    .rd_wen(valid_rn),
+    .rd_wen(rd_wen_rn),
     .rs1_data(rs1_data_rn),
     .rs2_data(rs2_data_rn)
   );
@@ -325,6 +326,7 @@ module core (
     for(int i = 0; i < DISPATCH_WIDTH; i++) begin
       freelist_if_rn.push_en[i]  = en_commit[i];
       freelist_if_rn.pop_en[i]   = valid_rn[i] & !stall_rn;
+      rd_wen_rn[i]               = valid_rn[i] & !stall_rn;
     end
 
     pop_reg_rn = freelist_if_rn.pop_reg;
