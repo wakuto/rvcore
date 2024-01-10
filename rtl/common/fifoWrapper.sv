@@ -7,7 +7,7 @@ module fifoWrapper(
   output logic        empty, full
 );
 
-  fifoIf #(.DATA_WIDTH(32), .DEPTH(16)) fifo_if;
+  fifoIf #(.DATA_WIDTH(32), .DEPTH(16)) fifo_if();
 
   fifo fifo (.clk, .rst,.fifo_if(fifo_if.fifo));
 

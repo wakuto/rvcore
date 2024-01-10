@@ -107,7 +107,7 @@ size_t load_program(std::string program_file, uint32_t *program, size_t size) {
   }
   // 読み込めたサイズを返却
   // size分読めたときを場合分け
-  return i+1 < size ? i+1 : size;
+  return i;
 }
 
 TEST (memory_test, read_test) {

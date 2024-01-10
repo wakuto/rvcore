@@ -14,6 +14,10 @@ package common;
     logic [31:0] imm_u;
     logic [20:0] imm_j;
   } instr_field;
+  typedef enum logic {
+    REG,
+    IMM
+  } op_type_t;
   typedef enum logic [4:0] {
     ADD,
     SUB,

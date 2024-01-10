@@ -41,6 +41,7 @@ class ROBTester : public ModelTester<Vrob> {
     }
 };
 
+
 TEST (ROBTest, OrderdWriteback) {
   auto dut = std::make_unique<ROBTester>("rob_ordered_test.vcd");
   auto instr_bank_addr = std::vector<typeof(dut->top->dispatch_bank_addr[0])>();
@@ -63,6 +64,12 @@ TEST (ROBTest, OrderdWriteback) {
     }
   });
 
+  // bank0にdispatchした内容をテスト
+  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[0]);
+  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[0]);
+  EXPECT_EQ(dut->top->dispatch_bank_addr[0], 0);
+  EXPECT_EQ(dut->top->dispatch_rob_addr[0], 0);
+
   // バンク1にdispatch
   dut->do_posedge([](Vrob *rob) {
     for(auto i = 0; i < 2; i++) {
@@ -75,12 +82,12 @@ TEST (ROBTest, OrderdWriteback) {
     }
   });
 
-  // 1クロック遅れてbank0にdispatchした内容をテスト
-  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[0]);
-  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[0]);
-  EXPECT_EQ(dut->top->dispatch_bank_addr[0], 0);
-  EXPECT_EQ(dut->top->dispatch_rob_addr[0], 0);
+  // bank1にdispatchした内容をテスト
+  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[1]);
+  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[1]);
 
+  EXPECT_EQ(dut->top->dispatch_bank_addr[1], 1);
+  EXPECT_EQ(dut->top->dispatch_rob_addr[1], 1);
 
   // バンク0, 1に同時にdispatch
   dut->do_posedge([](Vrob *rob) {
@@ -97,18 +104,7 @@ TEST (ROBTest, OrderdWriteback) {
     }
   });
 
-  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[1]);
-  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[1]);
-
-  EXPECT_EQ(dut->top->dispatch_bank_addr[1], 1);
-  EXPECT_EQ(dut->top->dispatch_rob_addr[1], 1);
-
-  dut->do_posedge([](Vrob *rob) {
-    for(auto i = 0; i < 2; i++) {
-      rob->dispatch_en[i] = 0;
-    }
-  });
-
+  // bank0, bank1にdispatchした内容をテスト
   instr_bank_addr.push_back(dut->top->dispatch_bank_addr[0]);
   instr_bank_addr.push_back(dut->top->dispatch_bank_addr[1]);
   instr_rob_addr.push_back(dut->top->dispatch_rob_addr[0]);
@@ -118,6 +114,12 @@ TEST (ROBTest, OrderdWriteback) {
   EXPECT_EQ(dut->top->dispatch_bank_addr[1], 1);
   EXPECT_EQ(dut->top->dispatch_rob_addr[0], 2);
   EXPECT_EQ(dut->top->dispatch_rob_addr[1], 2);
+
+  dut->do_posedge([](Vrob *rob) {
+    for(auto i = 0; i < 2; i++) {
+      rob->dispatch_en[i] = 0;
+    }
+  });
 
   dut->next_clock();
   dut->next_clock();
@@ -188,6 +190,7 @@ TEST (ROBTest, OrderdWriteback) {
   dut->next_clock();
 }
 
+
 TEST (ROBTest, UnOrderedWriteback) {
   auto dut = std::make_unique<ROBTester>("rob_unordered_test.vcd");
   auto instr_bank_addr = std::vector<typeof(dut->top->dispatch_bank_addr[0])>();
@@ -210,6 +213,12 @@ TEST (ROBTest, UnOrderedWriteback) {
     }
   });
 
+  // bank0 にdispatchした内容をテスト
+  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[0]);
+  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[0]);
+  EXPECT_EQ(dut->top->dispatch_bank_addr[0], 0);
+  EXPECT_EQ(dut->top->dispatch_rob_addr[0], 0);
+
   // バンク1にdispatch
   dut->do_posedge([](Vrob *rob) {
     for(auto i = 0; i < 2; i++) {
@@ -222,12 +231,12 @@ TEST (ROBTest, UnOrderedWriteback) {
     }
   });
 
-  // 1クロック遅れてbank0にdispatchした内容をテスト
-  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[0]);
-  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[0]);
-  EXPECT_EQ(dut->top->dispatch_bank_addr[0], 0);
-  EXPECT_EQ(dut->top->dispatch_rob_addr[0], 0);
+  // bank1 にdispatchした内容をテスト
+  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[1]);
+  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[1]);
 
+  EXPECT_EQ(dut->top->dispatch_bank_addr[1], 1);
+  EXPECT_EQ(dut->top->dispatch_rob_addr[1], 1);
 
   // バンク0, 1に同時にdispatch
   dut->do_posedge([](Vrob *rob) {
@@ -244,18 +253,6 @@ TEST (ROBTest, UnOrderedWriteback) {
     }
   });
 
-  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[1]);
-  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[1]);
-
-  EXPECT_EQ(dut->top->dispatch_bank_addr[1], 1);
-  EXPECT_EQ(dut->top->dispatch_rob_addr[1], 1);
-
-  dut->do_posedge([](Vrob *rob) {
-    for(auto i = 0; i < 2; i++) {
-      rob->dispatch_en[i] = 0;
-    }
-  });
-
   instr_bank_addr.push_back(dut->top->dispatch_bank_addr[0]);
   instr_bank_addr.push_back(dut->top->dispatch_bank_addr[1]);
   instr_rob_addr.push_back(dut->top->dispatch_rob_addr[0]);
@@ -265,6 +262,12 @@ TEST (ROBTest, UnOrderedWriteback) {
   EXPECT_EQ(dut->top->dispatch_bank_addr[1], 1);
   EXPECT_EQ(dut->top->dispatch_rob_addr[0], 2);
   EXPECT_EQ(dut->top->dispatch_rob_addr[1], 2);
+
+  dut->do_posedge([](Vrob *rob) {
+    for(auto i = 0; i < 2; i++) {
+      rob->dispatch_en[i] = 0;
+    }
+  });
 
   dut->next_clock();
   dut->next_clock();
@@ -333,6 +336,226 @@ TEST (ROBTest, UnOrderedWriteback) {
   EXPECT_EQ(dut->top->commit_phys_rd[1], 35);
   EXPECT_EQ(dut->top->commit_arch_rd[1], 3);
   EXPECT_EQ(dut->top->commit_en[1], 1);
+
+  dut->next_clock();
+  dut->next_clock();
+}
+
+
+TEST (ROBTest, OperandFetchTest) {
+  auto dut = std::make_unique<ROBTester>("rob_operand_fetch_test.vcd");
+  auto instr_bank_addr = std::vector<typeof(dut->top->dispatch_bank_addr[0])>();
+  auto instr_rob_addr = std::vector<typeof(dut->top->dispatch_rob_addr[0])>();
+
+  dut->init();
+
+  // ----------------------------
+  // dispatch
+  // ----------------------------
+  // バンク0にdispatch
+  dut->do_posedge([](Vrob *rob) {
+    for(auto i = 0; i < 2; i++) {
+      rob->dispatch_en[i] = 0;
+    }
+    if (!rob->dispatch_full) {
+      rob->dispatch_phys_rd[0] = 32;
+      rob->dispatch_arch_rd[0] = 0;
+      rob->dispatch_en[0] = 1;
+    }
+  });
+
+  // +---------------------------+---------------------------+
+  // |           bank0           |           bank1           |
+  // +---------+---------+-------+---------+---------+-------+
+  // | phys_rd | arch_rd | valid | phys_rd | arch_rd | valid |
+  // +=========+=========+=======+=========+=========+=======+
+  // |       32|        0|      1|        0|        0|      0|
+  // +---------+---------+-------+---------+---------+-------+
+  // バンク1にdispatch
+  dut->do_posedge([](Vrob *rob) {
+    for(auto i = 0; i < 2; i++) {
+      rob->dispatch_en[i] = 0;
+    }
+    if (!rob->dispatch_full) {
+      rob->dispatch_phys_rd[1] = 33;
+      rob->dispatch_arch_rd[1] = 1;
+      rob->dispatch_en[1] = 1;
+    }
+  });
+
+  // +---------------------------+---------------------------+
+  // |           bank0           |           bank1           |
+  // +---------+---------+-------+---------+---------+-------+
+  // | phys_rd | arch_rd | valid | phys_rd | arch_rd | valid |
+  // +=========+=========+=======+=========+=========+=======+
+  // |       32|        0|      1|        0|        0|      0|
+  // +---------+---------+-------+---------+---------+-------+
+  // |        0|        0|      0|       33|        1|      1|
+  // +---------+---------+-------+---------+---------+-------+
+  // バンク0, 1に同時にdispatch
+  dut->do_posedge([](Vrob *rob) {
+    for(auto i = 0; i < 2; i++) {
+      rob->dispatch_en[i] = 0;
+    }
+    if (!rob->dispatch_full) {
+      rob->dispatch_phys_rd[0] = 34;
+      rob->dispatch_arch_rd[0] = 2;
+      rob->dispatch_en[0] = 1;
+      rob->dispatch_phys_rd[1] = 35;
+      rob->dispatch_arch_rd[1] = 3;
+      rob->dispatch_en[1] = 1;
+    }
+  });
+
+  // +---------------------------+---------------------------+
+  // |           bank0           |           bank1           |
+  // +---------+---------+-------+---------+---------+-------+
+  // | phys_rd | arch_rd | valid | phys_rd | arch_rd | valid |
+  // +=========+=========+=======+=========+=========+=======+
+  // |       32|        0|      1|        0|        0|      0| <- tail
+  // +---------+---------+-------+---------+---------+-------+
+  // |        0|        0|      0|       33|        1|      1|
+  // +---------+---------+-------+---------+---------+-------+
+  // |       34|        2|      1|       35|        3|      1|
+  // +---------+---------+-------+---------+---------+-------+
+  // |         |         |       |         |         |       | <- head
+  // +---------+---------+-------+---------+---------+-------+
+  // バンク0, 1に同時にdispatch
+  dut->do_posedge([](Vrob *rob) {
+    for(auto i = 0; i < 2; i++) {
+      rob->dispatch_en[i] = 0;
+    }
+    if (!rob->dispatch_full) {
+      rob->dispatch_phys_rd[0] = 36;
+      rob->dispatch_arch_rd[0] = 2;
+      rob->dispatch_en[0] = 1;
+      rob->dispatch_phys_rd[1] = 37;
+      rob->dispatch_arch_rd[1] = 3;
+      rob->dispatch_en[1] = 1;
+    }
+  });
+
+  dut->do_posedge([](Vrob *rob) {
+    for(auto i = 0; i < 2; i++) {
+      rob->dispatch_en[i] = 0;
+    }
+  });
+
+  dut->next_clock();
+  dut->next_clock();
+
+  // operand fetch test
+  // +--------------------------------------+--------------------------------------+
+  // |           bank0                      |           bank1                      |
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // | phys_rd | arch_rd | v | commit_ready | phys_rd | arch_rd | v | commit_ready |
+  // +=========+=========+===+--------------+=========+=========+===+--------------+
+  // |       32|        0|  1|             0|        0|        0|  0|             0| <  tail
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // |        0|        0|  0|             0|       33|        1|  1|             0|
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // |       34|        2|  1|             0|       35|        3|  1|             0|
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // |       36|        2|  1|             0|       37|        3|  1|             0|
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // |         |         |   |              |         |         |   |              | <- head
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // bank0でrs1(=x1)をfetch
+  dut->do_posedge([](Vrob *rob) {
+    rob->op_fetch_phys_rs1[0] = 33;
+  });
+
+  EXPECT_FALSE(dut->top->op_fetch_rs1_valid[0]); // not writebacked yet
+
+  // bank1でrs2(=x2)をfetch
+  dut->do_posedge([](Vrob *rob) {
+    rob->op_fetch_phys_rs1[1] = 34;
+  });
+
+  EXPECT_FALSE(dut->top->op_fetch_rs1_valid[1]); // not writebacked yet
+
+  // ----------------------------
+  // writeback
+  // ----------------------------
+  // +--------------------------------------+--------------------------------------+
+  // |           bank0                      |           bank1                      |
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // | phys_rd | arch_rd | v | commit_ready | phys_rd | arch_rd | v | commit_ready |
+  // +=========+=========+===+--------------+=========+=========+===+--------------+
+  // |       32|        0|  1|             0|        0|        0|  0|             0| <  tail
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // |        0|        0|  0|             0|       33|        1|  1|             0|
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // |       34|        2|  1|             0|       35|        3|  1|             0| <- writeback
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // |       36|        2|  1|             0|       37|        3|  1|             0|
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // |         |         |   |              |         |         |   |              | <- head
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // (bank_addr, rob_addr) = (0, 2), (1, 2)をwriteback
+  dut->do_posedge([](Vrob *rob) {
+    for(auto i = 0; i < 2; i++) {
+      rob->writeback_en[i] = 0;
+    }
+    rob->writeback_bank_addr[0] = 0;
+    rob->writeback_rob_addr[0] = 2;
+    rob->writeback_en[0] = 1;
+    rob->writeback_bank_addr[1] = 1;
+    rob->writeback_rob_addr[1] = 2;
+    rob->writeback_en[1] = 1;
+  });
+
+  // bank0でrs1(=x2), rs2(=x3)をfetch
+  dut->do_posedge([](Vrob *rob) {
+    rob->op_fetch_phys_rs1[0] = 34;
+    rob->op_fetch_phys_rs2[0] = 35;
+  });
+
+  EXPECT_TRUE(dut->top->op_fetch_rs1_valid[0]); // not writebacked yet
+  EXPECT_TRUE(dut->top->op_fetch_rs2_valid[0]); // not writebacked yet
+
+  // +--------------------------------------+--------------------------------------+
+  // |           bank0                      |           bank1                      |
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // | phys_rd | arch_rd | v | commit_ready | phys_rd | arch_rd | v | commit_ready |
+  // +=========+=========+===+--------------+=========+=========+===+--------------+
+  // |       32|        0|  1|             0|        0|        0|  0|             0| <  tail
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // |        0|        0|  0|             0|       33|        1|  1|             0|
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // |       34|        2|  1|             0|       35|        3|  1|             0| <- writeback
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // |       36|        2|  1|             0|       37|        3|  1|             0|
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // |         |         |   |              |         |         |   |              | <- head
+  // +---------+---------+---+--------------+---------+---------+---+--------------+
+  // (bank_addr, rob_addr) = (0, 3), (1, 3)をwriteback
+  dut->do_posedge([](Vrob *rob) {
+    for(auto i = 0; i < 2; i++) {
+      rob->writeback_en[i] = 0;
+    }
+    rob->writeback_bank_addr[0] = 0;
+    rob->writeback_rob_addr[0] = 3;
+    rob->writeback_en[0] = 1;
+    rob->writeback_bank_addr[1] = 1;
+    rob->writeback_rob_addr[1] = 3;
+    rob->writeback_en[1] = 1;
+  });
+
+  // bank1でrs1(=x2), rs2(=x3)をfetch
+  dut->do_posedge([](Vrob *rob) {
+    for(auto i = 0; i < 2; i++) {
+      rob->writeback_en[i] = 0;
+    }
+    rob->op_fetch_phys_rs1[1] = 36;
+    rob->op_fetch_phys_rs2[1] = 37;
+  });
+
+  EXPECT_TRUE(dut->top->op_fetch_rs1_valid[1]); // not writebacked yet
+  EXPECT_TRUE(dut->top->op_fetch_rs2_valid[1]); // not writebacked yet
+
+
+  dut->next_clock();
 
   dut->next_clock();
   dut->next_clock();

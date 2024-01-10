@@ -1,16 +1,21 @@
 `default_nettype none
 
 `include "common.sv"
+`include "parameters.sv"
 
 typedef struct packed {
   logic             entry_valid;
-  logic [3:0]       tag;
   common::alu_cmd_t alu_cmd;
-  logic [31:0]      op1_data, op2_data;
+  logic [parameters::PHYS_REGS_ADDR_WIDTH-1:0] op1_data;
+  logic [31:0]      op2_data;
+  common::op_type_t op2_type;
   logic             op1_valid, op2_valid;
-  logic [7:0]       phys_rd;
+  logic [parameters::PHYS_REGS_ADDR_WIDTH-1:0] phys_rd;
+  logic [parameters::DISPATCH_ADDR_WIDTH -1:0] bank_addr;
+  logic [parameters::ROB_ADDR_WIDTH-1: 0]      rob_addr;
+  logic [31:0]      pc;
+  logic [31:0]      instr;
 } issue_queue_entry_t;
-
 
 module issueQueue #(
   parameter ISSUE_QUEUE_SIZE = 8
@@ -21,214 +26,278 @@ module issueQueue #(
   isqWbIf.in wb_if,
   isqIssueIf.out issue_if
 );
-  localparam DEBUG = 0;
-  logic [3:0] tag_counter;
+  import parameters::*;
   localparam ISSUE_QUEUE_ADDR_WIDTH = $clog2(ISSUE_QUEUE_SIZE);
   issue_queue_entry_t issue_queue [0:ISSUE_QUEUE_SIZE-1];
-
-  // verilator lint_off UNUSEDSIGNAL
-  function entry_valid (input issue_queue_entry_t entry);
-    entry_valid = entry.entry_valid && entry.op1_valid && entry.op2_valid;
+  
+  // Dispatch signals
+  logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] disp_tail_next;
+  logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] disp_tail; 
+  logic [DISPATCH_ADDR_WIDTH:0] dispatch_enable_count;
+  
+  // Issue signals
+  logic [ISSUE_QUEUE_ADDR_WIDTH:0] issue_ready_count;
+  logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] issue_idx [0:DISPATCH_WIDTH-1];
+  
+  logic [DISPATCH_WIDTH-1:0] op1_valid;
+  logic [DISPATCH_WIDTH-1:0] op2_valid;
+  
+  function logic forwarding_check(logic valid [0:DISPATCH_WIDTH-1], logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd [0:DISPATCH_WIDTH-1], logic [PHYS_REGS_ADDR_WIDTH-1:0] rs);
+    forwarding_check = 0;
+    for (int i = 0; i < DISPATCH_WIDTH; i++) begin
+      forwarding_check = forwarding_check || (valid[i] && (phys_rd[i] == rs));
+    end
   endfunction
-  // verilator lint_on UNUSEDSIGNAL
 
-  // Issue
-  // validなentryのうちtagが小さい方を選ぶ
-  // 両方invalidなら0を返す
-  // アドレスと issue_queue_entry_t を結合して返す
-  function logic [ISSUE_QUEUE_ADDR_WIDTH + $bits(issue_queue_entry_t) - 1:0] chose_entry (
-    input issue_queue_entry_t entry_1,
-    input issue_queue_entry_t entry_2,
-    input logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] addr_1,
-    input logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] addr_2
-  );
-    if (entry_valid(entry_1) && entry_valid(entry_2)) begin
-      if (entry_1.tag[3] == entry_2.tag[3]) begin
-        if (entry_1.tag < entry_2.tag) begin
-          chose_entry[0 +: $bits(issue_queue_entry_t)] = entry_1;
-          chose_entry[$bits(issue_queue_entry_t) +: ISSUE_QUEUE_ADDR_WIDTH] = addr_1;
-        end else begin
-          chose_entry[0 +: $bits(issue_queue_entry_t)] = entry_2;
-          chose_entry[$bits(issue_queue_entry_t) +: ISSUE_QUEUE_ADDR_WIDTH] = addr_2;
+  // Dispatch
+  always_comb begin
+    dispatch_enable_count = 0;
+    for (int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
+      dispatch_enable_count = dispatch_enable_count + dispatch_if.en[bank];
+    end
+    
+    if (issue_ready_count <= 2) begin
+      disp_tail_next = disp_tail - ISSUE_QUEUE_ADDR_WIDTH'(issue_ready_count) + ISSUE_QUEUE_ADDR_WIDTH'(dispatch_enable_count);
+    end else begin
+      disp_tail_next = disp_tail - 2 + ISSUE_QUEUE_ADDR_WIDTH'(dispatch_enable_count);
+    end
+    
+    // wb と dispatch で同じレジスタを参照した場合にフォワーディング
+    for (int i = 0; i < DISPATCH_WIDTH; i++) begin
+      op1_valid[i] = forwarding_check(wb_if.valid, wb_if.phys_rd, dispatch_if.op1[i]) || dispatch_if.op1_valid[i];
+      case(dispatch_if.op2_type[i])
+        common::REG: op2_valid[i] = forwarding_check(wb_if.valid, wb_if.phys_rd, PHYS_REGS_ADDR_WIDTH'(dispatch_if.op2[i])) || dispatch_if.op2_valid[i];
+        common::IMM: op2_valid[i] = 1'b1;
+        default: op2_valid[i] = 0;
+      endcase
+    end
+  end
+
+  /* verilator lint_off UNUSED */
+  function issue_queue_entry_t replace_entry(issue_queue_entry_t entry, logic new_op1_valid, logic new_op2_valid);
+    replace_entry.entry_valid = entry.entry_valid;
+    replace_entry.alu_cmd     = entry.alu_cmd;
+    replace_entry.op1_data    = entry.op1_data;
+    replace_entry.op2_type    = entry.op2_type;
+    replace_entry.op2_data    = entry.op2_data;
+    replace_entry.op1_valid   = new_op1_valid;
+    case(entry.op2_type)
+      common::REG: replace_entry.op2_valid = new_op2_valid;
+      common::IMM: replace_entry.op2_valid = 1'b1;
+      default: replace_entry.op2_valid = 0;
+    endcase
+    replace_entry.phys_rd     = entry.phys_rd;
+    replace_entry.bank_addr   = entry.bank_addr;
+    replace_entry.rob_addr    = entry.rob_addr;
+    replace_entry.pc          = entry.pc;
+    replace_entry.instr       = entry.instr;
+  endfunction
+  /* verilator lint_on UNUSED */
+  always_ff @(posedge clk) begin
+    if (rst) begin
+      disp_tail <= 0;
+    end else begin
+      disp_tail <= disp_tail_next;
+      // issue_queue の末尾にディスパッチ
+      // TODO: function とか使って簡略化したい
+      if (dispatch_enable_count == 2 && !dispatch_if.full) begin
+        issue_queue[disp_tail_next - 2].entry_valid <= dispatch_if.en[0];
+        issue_queue[disp_tail_next - 2].alu_cmd     <= dispatch_if.alu_cmd[0];
+        issue_queue[disp_tail_next - 2].op1_data    <= dispatch_if.op1[0];
+        issue_queue[disp_tail_next - 2].op2_type    <= dispatch_if.op2_type[0];
+        issue_queue[disp_tail_next - 2].op2_data    <= dispatch_if.op2[0];
+        issue_queue[disp_tail_next - 2].op1_valid   <= op1_valid[0];
+        issue_queue[disp_tail_next - 2].op2_valid   <= op2_valid[0];
+        issue_queue[disp_tail_next - 2].phys_rd     <= dispatch_if.phys_rd[0];
+        issue_queue[disp_tail_next - 2].bank_addr   <= dispatch_if.bank_addr[0];
+        issue_queue[disp_tail_next - 2].rob_addr    <= dispatch_if.rob_addr[0];
+        issue_queue[disp_tail_next - 2].pc          <= dispatch_if.pc[0];
+        issue_queue[disp_tail_next - 2].instr       <= dispatch_if.instr[0];
+
+        issue_queue[disp_tail_next - 1].entry_valid <= dispatch_if.en[1];
+        issue_queue[disp_tail_next - 1].alu_cmd     <= dispatch_if.alu_cmd[1];
+        issue_queue[disp_tail_next - 1].op1_data    <= dispatch_if.op1[1];
+        issue_queue[disp_tail_next - 1].op2_type    <= dispatch_if.op2_type[1];
+        issue_queue[disp_tail_next - 1].op2_data    <= dispatch_if.op2[1];
+        issue_queue[disp_tail_next - 1].op1_valid   <= op1_valid[1];
+        issue_queue[disp_tail_next - 1].op2_valid   <= op2_valid[1];
+        issue_queue[disp_tail_next - 1].phys_rd     <= dispatch_if.phys_rd[1];
+        issue_queue[disp_tail_next - 1].bank_addr   <= dispatch_if.bank_addr[1];
+        issue_queue[disp_tail_next - 1].rob_addr    <= dispatch_if.rob_addr[1];
+        issue_queue[disp_tail_next - 1].pc          <= dispatch_if.pc[1];
+        issue_queue[disp_tail_next - 1].instr       <= dispatch_if.instr[1];
+      end else if(dispatch_enable_count == 1 && !dispatch_if.full) begin
+        issue_queue[disp_tail_next - 1].entry_valid <= dispatch_if.en[0];
+        issue_queue[disp_tail_next - 1].alu_cmd     <= dispatch_if.alu_cmd[0];
+        issue_queue[disp_tail_next - 1].op1_data    <= dispatch_if.op1[0];
+        issue_queue[disp_tail_next - 1].op2_type    <= dispatch_if.op2_type[0];
+        issue_queue[disp_tail_next - 1].op2_data    <= dispatch_if.op2[0];
+        issue_queue[disp_tail_next - 1].op1_valid   <= op1_valid[0];
+        issue_queue[disp_tail_next - 1].op2_valid   <= op2_valid[0];
+        issue_queue[disp_tail_next - 1].phys_rd     <= dispatch_if.phys_rd[0];
+        issue_queue[disp_tail_next - 1].bank_addr   <= dispatch_if.bank_addr[0];
+        issue_queue[disp_tail_next - 1].rob_addr    <= dispatch_if.rob_addr[0];
+        issue_queue[disp_tail_next - 1].pc          <= dispatch_if.pc[0];
+        issue_queue[disp_tail_next - 1].instr       <= dispatch_if.instr[0];
+        if (issue_ready_count >= 2) begin
+          issue_queue[disp_tail_next].entry_valid <= 0;
+          issue_queue[disp_tail_next].alu_cmd     <= common::alu_cmd_t'(0);
+          issue_queue[disp_tail_next].op1_valid   <= 0;
+          issue_queue[disp_tail_next].op2_valid   <= 0;
         end
       end else begin
-        if (entry_1.tag < entry_2.tag) begin
-          chose_entry[0 +: $bits(issue_queue_entry_t)] = entry_2;
-          chose_entry[$bits(issue_queue_entry_t) +: ISSUE_QUEUE_ADDR_WIDTH] = addr_2;
-        end else begin
-          chose_entry[0 +: $bits(issue_queue_entry_t)] = entry_1;
-          chose_entry[$bits(issue_queue_entry_t) +: ISSUE_QUEUE_ADDR_WIDTH] = addr_1;
+        if (issue_ready_count >= 2) begin
+          issue_queue[disp_tail - 2].entry_valid <= 0;
+          issue_queue[disp_tail - 2].alu_cmd     <= common::alu_cmd_t'(0);
+          issue_queue[disp_tail - 2].op1_valid   <= 0;
+          issue_queue[disp_tail - 2].op2_valid   <= 0;
+        end
+        if (issue_ready_count >= 1) begin
+          issue_queue[disp_tail - 1].entry_valid <= 0;
+          issue_queue[disp_tail - 1].alu_cmd     <= common::alu_cmd_t'(0);
+          issue_queue[disp_tail - 1].op1_valid   <= 0;
+          issue_queue[disp_tail - 1].op2_valid   <= 0;
         end
       end
-    end else if (entry_valid(entry_1)) begin
-      chose_entry[0 +: $bits(issue_queue_entry_t)] = entry_1;
-      chose_entry[$bits(issue_queue_entry_t) +: ISSUE_QUEUE_ADDR_WIDTH] = addr_1;
-    end else if (entry_valid(entry_2)) begin
-      chose_entry[0 +: $bits(issue_queue_entry_t)] = entry_2;
-      chose_entry[$bits(issue_queue_entry_t) +: ISSUE_QUEUE_ADDR_WIDTH] = addr_2;
-    end else begin
-      chose_entry[0 +: $bits(issue_queue_entry_t)] = 0;
-      chose_entry[$bits(issue_queue_entry_t) +: ISSUE_QUEUE_ADDR_WIDTH] = addr_2;
-    end
-  endfunction
-
-
-  // 発行する命令の決定
-  // 検索のための比較回路をツリーで構成
-  issue_queue_entry_t search_tree [ 0 : ISSUE_QUEUE_SIZE - 2 ];
-  logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] addr_search_tree [ 0 : ISSUE_QUEUE_SIZE - 2 ];
-  // verilator lint_off UNUSEDSIGNAL
-  issue_queue_entry_t issue_entry;
-  // verilator lint_on UNUSEDSIGNAL
-  localparam half = ISSUE_QUEUE_SIZE >> 1;
-  int offset [0:ISSUE_QUEUE_ADDR_WIDTH];
-  always_comb begin
-    for (int _i = 0; _i < half; _i++) begin
-      {addr_search_tree[_i], search_tree[_i]} = chose_entry(
-        issue_queue[(_i << 1)],
-        issue_queue[(_i << 1) + 1],
-        ISSUE_QUEUE_ADDR_WIDTH'(_i << 1),
-        ISSUE_QUEUE_ADDR_WIDTH'(_i << 1) + 1
-      );
-    end
-    offset[1] = half;
-    for (int _j = 2; _j < ISSUE_QUEUE_ADDR_WIDTH+1; _j++) begin
-      for (int _i = offset[_j-1]; _i < offset[_j-1] + (ISSUE_QUEUE_SIZE >> _j); _i++) begin
-        {addr_search_tree[_i], search_tree[_i]} = chose_entry(
-          search_tree[((_i-half) << 1)],
-          search_tree[((_i-half) << 1) + 1],
-          addr_search_tree[((_i-half) << 1)],
-          addr_search_tree[((_i-half) << 1) + 1]
-        );
+      
+      // issue_queue の詰め直し
+      // 命令発行後空きスペースとなった領域は詰めて使う
+      for(int i = 0; i < ISSUE_QUEUE_SIZE - 1; i++) begin
+        if (issue_ready_count >= 2) begin
+          if (issue_idx[0] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[1] - 1) begin
+            issue_queue[i] <= replace_entry(issue_queue[i+1], 
+                                            forwarding_check(wb_if.valid, wb_if.phys_rd, PHYS_REGS_ADDR_WIDTH'(issue_queue[i+1].op1_data)) || issue_queue[i+1].op1_valid,
+                                            forwarding_check(wb_if.valid, wb_if.phys_rd, PHYS_REGS_ADDR_WIDTH'(issue_queue[i+1].op2_data)) || issue_queue[i+1].op2_valid);
+          end else if (issue_idx[1] - 1 <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < disp_tail - 2) begin
+            issue_queue[i] <= replace_entry(issue_queue[i+2], 
+                                            forwarding_check(wb_if.valid, wb_if.phys_rd, PHYS_REGS_ADDR_WIDTH'(issue_queue[i+2].op1_data)) || issue_queue[i+2].op1_valid,
+                                            forwarding_check(wb_if.valid, wb_if.phys_rd, PHYS_REGS_ADDR_WIDTH'(issue_queue[i+2].op2_data)) || issue_queue[i+2].op2_valid);
+          end
+        end else if (issue_ready_count == 1) begin
+          if (issue_idx[0] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < disp_tail - 1) begin
+            issue_queue[i] <= replace_entry(issue_queue[i+1], 
+                                            forwarding_check(wb_if.valid, wb_if.phys_rd, PHYS_REGS_ADDR_WIDTH'(issue_queue[i+1].op1_data)) || issue_queue[i+1].op1_valid,
+                                            forwarding_check(wb_if.valid, wb_if.phys_rd, PHYS_REGS_ADDR_WIDTH'(issue_queue[i+1].op2_data)) || issue_queue[i+2].op1_valid);
+          end
+        end
       end
-      offset[_j] = offset[_j-1] + (ISSUE_QUEUE_SIZE >> _j);
     end
   end
-
-/*
-  // unsupported
-  function automatic issue_queue_entry_t get_entry (
-    input issue_queue_entry_t entry [0:ISSUE_QUEUE_SIZE-1],
-    input logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] head,
-    input logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] tail
-  );
-    if (tail - head + 1 > 2) begin
-      get_entry = chose_entry(
-        get_entry(entry, head, (head + tail) >> 1),
-        get_entry(entry, ((head + tail) >> 1) + 1, tail)
-      );
-    end else begin
-      get_entry = chose_entry(entry[head], entry[tail]);
-    end
-  endfunction
-*/
-
-  always_comb begin
-    issue_entry = search_tree[ISSUE_QUEUE_SIZE - 2];
-    issue_if.valid = entry_valid(issue_entry);
-    issue_if.alu_cmd = issue_entry.alu_cmd;
-    issue_if.op1 = issue_entry.op1_data;
-    issue_if.op2 = issue_entry.op2_data;
-    issue_if.phys_rd = issue_entry.phys_rd;
-  end
-
   
-  // Issue queueの空いている領域の検索
-  // Dispatch
-  // return: {free, idx[ISSUE_QUEUE_ADDR_WIDTH-1:0]}
-  function logic [ISSUE_QUEUE_ADDR_WIDTH:0] chose_free(
-    input logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] addr_1, addr_2,
-    input logic                            free_1, free_2
-  );
-    chose_free[ISSUE_QUEUE_ADDR_WIDTH] = free_1 | free_2;
-    chose_free[ISSUE_QUEUE_ADDR_WIDTH-1:0] = free_1 ? addr_1 : addr_2;
-  endfunction
-
-  // verilator lint_off UNUSEDSIGNAL
-  function logic get_free(input logic [ISSUE_QUEUE_ADDR_WIDTH:0] addr);
-    get_free = addr[ISSUE_QUEUE_ADDR_WIDTH];
-  endfunction
-
-  function logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] get_idx(
-    input logic [ISSUE_QUEUE_ADDR_WIDTH:0] addr
-  );
-    get_idx = addr[ISSUE_QUEUE_ADDR_WIDTH-1:0];
-  endfunction
-  // verilator lint_on UNUSEDSIGNAL
-
-  logic [ISSUE_QUEUE_ADDR_WIDTH:0] free_search_tree [ 0 : ISSUE_QUEUE_SIZE - 2 ];
-  logic [ISSUE_QUEUE_ADDR_WIDTH-1:0] free_entry_idx;
-  int free_offset [0:ISSUE_QUEUE_ADDR_WIDTH];
+  // Issue
   always_comb begin
-    for (int _i = 0; _i < half; _i++) begin
-      free_search_tree[_i] = chose_free(
-        ISSUE_QUEUE_ADDR_WIDTH'(_i << 1),
-        ISSUE_QUEUE_ADDR_WIDTH'(_i << 1) + 1,
-        !issue_queue[(_i << 1)].entry_valid, !issue_queue[(_i << 1) + 1].entry_valid
-      );
-    end
-    free_offset[1] = half;
-    for (int _j = 2; _j < ISSUE_QUEUE_ADDR_WIDTH+1; _j++) begin
-      for (int _i = free_offset[_j-1]; _i < free_offset[_j-1] + (ISSUE_QUEUE_SIZE >> _j); _i++) begin
-        free_search_tree[_i] = chose_free(
-          get_idx (free_search_tree[((_i-half) << 1)]),
-          get_idx (free_search_tree[((_i-half) << 1) + 1]),
-          get_free(free_search_tree[((_i-half) << 1)]),
-          get_free(free_search_tree[((_i-half) << 1) + 1])
-        );
+    issue_ready_count = 0;
+    for(int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
+      if (issue_queue[i].entry_valid && issue_queue[i].op1_valid && issue_queue[i].op2_valid) begin
+        issue_ready_count = issue_ready_count + 1;
       end
-      free_offset[_j] = free_offset[_j-1] + (ISSUE_QUEUE_SIZE >> _j);
     end
-    free_entry_idx = get_idx(free_search_tree[ISSUE_QUEUE_SIZE - 2]);
+    
+    // 発行する命令は issue_queue の先頭から探す
+    issue_idx[0] = 0;
+    issue_idx[1] = 0;
+    if (issue_ready_count >= 2) begin
+      for(int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
+        if (issue_queue[i].entry_valid && issue_queue[i].op1_valid && issue_queue[i].op2_valid) begin
+          issue_idx[0] = ISSUE_QUEUE_ADDR_WIDTH'(i);
+          break;
+        end
+      end
+      for(int i = 32'(issue_idx[0]) + 1; i < ISSUE_QUEUE_SIZE; i++) begin
+        if (issue_queue[i].entry_valid && issue_queue[i].op1_valid && issue_queue[i].op2_valid) begin
+          issue_idx[1] = ISSUE_QUEUE_ADDR_WIDTH'(i);
+          break;
+        end
+      end
+    end else if (issue_ready_count == 1) begin
+      for(int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
+        if (issue_queue[i].entry_valid && issue_queue[i].op1_valid && issue_queue[i].op2_valid) begin
+          issue_idx[0] = ISSUE_QUEUE_ADDR_WIDTH'(i);
+          break;
+        end
+      end
+    end
+  end
+  
+  always_ff @(posedge clk) begin
+    if (rst) begin
+    end else begin
+      issue_if.valid[0]     <= issue_queue[issue_idx[0]].entry_valid && issue_ready_count != 0;
+      issue_if.alu_cmd[0]   <= issue_queue[issue_idx[0]].alu_cmd;
+      issue_if.op1[0]       <= issue_queue[issue_idx[0]].op1_data;
+      issue_if.op2_type[0]  <= issue_queue[issue_idx[0]].op2_type;
+      issue_if.op2[0]       <= issue_queue[issue_idx[0]].op2_data;
+      issue_if.phys_rd[0]   <= issue_ready_count >= 1 ? issue_queue[issue_idx[0]].phys_rd : 0;
+      issue_if.bank_addr[0] <= issue_queue[issue_idx[0]].bank_addr;
+      issue_if.rob_addr[0]  <= issue_queue[issue_idx[0]].rob_addr;
+      issue_if.pc[0]        <= issue_queue[issue_idx[0]].pc;
+      issue_if.instr[0]     <= issue_queue[issue_idx[0]].instr;
+
+      issue_if.valid[1]     <= issue_queue[issue_idx[1]].entry_valid & issue_ready_count >= 2;
+      issue_if.alu_cmd[1]   <= issue_queue[issue_idx[1]].alu_cmd;
+      issue_if.op1[1]       <= issue_queue[issue_idx[1]].op1_data;
+      issue_if.op2_type[1]  <= issue_queue[issue_idx[1]].op2_type;
+      issue_if.op2[1]       <= issue_queue[issue_idx[1]].op2_data;
+      issue_if.phys_rd[1]   <= issue_ready_count >= 2 ? issue_queue[issue_idx[1]].phys_rd : 0;
+      issue_if.bank_addr[1] <= issue_queue[issue_idx[1]].bank_addr;
+      issue_if.rob_addr[1]  <= issue_queue[issue_idx[1]].rob_addr;
+      issue_if.pc[1]        <= issue_queue[issue_idx[1]].pc;
+      issue_if.instr[1]     <= issue_queue[issue_idx[1]].instr;
+    end
   end
 
-  assign dispatch_if.full = !get_free(free_search_tree[ISSUE_QUEUE_SIZE - 2]);
+  assign dispatch_if.full = 32'(disp_tail) >= ISSUE_QUEUE_SIZE - DISPATCH_WIDTH;
 
+  // Writeback
   always_ff @(posedge clk) begin
     if (rst) begin
       for (int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
-        issue_queue[i].entry_valid <= 1'b0;
-        tag_counter <= 4'b0;
+        issue_queue[i] <= issue_queue_entry_t'(0);
       end
-      if (DEBUG) $display("[verilog] reset now");
     end else begin
-      // Debug
-      if (DEBUG) $display("din: %0x, v = %x, op1 = %x, op2 = %x, phys_rd = %x", dispatch_if, dispatch_if.en, dispatch_if.op1, dispatch_if.op2, dispatch_if.phys_rd);
-      for (int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
-        if (DEBUG) $write("issue_queue[%0x]: %0x, v = %x, tag = %x alu_cmd = %x, op1_v = %x, op2_v = %x\n", i, issue_queue[i], issue_queue[i].entry_valid, issue_queue[i].tag, issue_queue[i].alu_cmd, issue_queue[i].op1_valid, issue_queue[i].op2_valid);
-      end
-      // Invalidate issued entry
-      if (issue_entry.entry_valid) begin
-        if (DEBUG) $display("[invalidate] issue_queue[%0x]: %0x", addr_search_tree[ISSUE_QUEUE_SIZE - 2], issue_entry);
-        if (DEBUG) $display("[issue] v=%x, tag=%x, alu_cmd=%x, op1_v=%x, op2_v=%x", issue_entry.entry_valid, issue_entry.tag, issue_entry.alu_cmd, issue_entry.op1_valid, issue_entry.op2_valid);
-        issue_queue[addr_search_tree[ISSUE_QUEUE_SIZE - 2]].entry_valid <= 1'b0;
-      end
-      if (DEBUG) $display("");
-
-      // Dispatch
-      if (dispatch_if.en) begin
-        tag_counter <= tag_counter + 4'b1;
-        // 空いている領域を探してそこに書き込む
-        issue_queue[free_entry_idx].entry_valid <= 1'b1;
-        issue_queue[free_entry_idx].tag <= tag_counter;
-        issue_queue[free_entry_idx].alu_cmd <= dispatch_if.alu_cmd;
-        issue_queue[free_entry_idx].op1_data <= dispatch_if.op1;
-        issue_queue[free_entry_idx].op2_data <= dispatch_if.op2;
-        issue_queue[free_entry_idx].op1_valid <= dispatch_if.op1_valid;
-        issue_queue[free_entry_idx].op2_valid <= dispatch_if.op2_valid;
-        issue_queue[free_entry_idx].phys_rd <= dispatch_if.phys_rd;
-      end
-
-      // op1/op2 tag writeback
-      for(int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
-        if (wb_if.valid) begin
-          if (issue_queue[i].entry_valid && !issue_queue[i].op1_valid && issue_queue[i].op1_data[7:0] == wb_if.phys_rd) begin
-            issue_queue[i].op1_valid <= 1'b1;
-            issue_queue[i].op1_data <= wb_if.data;
-          end
-          if (issue_queue[i].entry_valid && !issue_queue[i].op2_valid && issue_queue[i].op2_data[7:0] == wb_if.phys_rd) begin
-            issue_queue[i].op2_valid <= 1'b1;
-            issue_queue[i].op2_data <= wb_if.data;
+      // op1/op2 writeback
+      for(int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
+        for(int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
+          if (wb_if.valid[bank]) begin
+            // 有効なエントリ & op1/op2 がレジスタの場合 & wb_if で指定されたレジスタと一致する場合
+            if (issue_queue[i].entry_valid && !issue_queue[i].op1_valid && issue_queue[i].op1_data[PHYS_REGS_ADDR_WIDTH-1:0] == wb_if.phys_rd[bank]) begin
+              if (issue_ready_count >= 2) begin
+                if (ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[0]) begin
+                  issue_queue[i].op1_valid <= 1'b1;
+                end else if (issue_idx[0] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[1]) begin
+                  issue_queue[i-1].op1_valid <= 1'b1;
+                end else if (issue_idx[1] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < disp_tail) begin
+                  issue_queue[i-2].op1_valid <= 1'b1;
+                end
+              end else if (issue_ready_count == 1) begin
+                if (ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[0]) begin
+                  issue_queue[i].op1_valid <= 1'b1;
+                end else if (issue_idx[1] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < disp_tail) begin
+                  issue_queue[i-1].op1_valid <= 1'b1;
+                end
+              end else begin
+                issue_queue[i].op1_valid <= 1'b1;
+              end
+            end
+            if (issue_queue[i].entry_valid && issue_queue[i].op2_type == common::REG && !issue_queue[i].op2_valid && issue_queue[i].op2_data[PHYS_REGS_ADDR_WIDTH-1:0] == wb_if.phys_rd[bank]) begin
+              if (issue_ready_count >= 2) begin
+                if (ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[0]) begin
+                  issue_queue[i].op2_valid <= 1'b1;
+                end else if (issue_idx[0] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[1]) begin
+                  issue_queue[i-1].op2_valid <= 1'b1;
+                end else if (issue_idx[1] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < disp_tail) begin
+                  issue_queue[i-2].op2_valid <= 1'b1;
+                end
+              end else if (issue_ready_count == 1) begin
+                if (ISSUE_QUEUE_ADDR_WIDTH'(i) < issue_idx[0]) begin
+                  issue_queue[i].op2_valid <= 1'b1;
+                end else if (issue_idx[0] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < disp_tail) begin
+                  issue_queue[i-1].op2_valid <= 1'b1;
+                end
+              end else begin
+                issue_queue[i].op2_valid <= 1'b1;
+              end
+            end
           end
         end
       end

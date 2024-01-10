@@ -18,7 +18,6 @@ struct dispatch_data_t {
 
 struct writeback_data_t {
   uint8_t wb_phys_rd;
-  uint32_t wb_data;
 };
 
 class IssueQueueTester : public ModelTester<Vissue_queue> {
@@ -37,16 +36,19 @@ public:
     this->reset(1);
     this->top->eval();
     this->do_posedge([](Vissue_queue *isq){
-      isq->dispatch_en = 0;
-      isq->dispatch_alu_cmd = 0;
-      isq->dispatch_op1_valid = 0;
-      isq->dispatch_op2_valid = 0;
-      isq->dispatch_op1 = 0;
-      isq->dispatch_op2 = 0;
-      isq->dispatch_phys_rd = 0;
-      isq->wb_valid = 0;
-      isq->wb_phys_rd = 0;
-      isq->wb_data = 0;
+      for (int i = 0; i < 2; i++) {
+        isq->dispatch_en[i] = 0;
+        isq->dispatch_alu_cmd[i] = 0;
+        isq->dispatch_op1_valid[i] = 0;
+        isq->dispatch_op2_valid[i] = 0;
+        isq->dispatch_op1[i] = 0;
+        isq->dispatch_op2[i] = 0;
+        isq->dispatch_phys_rd[i] = 0;
+      }
+      for(auto i = 0; i < 2; i++) {
+        isq->wb_valid[i] = 0;
+        isq->wb_phys_rd[i] = 0;
+      }
     });
 
     this->next_clock();
@@ -55,34 +57,53 @@ public:
   }
 
   
-  void dispatch(dispatch_data_t data) {
-    this->do_posedge([data](Vissue_queue *isq){
-      isq->dispatch_en = 1;
-      isq->dispatch_alu_cmd = data.alu_cmd;
-      isq->dispatch_op1_valid = data.op1_valid;
-      isq->dispatch_op2_valid = data.op2_valid;
-      isq->dispatch_op1 = data.op1;
-      isq->dispatch_op2 = data.op2;
-      isq->dispatch_phys_rd = data.phys_rd;
-      isq->wb_valid = 0;
+  void dispatch(dispatch_data_t data, int bank) {
+    this->do_posedge([&](Vissue_queue *isq){
+      for(auto i = 0; i < 2; i++) {
+        isq->dispatch_en[i] = 0;
+      }
+      isq->dispatch_en[bank] = 1;
+      isq->dispatch_alu_cmd[bank] = data.alu_cmd;
+      isq->dispatch_op1_valid[bank] = data.op1_valid;
+      isq->dispatch_op2_valid[bank] = data.op2_valid;
+      isq->dispatch_op1[bank] = data.op1;
+      isq->dispatch_op2[bank] = data.op2;
+      isq->dispatch_phys_rd[bank] = data.phys_rd;
+      for(auto i = 0; i < 2; i++) {
+        isq->wb_valid[i] = 0;
+      }
     });
   }
 
-  void writeback(writeback_data_t data) {
-    this->do_posedge([data](Vissue_queue *isq){
-      isq->dispatch_en = 0;
-      isq->wb_valid = 1;
-      isq->wb_phys_rd = data.wb_phys_rd;
-      isq->wb_data = data.wb_data;
+  void writeback(writeback_data_t data, size_t port) {
+    this->do_posedge([data, port](Vissue_queue *isq){
+      for(auto i = 0; i < 2; i++) {
+        isq->wb_valid[i] = 0;
+        isq->dispatch_en[i] = 0;
+      }
+      isq->wb_valid[port] = 1;
+      isq->wb_phys_rd[port] = data.wb_phys_rd;
     });
   }
 
-  bool get_issue_data(dispatch_data_t *data) {
-    data->alu_cmd = this->top->issue_alu_cmd;
-    data->op1 = this->top->issue_op1;
-    data->op2 = this->top->issue_op2;
-    data->phys_rd = this->top->issue_phys_rd;
-    return this->top->issue_valid;
+  void dual_writeback(writeback_data_t data1, writeback_data_t data2) {
+    this->do_posedge([data1, data2](Vissue_queue *isq){
+      for(auto i = 0; i < 2; i++) {
+        isq->dispatch_en[i] = 0;
+      }
+      isq->wb_valid[0] = 1;
+      isq->wb_phys_rd[0] = data1.wb_phys_rd;
+      isq->wb_valid[1] = 1;
+      isq->wb_phys_rd[1] = data2.wb_phys_rd;
+    });
+  }
+
+  bool get_issue_data(dispatch_data_t *data, int bank) {
+    data->alu_cmd = this->top->issue_alu_cmd[bank];
+    data->op1 = this->top->issue_op1[bank];
+    data->op2 = this->top->issue_op2[bank];
+    data->phys_rd = this->top->issue_phys_rd[bank];
+    return this->top->issue_valid[bank];
   }
 
   bool check_issue(dispatch_data_t *data, dispatch_data_t *expected) {
@@ -121,76 +142,78 @@ TEST (IssueQueueTest, Basic) {
     dispatch_data_t{0xff, 0x00000006, 0, 0x00000006, 0, 0x1},
   };
 
+  // reg read は isq より後ろのステージなので、 wb された レジスタ番号のみを知らせる
   writeback_data_t writeback_data[] = {
-    writeback_data_t{0x4, 0xdddddddd},
-    writeback_data_t{0x6, 0xffffffff},
-    writeback_data_t{0x2, 0xbbbbbbbb},
-    writeback_data_t{0x5, 0xeeeeeeee},
-    writeback_data_t{0x3, 0xcccccccc},
-    writeback_data_t{0x1, 0xaaaaaaaa}
+    writeback_data_t{0x4},
+    writeback_data_t{0x6},
+    writeback_data_t{0x2},
+    writeback_data_t{0x5},
+    writeback_data_t{0x3},
+    writeback_data_t{0x1}
   };
 
   dispatch_data_t issue_expected[] = {
     dispatch_data_t{0x1d, 0x00000004, 1, 0x00000004, 1, 0x1},
-    dispatch_data_t{0x1f, 0xffffffff, 1, 0xffffffff, 1, 0x1},
-    dispatch_data_t{0x1b, 0x00000002, 1, 0xbbbbbbbb, 1, 0x1},
-    dispatch_data_t{0x0e, 0xeeeeeeee, 1, 0xeeeeeeee, 1, 0x1},
-    dispatch_data_t{0x0c, 0xcccccccc, 1, 0x00000003, 1, 0x1},
-    dispatch_data_t{0x0a, 0xaaaaaaaa, 1, 0xaaaaaaaa, 1, 0x1},
+    dispatch_data_t{0x1b, 0x00000002, 1, 0x00000002, 1, 0x1},
+    dispatch_data_t{0x1f, 0x00000006, 1, 0x00000006, 1, 0x1},
+    dispatch_data_t{0x0e, 0x00000005, 1, 0x00000005, 1, 0x1},
+    dispatch_data_t{0x0c, 0x00000003, 1, 0x00000003, 1, 0x1},
+    dispatch_data_t{0x0a, 0x00000001, 1, 0x00000001, 1, 0x1},
   };
 
   dispatch_data_t buffer = {0, 0, 0, 0, 0, 0};
 
   dut->init();
 
-  dut->dispatch(data[0]);
-  dut->dispatch(data[1]);
-  dut->dispatch(data[2]);
-  dut->dispatch(data[3]);
-  dut->dispatch(data[4]);
+  dut->dispatch(data[0], 0);
+  dut->dispatch(data[1], 0);
+  dut->dispatch(data[2], 0);
+  dut->dispatch(data[3], 0);
+  dut->dispatch(data[4], 0);
+  dut->dispatch(data[5], 0);
 
-  EXPECT_TRUE(dut->get_issue_data(&buffer));
+  EXPECT_TRUE(dut->get_issue_data(&buffer, 0));
   EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[0]));
 
-  dut->dispatch(data[5]);
-
-  dut->writeback(writeback_data[0]);
+  dut->writeback(writeback_data[0], 0);
   dut->do_posedge([] (Vissue_queue *isq) {
-    isq->wb_valid = 0;
+    for(auto i = 0; i < 2; i++) {
+      isq->wb_valid[i] = 0;
+    }
   });
-  EXPECT_FALSE(dut->get_issue_data(&buffer));
+  EXPECT_FALSE(dut->get_issue_data(&buffer, 0));
 
-  dut->writeback(writeback_data[1]);
-  dut->writeback(writeback_data[2]);
+  dut->dual_writeback(writeback_data[1], writeback_data[2]);
 
-  EXPECT_TRUE(dut->get_issue_data(&buffer));
+  dut->writeback(writeback_data[3], 0);
+
+  dut->writeback(writeback_data[4], 1);
+
+  EXPECT_TRUE(dut->get_issue_data(&buffer, 0));
   EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[1]));
-
-  dut->writeback(writeback_data[3]);
-
-  EXPECT_TRUE(dut->get_issue_data(&buffer));
+  EXPECT_TRUE(dut->get_issue_data(&buffer, 1));
   EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[2]));
 
-  dut->writeback(writeback_data[4]);
+  dut->writeback(writeback_data[5], 1);
 
-  EXPECT_TRUE(dut->get_issue_data(&buffer));
+  EXPECT_TRUE(dut->get_issue_data(&buffer, 0));
   EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[3]));
 
-  dut->writeback(writeback_data[5]);
-
-  EXPECT_TRUE(dut->get_issue_data(&buffer));
-  EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[4]));
-
   dut->do_posedge([](Vissue_queue *isq) {
-    isq->wb_valid = 0;
-    isq->dispatch_en = 0;
+    for(auto i = 0; i < 2; i++) {
+      isq->wb_valid[i] = 0;
+      isq->dispatch_en[i] = 0;
+    }
   });
 
-  EXPECT_TRUE(dut->get_issue_data(&buffer));
-  EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[5]));
-
+  EXPECT_TRUE(dut->get_issue_data(&buffer, 0));
+  EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[4]));
 
   dut->next_clock();
-  // EXPECT_TRUE(dut->check_issue(issue_expected[5]));
+
+  EXPECT_TRUE(dut->get_issue_data(&buffer, 0));
+  EXPECT_TRUE(dut->check_issue(&buffer, &issue_expected[5]));
+
+  dut->next_clock();
   dut->next_clock();
 }

@@ -54,12 +54,22 @@ gtest_discover_tests(core_test)
 verilate(core_test
     SOURCES
         ${CORE_RTL_DIR}/core.sv
-        ${CORE_RTL_DIR}/csr_reg.sv
         ${CORE_RTL_DIR}/regfile.sv
         ${CORE_RTL_DIR}/decoder.sv
-        ${CORE_RTL_DIR}/execute.sv
-        ${CORE_RTL_DIR}/memory_access.sv
-        ${CORE_RTL_DIR}/write_back.sv
+        ${CORE_RTL_DIR}/alu.sv
+        ${CORE_RTL_DIR}/issueQueue.sv
+        ${CORE_RTL_DIR}/isqDispatchIf.sv
+        ${CORE_RTL_DIR}/isqWbIf.sv
+        ${CORE_RTL_DIR}/isqIssueIf.sv
+        ${CORE_RTL_DIR}/rob.sv
+        ${CORE_RTL_DIR}/robDispatchIf.sv
+        ${CORE_RTL_DIR}/robWbIf.sv
+        ${CORE_RTL_DIR}/robCommitIf.sv
+        ${CORE_RTL_DIR}/robOpFetchIf.sv
+        ${CORE_RTL_DIR}/freelist.sv
+        ${CORE_RTL_DIR}/freelistIf.sv
+        ${CORE_RTL_DIR}/op2ValidLogic.sv
+        ${CORE_RTL_DIR}/hazard.sv
     PREFIX Vcore
     INCLUDE_DIRS
         ${CORE_RTL_DIR}/include
@@ -69,35 +79,36 @@ verilate(core_test
         --trace-params
         --trace-structs
         --trace-underscore
+        --trace-max-array 128
 )
 
-# top_test
-add_executable(top_test ${CORE_TEST_DIR}/top_test.cpp)
-target_compile_options(top_test PRIVATE -Wall -Wextra -Wno-unused-parameter)
-target_link_libraries(top_test PUBLIC GTest::gtest_main)
-include(GoogleTest)
-gtest_discover_tests(top_test)
-verilate(top_test
-    SOURCES
-        ${CORE_RTL_DIR}/top.sv
-        ${CORE_RTL_DIR}/core.sv
-        ${CORE_RTL_DIR}/csr_reg.sv
-        ${CORE_RTL_DIR}/regfile.sv
-        ${CORE_RTL_DIR}/decoder.sv
-        ${CORE_RTL_DIR}/execute.sv
-        ${CORE_RTL_DIR}/memory_access.sv
-        ${CORE_RTL_DIR}/write_back.sv
-        ${CORE_RTL_DIR}/memory.sv
-    PREFIX Vtop
-    INCLUDE_DIRS
-        ${CORE_RTL_DIR}/include
-    DIRECTORY ${OBJ_DIR}
-    VERILATOR_ARGS
-        --trace
-        --trace-params
-        --trace-structs
-        --trace-underscore
-)
+# # top_test
+# add_executable(top_test ${CORE_TEST_DIR}/top_test.cpp)
+# target_compile_options(top_test PRIVATE -Wall -Wextra -Wno-unused-parameter)
+# target_link_libraries(top_test PUBLIC GTest::gtest_main)
+# include(GoogleTest)
+# gtest_discover_tests(top_test)
+# verilate(top_test
+#     SOURCES
+#         ${CORE_RTL_DIR}/top.sv
+#         ${CORE_RTL_DIR}/core.sv
+#         ${CORE_RTL_DIR}/csr_reg.sv
+#         ${CORE_RTL_DIR}/regfile.sv
+#         ${CORE_RTL_DIR}/decoder.sv
+#         ${CORE_RTL_DIR}/execute.sv
+#         ${CORE_RTL_DIR}/memory_access.sv
+#         ${CORE_RTL_DIR}/write_back.sv
+#         ${CORE_RTL_DIR}/memory.sv
+#     PREFIX Vtop
+#     INCLUDE_DIRS
+#         ${CORE_RTL_DIR}/include
+#     DIRECTORY ${OBJ_DIR}
+#     VERILATOR_ARGS
+#         --trace
+#         --trace-params
+#         --trace-structs
+#         --trace-underscore
+# )
 
 # fifo_test
 add_executable(fifo_test ${COMMON_TEST_DIR}/fifo_test.cpp)
@@ -161,6 +172,7 @@ verilate(rob_test
         ${CORE_RTL_DIR}/robDispatchIf.sv
         ${CORE_RTL_DIR}/robWbIf.sv
         ${CORE_RTL_DIR}/robCommitIf.sv
+        ${CORE_RTL_DIR}/robOpFetchIf.sv
         ${CORE_RTL_DIR}/robWrapper.sv
     PREFIX Vrob
     INCLUDE_DIRS

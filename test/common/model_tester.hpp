@@ -73,6 +73,14 @@ public:
     func(top);
   }
   
+  // posedge と同等のことを再現するには…
+  // 1. 今の値で演算してまだ代入しない
+  // 2. clk を 0 -> 1 にする
+  // 3. eval() 呼ぶ
+  // 4. 1.で計算した内容を代入する
+  // 5. dump() 呼ぶ
+  // 6. clk を 1 -> 0 にする
+  // 6. eval_dump() 呼ぶ
   virtual void do_posedge(std::function<void(V*)> func) {
     // クロックの立ち上げ
     this->clock(1);
@@ -85,6 +93,7 @@ public:
     this->clock(0);
     this->eval_dump();
   }
+
 };
 
 #endif // guard

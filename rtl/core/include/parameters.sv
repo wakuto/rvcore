@@ -11,7 +11,7 @@ package parameters;
   // verilator lint_off UNUSEDPARAM
   parameter integer ROB_ADDR_WIDTH = $clog2(ROB_SIZE);
   // verilator lint_on UNUSEDPARAM
-  parameter integer PHYS_REGS = 128;
+  parameter integer PHYS_REGS = 64;
   parameter integer PHYS_REGS_ADDR_WIDTH = $clog2(PHYS_REGS);
 endpackage
 

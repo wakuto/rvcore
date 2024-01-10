@@ -9,7 +9,7 @@ interface freelistIf;
   logic [DISPATCH_WIDTH-1:0]       push_en;
   logic [PHYS_REGS_ADDR_WIDTH-1:0] pop_reg  [0:DISPATCH_WIDTH-1];
   logic [DISPATCH_WIDTH-1:0]       pop_en;
-  logic [PHYS_REGS_ADDR_WIDTH:0]    num_free;
+  logic [PHYS_REGS_ADDR_WIDTH:0]   num_free;
 
   modport push(
     output push_reg,

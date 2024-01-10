@@ -39,51 +39,40 @@ class FreelistTester : public ModelTester<Vfreelist> {
 };
 
 TEST (FreelistTest, Pop) {
-  auto dut = std::make_unique<FreelistTester>("freelist_test.vcd");
+  auto dut = std::make_unique<FreelistTester>("pop_test.vcd");
   auto inflight = std::vector<uint32_t>();
-  auto count = 0;
+  auto count = 1;
   dut->init();
+  
+  for(auto i = 0; i < 2; i++) {
+    dut->do_posedge([](Vfreelist *freelist){
+      freelist->pop_en = 0;
+    });
+  }
 
   // pop 10 times from bank 0
-  dut->do_posedge([](Vfreelist *freelist){
-    freelist->pop_en = 1;
-  });
-  for(auto i = 1; i < 10; i++) {
-    dut->do_posedge([&inflight](Vfreelist *freelist){
-      inflight.push_back(freelist->pop_reg[0]);
+  for(auto i = 0; i < 10; i++) {
+    dut->do_posedge([](Vfreelist *freelist){
       freelist->pop_en = 1;
     });
-    EXPECT_EQ(inflight.back(), count++);
+    EXPECT_EQ(dut->top->pop_reg[0], count++);
   }
 
   // pop 10 items from bank 1
-  dut->do_posedge([&inflight](Vfreelist *freelist){
-    inflight.push_back(freelist->pop_reg[0]);
-    freelist->pop_en = 2;
-  });
-  EXPECT_EQ(inflight.back(), count++);
-  for(auto i = 1; i < 10; i++) {
-    dut->do_posedge([&inflight](Vfreelist *freelist){
-      inflight.push_back(freelist->pop_reg[1]);
+  for(auto i = 0; i < 10; i++) {
+    dut->do_posedge([](Vfreelist *freelist){
       freelist->pop_en = 2;
     });
-    EXPECT_EQ(inflight.back(), count++);
+    EXPECT_EQ(dut->top->pop_reg[1], count++);
   }
 
   // pop 10 items from bank 0, 1
-  dut->do_posedge([&inflight](Vfreelist *freelist){
-    inflight.push_back(freelist->pop_reg[1]);
-    freelist->pop_en = 3;
-  });
-  EXPECT_EQ(inflight.back(), count++);
-  for(auto i = 1; i < 10; i++) {
-    dut->do_posedge([&inflight](Vfreelist *freelist){
-      inflight.push_back(freelist->pop_reg[0]);
-      inflight.push_back(freelist->pop_reg[1]);
+  for(auto i = 0; i < 10; i++) {
+    dut->do_posedge([](Vfreelist *freelist){
       freelist->pop_en = 3;
     });
-    EXPECT_EQ(inflight.rbegin()[1], count++);
-    EXPECT_EQ(inflight.rbegin()[0], count++);
+    EXPECT_EQ(dut->top->pop_reg[0], count++);
+    EXPECT_EQ(dut->top->pop_reg[1], count++);
   }
 
   dut->do_posedge([&inflight](Vfreelist *freelist){
@@ -96,7 +85,7 @@ TEST (FreelistTest, Pop) {
 }
 
 TEST (FreelistTest, Push) {
-  auto dut = std::make_unique<FreelistTester>("freelist_test.vcd");
+  auto dut = std::make_unique<FreelistTester>("push_test.vcd");
   auto inflight = std::vector<uint32_t>();
   auto pushed_value = std::vector<uint32_t>();
   dut->init();
@@ -186,7 +175,7 @@ TEST (FreelistTest, Push) {
 }
 
 TEST (FreelistTest, NumFree) {
-  auto dut = std::make_unique<FreelistTester>("freelist_test.vcd");
+  auto dut = std::make_unique<FreelistTester>("num_free_test.vcd");
   auto count = 0;
   dut->init();
 

@@ -2,7 +2,7 @@
 `include "riscv_instr.sv"
 `include "common.sv"
 
-module execute (
+module alu (
     input wire logic [31:0] op1,
     input wire logic [31:0] op2,
     input wire logic [4:0] alu_ops,
