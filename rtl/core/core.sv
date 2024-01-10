@@ -421,7 +421,9 @@ module core (
       end
     end else begin
       if (!stall_issue) begin
-        valid_issue     <= valid_disp;
+        for(int i = 0; i < DISPATCH_WIDTH; i++) begin
+          valid_issue[i] <= valid_disp[i] & !stall_disp;
+        end
         alu_cmd_issue   <= alu_cmd_disp;
         rs1_issue       <= rs1_disp;
         rs1_valid_issue[0] <= phys_rs1_valid_disp[0];

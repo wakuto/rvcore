@@ -1,29 +1,64 @@
 [*]
 [*] GTKWave Analyzer v3.3.117 (w)1999-2023 BSI
-[*] Sun Dec 17 16:32:36 2023
+[*] Wed Jan 10 06:00:37 2024
 [*]
-[dumpfile] "/home/wakuto/src/circuit/rvcore/build/core_test_vcd/sample_program.vcd"
-[dumpfile_mtime] "Sun Dec 17 16:26:53 2023"
-[dumpfile_size] 502285
-[savefile] "/home/wakuto/src/circuit/rvcore/ooo_core.gtkw"
-[timestart] 1835102823
-[size] 2560 1393
+[dumpfile] "/home/wakuto/src/hobby/low_layer/rvcore/sample_src/core_test_vcd/sample_program.vcd"
+[dumpfile_mtime] "Wed Jan 10 05:58:47 2024"
+[dumpfile_size] 859495
+[savefile] "/home/wakuto/src/hobby/low_layer/rvcore/ooo_core.gtkw"
+[timestart] 127
+[size] 1920 1008
 [pos] -1 -1
-*-2.400000 1835102835 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-2.400000 66 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] TOP.
 [treeopen] TOP.core.
+[treeopen] TOP.core.issue_queue.
 [treeopen] TOP.core.issue_queue.unnamedblk10.
 [sst_width] 273
 [signals_width] 251
 [sst_expanded] 1
-[sst_vpaned_height] 440
+[sst_vpaned_height] 307
 @28
 TOP.clk
 TOP.rst
+@200
+-
+@24
+TOP.core.clock_counter[63:0]
+TOP.core.instr_counter[63:0]
+@200
+-
+@28
+TOP.core.hazard.stall_if
+TOP.core.hazard.stall_rn
+TOP.core.hazard.stall_disp
+TOP.core.hazard.stall_issue
+@200
+-
+@28
+TOP.core.hazard.freelist_empty
+TOP.core.hazard.rob_full
+TOP.core.hazard.issue_queue_full
+@200
+-
 @22
 TOP.core.pc[31:0]
-TOP.core.instruction[0][31:0]
-TOP.core.instruction[1][31:0]
+TOP.core.pc_id[0][31:0]
+TOP.core.pc_id[1][31:0]
+TOP.core.pc_rn[0][31:0]
+TOP.core.pc_rn[1][31:0]
+TOP.core.pc_disp[0][31:0]
+TOP.core.pc_disp[1][31:0]
+TOP.core.pc_issue[0][31:0]
+TOP.core.pc_issue[1][31:0]
+TOP.core.pc_rread[0][31:0]
+TOP.core.pc_rread[1][31:0]
+TOP.core.pc_ex[0][31:0]
+TOP.core.pc_ex[1][31:0]
+TOP.core.pc_wb[0][31:0]
+TOP.core.pc_wb[1][31:0]
+TOP.core.pc_commit[0][31:0]
+TOP.core.pc_commit[1][31:0]
 @200
 -
 -freelist
@@ -38,13 +73,11 @@ TOP.core.freelist_if_rn.pop_reg[1][5:0]
 @200
 -
 -commit_map_table
-@22
+@24
 TOP.core.commit_map_table.regfile[0][5:0]
 TOP.core.commit_map_table.regfile[1][5:0]
 TOP.core.commit_map_table.regfile[2][5:0]
-@23
 TOP.core.commit_map_table.regfile[3][5:0]
-@22
 TOP.core.commit_map_table.regfile[4][5:0]
 TOP.core.commit_map_table.regfile[5][5:0]
 TOP.core.commit_map_table.regfile[6][5:0]
@@ -108,9 +141,12 @@ TOP.core.issue_if_issue.valid[0]
 @22
 TOP.core.issue_if_issue.phys_rd[0][5:0]
 @28
+TOP.core.issue_queue.issue_if.bank_addr[0][0]
 TOP.core.issue_if_issue.valid[1]
 @22
 TOP.core.issue_if_issue.phys_rd[1][5:0]
+@28
+TOP.core.issue_queue.issue_if.bank_addr[1][0]
 @200
 -
 -alu0
@@ -121,6 +157,8 @@ TOP.core.genblk2[0].alu.op1[31:0]
 TOP.core.genblk2[0].alu.op2[31:0]
 TOP.core.genblk2[0].alu.alu_out[31:0]
 TOP.core.phys_rd_ex[0][5:0]
+@28
+TOP.core.bank_addr_ex[0][0]
 @200
 -
 -alu1
@@ -131,6 +169,8 @@ TOP.core.genblk2[1].alu.op1[31:0]
 TOP.core.genblk2[1].alu.op2[31:0]
 TOP.core.genblk2[1].alu.alu_out[31:0]
 TOP.core.phys_rd_ex[1][5:0]
+@28
+TOP.core.bank_addr_ex[1][0]
 @200
 -
 -wb
@@ -255,6 +295,8 @@ TOP.core.issue_queue.wb_if.phys_rd[0][5:0]
 #{TOP.core.issue_queue.dispatch_if.en[0:1]} TOP.core.issue_queue.dispatch_if.en[0] TOP.core.issue_queue.dispatch_if.en[1]
 @200
 -
+@24
+TOP.core.issue_queue.dispatch_enable_count[1:0]
 @22
 TOP.core.issue_queue.issue_ready_count[5:0]
 @200
@@ -272,6 +314,10 @@ TOP.core.issue_queue.issue_queue[0].op2_valid
 TOP.core.issue_queue.issue_queue[0].op2_type
 @22
 TOP.core.issue_queue.issue_queue[0].op2_data[31:0]
+@28
+TOP.core.issue_queue.issue_queue[0].bank_addr[0]
+@22
+TOP.core.issue_queue.issue_queue[1].rob_addr[3:0]
 @200
 -
 @28
@@ -287,6 +333,10 @@ TOP.core.issue_queue.issue_queue[1].op2_valid
 TOP.core.issue_queue.issue_queue[1].op2_type
 @22
 TOP.core.issue_queue.issue_queue[1].op2_data[31:0]
+@28
+TOP.core.issue_queue.issue_queue[1].bank_addr[0]
+@22
+TOP.core.issue_queue.issue_queue[1].rob_addr[3:0]
 @200
 -
 @28
@@ -321,7 +371,7 @@ TOP.core.issue_queue.issue_queue[3].op2_data[31:0]
 -
 @28
 TOP.core.issue_queue.issue_queue[4].entry_valid
-@24
+@25
 TOP.core.issue_queue.issue_queue[4].phys_rd[5:0]
 @28
 TOP.core.issue_queue.issue_queue[4].op1_valid
@@ -366,7 +416,7 @@ TOP.core.issue_queue.issue_queue[6].op2_data[31:0]
 -
 @28
 TOP.core.issue_queue.issue_queue[7].entry_valid
-@22
+@24
 TOP.core.issue_queue.issue_queue[7].phys_rd[5:0]
 @28
 TOP.core.issue_queue.issue_queue[7].op1_valid

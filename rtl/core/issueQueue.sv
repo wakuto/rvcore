@@ -100,7 +100,7 @@ module issueQueue #(
       disp_tail <= disp_tail_next;
       // issue_queue の末尾にディスパッチ
       // TODO: function とか使って簡略化したい
-      if (dispatch_enable_count == 2) begin
+      if (dispatch_enable_count == 2 && !dispatch_if.full) begin
         issue_queue[disp_tail_next - 2].entry_valid <= dispatch_if.en[0];
         issue_queue[disp_tail_next - 2].alu_cmd     <= dispatch_if.alu_cmd[0];
         issue_queue[disp_tail_next - 2].op1_data    <= dispatch_if.op1[0];
@@ -126,7 +126,7 @@ module issueQueue #(
         issue_queue[disp_tail_next - 1].rob_addr    <= dispatch_if.rob_addr[1];
         issue_queue[disp_tail_next - 1].pc          <= dispatch_if.pc[1];
         issue_queue[disp_tail_next - 1].instr       <= dispatch_if.instr[1];
-      end else if(dispatch_enable_count == 1) begin
+      end else if(dispatch_enable_count == 1 && !dispatch_if.full) begin
         issue_queue[disp_tail_next - 1].entry_valid <= dispatch_if.en[0];
         issue_queue[disp_tail_next - 1].alu_cmd     <= dispatch_if.alu_cmd[0];
         issue_queue[disp_tail_next - 1].op1_data    <= dispatch_if.op1[0];
