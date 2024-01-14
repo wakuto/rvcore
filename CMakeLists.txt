@@ -212,3 +212,26 @@ verilate(freelist_test
         -Wwarn-lint
         -Wwarn-style
 )
+
+# branch_predictor_test
+add_executable(branch_predictor_test ${CORE_TEST_DIR}/branch_predictor_test.cpp)
+target_compile_options(branch_predictor_test PRIVATE -Wall -Wextra -Wno-unused-parameter)
+target_link_libraries(branch_predictor_test PUBLIC GTest::gtest_main)
+include(GoogleTest)
+gtest_discover_tests(branch_predictor_test)
+verilate(branch_predictor_test
+    SOURCES
+        ${CORE_RTL_DIR}/branchPredictor.sv
+    PREFIX VbranchPredictor
+    INCLUDE_DIRS
+        ${CORE_RTL_DIR}/include
+    DIRECTORY ${OBJ_DIR}
+    VERILATOR_ARGS
+        --trace
+        --trace-params
+        --trace-structs
+        --trace-underscore
+        -Wall
+        -Wno-UNUSEDPARAM
+        -Wno-DECLFILENAME
+)
