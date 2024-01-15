@@ -165,10 +165,20 @@ module branchPredictor (
     endcase
       
     // next_pc_generator
-    if (taken) begin
-      next_pc = target;
+    if (!is_speculative) begin
+      if (taken) begin
+        next_pc = target;
+      end else begin
+        if (instr_type[0] == B_TYPE && instr_type[1] == B_TYPE) begin
+          next_pc = pc[1];
+        end else begin
+          next_pc = pc[1] + 4;
+        end
+      end
     end else begin
-      if (instr_type[0] == B_TYPE && instr_type[1] == B_TYPE) begin
+      if (is_branch_instr[0]) begin
+        next_pc = pc[0];
+      end else if (is_branch_instr[1]) begin
         next_pc = pc[1];
       end else begin
         next_pc = pc[1] + 4;
@@ -176,10 +186,16 @@ module branchPredictor (
     end
     
     // 分岐命令によって無効化されないか
-    instr_valid[0] = 1 & fetch_valid;
-    instr_valid[1] = !(
-      (instr_type[0] == B_TYPE && ((instr_type[1] == B_TYPE) || taken))
-    );
+    // また、 is_speculative == 1 ならば、新たな分岐命令を受け付けない
+    if (!is_speculative) begin
+      instr_valid[0] = 1 & fetch_valid;
+      instr_valid[1] = !(
+        (instr_type[0] == B_TYPE && ((instr_type[1] == B_TYPE) || taken))
+      );
+    end else begin
+      instr_valid[0] = 1 & fetch_valid & !is_branch_instr[0];
+      instr_valid[1] = 1 & fetch_valid & !is_branch_instr[1];
+    end
   end
 endmodule
 `default_nettype wire
