@@ -10,6 +10,7 @@ module robWrapper(
   output logic [DISPATCH_ADDR_WIDTH-1: 0]  dispatch_bank_addr  [0:DISPATCH_WIDTH-1],
   output logic [ROB_ADDR_WIDTH-1: 0]       dispatch_rob_addr   [0:DISPATCH_WIDTH-1],
   output logic                             dispatch_full,
+  input  logic                             dispatch_is_branch_instr [0:DISPATCH_WIDTH-1],
   input  logic [31:0]                      dispatch_pc         [0:DISPATCH_WIDTH-1],
   input  logic [31:0]                      dispatch_instr      [0:DISPATCH_WIDTH-1],
 
@@ -18,6 +19,8 @@ module robWrapper(
   input  wire  [ROB_ADDR_WIDTH-1: 0]       writeback_rob_addr  [0:DISPATCH_WIDTH-1],
   input  wire                              writeback_en        [0:DISPATCH_WIDTH-1],
   input  wire  [PHYS_REGS_ADDR_WIDTH-1: 0] writeback_phys_rd   [0:DISPATCH_WIDTH-1],
+  input  wire                              writeback_is_branch_instr [0:DISPATCH_WIDTH-1],
+  input  wire                              writeback_branch_correct  [0:DISPATCH_WIDTH-1],
 
   // commit port
   output logic [PHYS_REGS_ADDR_WIDTH-1: 0] commit_phys_rd      [0:DISPATCH_WIDTH-1],
@@ -51,6 +54,7 @@ module robWrapper(
     dispatch_bank_addr = dispatch_if.bank_addr;
     dispatch_rob_addr =  dispatch_if.rob_addr;
     dispatch_full = dispatch_if.full;
+    dispatch_if.is_branch_instr = dispatch_is_branch_instr;
     dispatch_if.pc = dispatch_pc;
     dispatch_if.instr = dispatch_instr;
 
@@ -59,6 +63,8 @@ module robWrapper(
     wb_if.rob_addr = writeback_rob_addr;
     wb_if.en = writeback_en;
     wb_if.phys_rd = writeback_phys_rd;
+    wb_if.is_branch_instr = writeback_is_branch_instr;
+    wb_if.branch_correct = writeback_branch_correct;
 
     // commit
     commit_phys_rd = commit_if.phys_rd;

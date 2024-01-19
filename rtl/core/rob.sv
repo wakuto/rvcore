@@ -22,9 +22,13 @@ module rob #(
 );
   import parameters::*;
   rob_entry_t rob_entry [0:ROB_SIZE-1][0:DISPATCH_WIDTH-1];
-  logic [ROB_ADDR_WIDTH-1:0] head; // 次にdispatchするアドレス
+  logic [ROB_ADDR_WIDTH-1:0] dispatch_addr; // 実際にdispatchするアドレス(投機実行を考慮)
+  logic [ROB_ADDR_WIDTH-1:0] head; // dispatchする予定のアドレス
   logic [ROB_ADDR_WIDTH-1:0] tail; // 次にcommitするアドレス
   logic [ROB_ADDR_WIDTH-1:0] num_entry; // 現在のエントリ数
+  logic [ROB_ADDR_WIDTH-1:0] br_instr_ptr; // 分岐命令が格納されているアドレス
+  logic                      is_speculative; // 投機実行中かどうか
+  logic [ROB_ADDR_WIDTH-1:0] num_speculative; // 投機実行中のエントリ数
 
   // dispatch_width個のバンク*rob_size個の中からrs1 == arch_rdとなるエントリを探す
   // rs2 についても同様
@@ -119,11 +123,20 @@ module rob #(
   // DISPATCH_WIDTH 命令ずつdispatchする
   // ---------------------------------
   // 少なくとも１つのバンクにdispatchされるか
-  logic dispatch_en;
+  logic dispatch_en, dispatch_is_branch_instr;
+  logic wb_en, wb_is_branch_instr, wb_branch_correct;
   always_comb begin
     dispatch_en = 0;
+    dispatch_is_branch_instr = 0;
+    wb_en = 0;
+    wb_is_branch_instr = 0;
+    wb_branch_correct = 0;
     for (int w = 0; w < DISPATCH_WIDTH; w++) begin
       dispatch_en |= dispatch_if.en[w];
+      dispatch_is_branch_instr |= dispatch_if.is_branch_instr[w];
+      wb_en |= wb_if.en[w];
+      wb_is_branch_instr |= wb_if.is_branch_instr[w];
+      wb_branch_correct |= wb_if.branch_correct[w];
     end
 
     // TODO: 条件があっているかの確認
@@ -137,19 +150,35 @@ module rob #(
   // いずれかのバンクにdispatchされたら head を進める
   always_ff @(posedge clk) begin
     if (dispatch_en) begin
-      head <= head + 1;
+      // 予測失敗
+      if (wb_en && wb_is_branch_instr && !wb_branch_correct) begin
+        head <= br_instr_ptr + 2;
+      end else begin
+        head <= head + 1;
+      end
+      if (dispatch_is_branch_instr) begin
+        is_speculative <= 1;
+        br_instr_ptr <= head;
+      end
     end
   end
 
+  always_comb begin
+    if (wb_en && wb_is_branch_instr && !wb_branch_correct) begin
+      dispatch_addr = br_instr_ptr + 1;
+    end else begin
+      dispatch_addr = head;
+    end
+  end
   always_ff @(posedge clk) begin
     for (int w = 0; w < DISPATCH_WIDTH; w++) begin
       if (dispatch_if.en[w]) begin
-        rob_entry[head][w].entry_valid <= 1;
-        rob_entry[head][w].phys_rd     <= dispatch_if.phys_rd[w];
-        rob_entry[head][w].arch_rd     <= dispatch_if.arch_rd[w];
-        rob_entry[head][w].commit_ready<= 0;
-        rob_entry[head][w].pc          <= dispatch_if.pc[w];
-        rob_entry[head][w].instr       <= dispatch_if.instr[w];
+        rob_entry[dispatch_addr][w].entry_valid <= 1;
+        rob_entry[dispatch_addr][w].phys_rd     <= dispatch_if.phys_rd[w];
+        rob_entry[dispatch_addr][w].arch_rd     <= dispatch_if.arch_rd[w];
+        rob_entry[dispatch_addr][w].commit_ready<= 0;
+        rob_entry[dispatch_addr][w].pc          <= dispatch_if.pc[w];
+        rob_entry[dispatch_addr][w].instr       <= dispatch_if.instr[w];
       end
     end
   end
@@ -164,6 +193,9 @@ module rob #(
       if (wb_if.en[w]) begin
         rob_entry[wb_if.rob_addr[w]][wb_if.bank_addr[w]].commit_ready <= 1;
       end
+    end
+    if (wb_en && wb_is_branch_instr) begin
+      is_speculative <= 0;
     end
   end
 
@@ -209,10 +241,32 @@ module rob #(
 
   // num_entry logic
   always_ff @(posedge clk) begin
-    if (!tail_commit_ready && dispatch_en) begin
-      num_entry <= num_entry + 1;
-    end else if (tail_commit_ready && !dispatch_en) begin
-      num_entry <= num_entry - 1;
+    // 分岐予測失敗が発覚した場合
+    if (is_speculative && wb_en && wb_is_branch_instr && !wb_branch_correct) begin
+      if (!tail_commit_ready && dispatch_en) begin
+        num_entry <= num_entry + 1 - num_speculative;
+      end else if (tail_commit_ready && !dispatch_en) begin
+        num_entry <= num_entry - 1 - num_speculative;
+      end else begin
+        num_entry <= num_entry - num_speculative;
+      end
+    end
+    // それ以外
+    else begin
+      if (!tail_commit_ready && dispatch_en) begin
+        num_entry <= num_entry + 1;
+      end else if (tail_commit_ready && !dispatch_en) begin
+        num_entry <= num_entry - 1;
+      end
+    end
+
+    // 投機実行中のエントリ数をカウント
+    if (is_speculative) begin
+      if (wb_en && wb_is_branch_instr) begin
+        num_speculative <= 0;
+      end else if (dispatch_en) begin
+        num_speculative <= num_speculative + 1;
+      end
     end
   end
 

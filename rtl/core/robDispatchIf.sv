@@ -11,6 +11,7 @@ interface robDispatchIf;
   logic [DISPATCH_ADDR_WIDTH-1: 0]  bank_addr [0:DISPATCH_WIDTH-1];
   logic [ROB_ADDR_WIDTH-1: 0]       rob_addr  [0:DISPATCH_WIDTH-1];
   logic                             full;
+  logic                             is_branch_instr [0:DISPATCH_WIDTH-1];
   logic [31:0]                      pc        [0:DISPATCH_WIDTH-1];
   logic [31:0]                      instr     [0:DISPATCH_WIDTH-1];
 
@@ -21,6 +22,7 @@ interface robDispatchIf;
     input  bank_addr,
     input  rob_addr,
     input  full,
+    output is_branch_instr,
     output pc,
     output instr
   );
@@ -32,6 +34,7 @@ interface robDispatchIf;
     output bank_addr,
     output rob_addr,
     output full,
+    input  is_branch_instr,
     input  pc,
     input  instr
   );
