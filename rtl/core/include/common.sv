@@ -3,6 +3,12 @@
 `define COMMON_H
 
 package common;
+  typedef enum logic [1:0] {
+    PC_JMP,     // jal
+    COND_BR,    // beq, bne, b**
+    REG_JMP,    // jalr
+    NOT_BRANCH  // not a branch instruction
+  } branch_type_t;
   typedef struct packed {
     logic [6:0] opcode;
     logic [4:0] rd, rs1, rs2, shamt;
@@ -45,7 +51,7 @@ package common;
     B_TYPE,
     U_TYPE,
     J_TYPE
-  } instr_type;
+  } instr_type_t;
   typedef enum logic [3:0] {
     LB,
     LH,

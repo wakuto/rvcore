@@ -4,24 +4,25 @@
 `include "riscv_instr.sv"
 
 module branchPredictor (
-  input  wire         clk,
-  input  wire         rst,
+  input  wire          clk,
+  input  wire          rst,
 
-  input  wire  [31:0] pc                  [DISPATCH_WIDTH-1:0],
-  input  wire  [31:0] instr               [DISPATCH_WIDTH-1:0],
-  input  wire         fetch_valid,                               // cache から命令を取得できたか
-  output logic        instr_valid         [DISPATCH_WIDTH-1:0],  // 分岐命令によって無効化されないか
-  output logic        is_branch_instr     [DISPATCH_WIDTH-1:0],  // 分岐命令か？
+  input  wire  [31:0]  pc                  [0:DISPATCH_WIDTH-1],
+  input  wire  [31:0]  instr               [0:DISPATCH_WIDTH-1],
+  input  wire          fetch_valid         [0:DISPATCH_WIDTH-1],  // cache から命令を取得できたか
+  output logic         instr_valid         [0:DISPATCH_WIDTH-1],  // 分岐命令によって無効化されないか
+  output common::branch_type_t branch_type [0:DISPATCH_WIDTH-1],  // 分岐命令の種類
 
-  output logic [31:0] next_pc,
-  output logic        is_speculative,
+  output logic [31:0]  next_pc,
+  output logic         is_speculative,
   
-  input  wire         branch_result_valid,
-  input  wire         branch_correct
+  input  wire          branch_result_valid,
+  input  wire          branch_correct
 );
 
   import parameters::*;
   import riscv_instr::*;
+  import common::*;
   
   typedef enum logic [1:0] {
     STRONG_NOT_TAKEN,
@@ -30,26 +31,19 @@ module branchPredictor (
     STRONG_TAKEN
   } branch_state_t;
   
-  typedef enum logic [1:0] {
-    I_TYPE,
-    B_TYPE,
-    J_TYPE,
-    NOT_BRANCH
-  } instr_type_t;
-  
   branch_state_t branch_state;
 
-  instr_type_t instr_type           [DISPATCH_WIDTH-1:0];
-  instr_type_t valid_instr_type;
-  logic [31:0] pred_branch_target_i [DISPATCH_WIDTH-1:0];
-  logic [31:0] pred_branch_target_b [DISPATCH_WIDTH-1:0];
-  // logic [31:0] pred_branch_target_j [DISPATCH_WIDTH-1:0];
+  common::branch_type_t instr_type          [0:DISPATCH_WIDTH-1];
+  common::branch_type_t valid_instr_type;
+  logic [31:0] pred_branch_target_i [0:DISPATCH_WIDTH-1];
+  logic [31:0] pred_branch_target_b [0:DISPATCH_WIDTH-1];
+  // logic [31:0] pred_branch_target_j [0:DISPATCH_WIDTH-1];
   logic [31:0] valid_pred_branch_target_i;
   logic [31:0] valid_pred_branch_target_b;
   // logic [31:0] valid_pred_branch_target_j;
-  logic [31:0] imm_b                [DISPATCH_WIDTH-1:0];
-  logic [31:0] imm_i                [DISPATCH_WIDTH-1:0];
-  // logic [31:0] imm_j                [DISPATCH_WIDTH-1:0];
+  logic [31:0] imm_b                [0:DISPATCH_WIDTH-1];
+  logic [31:0] imm_i                [0:DISPATCH_WIDTH-1];
+  // logic [31:0] imm_j                [0:DISPATCH_WIDTH-1];
   
   logic        taken;
   logic [31:0] target;
@@ -63,7 +57,7 @@ module branchPredictor (
       // 分岐命令が実行されるのは、!is_speculative & is_branch_instr の場合
       if (branch_result_valid) begin
         is_speculative <= 0;
-      end else if (is_branch_instr[0] | is_branch_instr[1]) begin
+      end else if ((fetch_valid[0] && branch_type[0] == COND_BR) || (fetch_valid[1] && branch_type[1] == COND_BR)) begin
         is_speculative <= 1;
       end
 
@@ -118,15 +112,15 @@ module branchPredictor (
     for(int i = 0; i < DISPATCH_WIDTH; i++) begin
       casez(instr[i])
         // b-type jump
-        BEQ, BGE, BGEU, BLT, BLTU, BNE: instr_type[i] = B_TYPE;
+        BEQ, BGE, BGEU, BLT, BLTU, BNE: instr_type[i] = COND_BR;
         // i-type jump
-        JAL: instr_type[i] = I_TYPE;
+        JAL: instr_type[i] = PC_JMP;
         // j-type jump
-        JALR: instr_type[i] = J_TYPE;
+        JALR: instr_type[i] = REG_JMP;
         default: instr_type[i] = NOT_BRANCH;
       endcase
-      is_branch_instr[i] = (instr_type[i] != NOT_BRANCH);
     end
+    branch_type = instr_type;
     
     
     // 処理の対象となる分岐命令の選択
@@ -143,7 +137,7 @@ module branchPredictor (
     end
     
     case(valid_instr_type)
-      B_TYPE: begin
+      COND_BR: begin
         target = valid_pred_branch_target_b;
         case(branch_state)
           STRONG_NOT_TAKEN, WEAK_NOT_TAKEN:
@@ -154,7 +148,7 @@ module branchPredictor (
             taken = 0;
         endcase
       end
-      I_TYPE: begin // 無条件分岐
+      PC_JMP: begin // 無条件分岐
         taken = 1;
         target = valid_pred_branch_target_i;
       end
@@ -165,36 +159,46 @@ module branchPredictor (
     endcase
       
     // next_pc_generator
+    // 投機実行なしの場合、taken なら分岐
+    //                     not taken なら 2つ目の分岐命令が出現するまで実行
     if (!is_speculative) begin
       if (taken) begin
         next_pc = target;
       end else begin
-        if (instr_type[0] == B_TYPE && instr_type[1] == B_TYPE) begin
+        if (instr_type[0] == COND_BR && instr_type[1] == COND_BR) begin
           next_pc = pc[1];
         end else begin
           next_pc = pc[1] + 4;
         end
       end
+    // 投機実行中の場合、taken なら分岐（分岐が b-type の場合は hazard unit でストール）
+    //                   not taken なら 次の命令を実行（分岐が b-type の場合は hazard unit でストール)
     end else begin
-      if (is_branch_instr[0]) begin
-        next_pc = pc[0];
-      end else if (is_branch_instr[1]) begin
-        next_pc = pc[1];
+      if (taken) begin
+        next_pc = target;
       end else begin
-        next_pc = pc[1] + 4;
+        if (fetch_valid[0] && fetch_valid[1]) begin
+          next_pc = pc[1] + 4;
+        end else if (fetch_valid[0]) begin
+          next_pc = pc[0] + 4;
+        end else if (fetch_valid[1]) begin
+          next_pc = pc[1] + 4;
+        end else begin
+          next_pc = pc[0];
+        end
       end
     end
     
     // 分岐命令によって無効化されないか
     // また、 is_speculative == 1 ならば、新たな分岐命令を受け付けない
     if (!is_speculative) begin
-      instr_valid[0] = 1 & fetch_valid;
+      instr_valid[0] = fetch_valid[0];
       instr_valid[1] = !(
-        (instr_type[0] == B_TYPE && ((instr_type[1] == B_TYPE) || taken))
-      );
+        (instr_type[0] == COND_BR && ((instr_type[1] == COND_BR) || taken))
+      ) & fetch_valid[1];
     end else begin
-      instr_valid[0] = 1 & fetch_valid & !is_branch_instr[0];
-      instr_valid[1] = 1 & fetch_valid & !is_branch_instr[1];
+      instr_valid[0] = fetch_valid[0] && branch_type[0] != COND_BR;
+      instr_valid[1] = fetch_valid[1] && branch_type[1] != COND_BR && instr_valid[0];
     end
   end
 endmodule

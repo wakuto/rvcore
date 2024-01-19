@@ -48,11 +48,17 @@ module core (
   end
 
   // IF stage
+  logic [31:0]      next_pc_if;
+  logic             instr_valid_if     [0:DISPATCH_WIDTH-1];
+  common::branch_type_t branch_type_if [0:DISPATCH_WIDTH-1];
+  logic             is_speculative_if;
   
   // IF/ID regs
-  logic             instr_valid_id [0:DISPATCH_WIDTH-1];
-  logic [31:0]      pc_id          [0:DISPATCH_WIDTH-1];
-  logic [31:0]      instr_id       [0:DISPATCH_WIDTH-1];
+  logic             instr_valid_id     [0:DISPATCH_WIDTH-1];
+  logic [31:0]      pc_id              [0:DISPATCH_WIDTH-1];
+  logic [31:0]      instr_id           [0:DISPATCH_WIDTH-1];
+  common::branch_type_t     branch_type_id     [0:DISPATCH_WIDTH-1];
+  logic             is_speculative_id  [0:DISPATCH_WIDTH-1];
 
   // ID stage
   logic             valid_id    [0:DISPATCH_WIDTH-1];
@@ -170,38 +176,57 @@ module core (
   logic                            en_commit      [0:DISPATCH_WIDTH-1];
   logic [31:0]                     pc_commit      [0:DISPATCH_WIDTH-1];
   logic [31:0]                     instr_commit   [0:DISPATCH_WIDTH-1];
+  logic                            branch_result_valid_commit;
+  logic                            branch_correct_commit;
   
   // hazard logic
   logic stall_if;
+  logic stall_id;
   logic stall_rn;
   logic stall_disp;
   logic stall_issue;
   
   // hazard unit
   hazard hazard(
+    .is_speculative_if(is_speculative_if),
+    .instr_valid_if(instr_valid_if),
+    .branch_type_if(branch_type_if),
     .freelist_empty(freelist_if_rn.num_free < 2),
     .rob_full(dispatch_if_disp.full),
     .issue_queue_full(dispatch_if_issue.full),
     .stall_if(stall_if),
+    .stall_id(stall_id),
     .stall_rn(stall_rn),
     .stall_disp(stall_disp),
     .stall_issue(stall_issue)
+  );
+  
+  // IF stage
+  branchPredictor branchPredictor(
+    .clk,
+    .rst,
+    .pc('{pc, pc + 4}),
+    .instr(instruction),
+    .fetch_valid(instr_valid),
+    .instr_valid(instr_valid_if),
+    .next_pc(next_pc_if),
+    .is_speculative(is_speculative_if),
+    .branch_type(branch_type_if),
+    .branch_result_valid(branch_result_valid_commit),
+    .branch_correct(branch_correct_commit)
   );
 
   always_ff @(posedge clk) begin
     if (rst) begin
       pc <= 32'h80000000;
     end else begin
-      if (!stall_if) begin
-        if (&instr_valid) begin
-          pc <= pc + 8;
-        end else if (|instr_valid) begin
-          pc <= pc + 4;
-        end
+      if (!stall_id && !stall_if) begin
+        pc <= next_pc_if;
       end
     end
   end
 
+  // IF/ID regs
   always_ff @(posedge clk) begin
     if (rst) begin
       for(int i = 0; i < DISPATCH_WIDTH; i++) begin
@@ -210,7 +235,7 @@ module core (
         pc_id[i]          <= 0;
       end
     end else begin
-      if (!stall_if) begin
+      if (!stall_id) begin
         // bank 0 に優先的に投入
         case({instr_valid[1], instr_valid[0]})
           2'b11: begin
@@ -248,6 +273,7 @@ module core (
     end
   end
 
+  // ID stage
   genvar bank;
   generate
     for(bank = 0; bank < DISPATCH_WIDTH; bank++) begin
@@ -299,6 +325,7 @@ module core (
     end
   end
 
+  // REN stage
   regfile #(
     .NUM_REGS(32),
     .REG_WIDTH(PHYS_REGS_ADDR_WIDTH)
@@ -365,6 +392,7 @@ module core (
     end
   end
 
+  // DISP stage
   rob #() rob (
     .clk,
     .rst,

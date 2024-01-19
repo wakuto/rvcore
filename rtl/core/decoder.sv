@@ -42,14 +42,18 @@ module decoder (
   
   always_comb begin
     opcode = instr[6:0];
-    rs1 = instr[19:15];
+    case(opcode)
+      // LUI (x0 + (imm_u << 12))
+      7'b0110111: rs1 = 0;
+      default: rs1 = instr[19:15];
+    endcase
     rs2 = instr[24:20];
     rd  = instr[11: 7];
 
     case(opcode)
       // I-type instr
-      // addi, slti, ..., load
-      7'b0010011, 7'b0000011: _op2_type = common::IMM;
+      // addi, slti, ..., load, lui
+      7'b0010011, 7'b0000011, 7'b0110111: _op2_type = common::IMM;
       // R-type instr
       // add, sub, ...
       7'b0110011: _op2_type = common::REG;
@@ -58,6 +62,8 @@ module decoder (
     
     case(opcode)
       7'b0010011, 7'b0000011: imm = 32'(signed'(instr[31:20]));
+      // LUI
+      7'b0110111: imm = {instr[31:12], 12'h0};
       default: imm = 32'hdeadbeef;
     endcase
   end

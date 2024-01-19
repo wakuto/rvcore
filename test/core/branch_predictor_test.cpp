@@ -57,8 +57,8 @@ public:
       for(int i = 0; i < 2; i++) {
         brp->pc[i] = 0;
         brp->instr[i] = 0;
+        brp->fetch_valid[i] = 0;
       }
-      brp->fetch_valid = 0;
       brp->branch_result_valid = 0;
       brp->branch_correct = 0;
     });
@@ -105,11 +105,23 @@ public:
     this->top->pc[1] = pc_1;
     this->top->instr[1] = this->read_imem(pc_1);
     
-    this->top->fetch_valid = 1;
-    
-    // this->top->eval();
+    this->top->fetch_valid[0] = 1;
+    this->top->fetch_valid[1] = 1;
   }
 };
+
+void fetch(VbranchPredictor *top, uint32_t pc_0, uint32_t instr_0, uint32_t pc_1, uint32_t instr_1) {
+  top->instr_valid[0] = DRAM_BASE <= pc_0 && pc_0 < DRAM_BASE + DRAM_SIZE;
+  top->pc[0] = pc_0;
+  top->instr[0] = instr_0;
+
+  top->instr_valid[1] = DRAM_BASE <= pc_1 && pc_1 < DRAM_BASE + DRAM_SIZE;
+  top->pc[1] = pc_1;
+  top->instr[1] = instr_1;
+  
+  top->fetch_valid[0] = 1;
+  top->fetch_valid[1] = 1;
+}
 
 typedef enum {
   STRONG_NOT_TAKEN,
@@ -117,6 +129,13 @@ typedef enum {
   WEAK_TAKEN,
   STRONG_TAKEN
 } branch_state_t;
+
+typedef enum {
+  PC_JMP,     // jal
+  COND_BR,    // beq, bne, b**
+  REG_JMP,    // jalr
+  NOT_BRANCH  // not a branch instruction
+} branch_type_t;
 
 TEST (BranchPredictorTest, WithWriteBack) {
   auto dut =  std::make_unique<BranchPredictorTester>("with_wb.vcd");
@@ -144,88 +163,102 @@ TEST (BranchPredictorTest, WithWriteBack) {
   // 0x30: nop
   
   auto pc = 0x80000000;
+  auto instr_0 = 0;
+  auto instr_1 = 0;
 
   // 0x80000000
-  dut->fetch(pc, pc+4);
-  dut->do_posedge([](VbranchPredictor *brp) {
+  instr_0 = dut->read_imem(pc);
+  instr_1 = dut->read_imem(pc+4);
+  dut->do_posedge([&](VbranchPredictor *brp) {
+    fetch(brp, pc, instr_0, pc+4, instr_1);
     brp->branch_result_valid = 0;
     brp->branch_correct = 0;
   });
   EXPECT_TRUE(dut->top->instr_valid[0]);
   EXPECT_TRUE(dut->top->instr_valid[1]);
   EXPECT_EQ(dut->top->next_pc, pc + 8);
-  EXPECT_TRUE(dut->top->is_branch_instr[0]);
-  EXPECT_FALSE(dut->top->is_branch_instr[1]);
+  EXPECT_EQ(dut->top->branch_type[0], COND_BR);
+  EXPECT_NE(dut->top->branch_type[1], COND_BR);
   EXPECT_EQ(dut->top->rootp->branchPredictor__DOT__branch_state, branch_state_t::WEAK_NOT_TAKEN);
   pc = dut->top->next_pc;
   
   // 0x80000008
-  dut->fetch(pc, pc+4);
-  dut->do_posedge([](VbranchPredictor *brp) {
+  instr_0 = dut->read_imem(pc);
+  instr_1 = dut->read_imem(pc+4);
+  dut->do_posedge([&](VbranchPredictor *brp) {
+    fetch(brp, pc, instr_0, pc+4, instr_1);
     brp->branch_result_valid = 0;
     brp->branch_correct = 0;
   });
   EXPECT_TRUE(dut->top->instr_valid[0]);
   EXPECT_TRUE(dut->top->instr_valid[1]);
   EXPECT_EQ(dut->top->next_pc, pc + 8);
-  EXPECT_FALSE(dut->top->is_branch_instr[0]);
-  EXPECT_FALSE(dut->top->is_branch_instr[1]);
+  EXPECT_NE(dut->top->branch_type[0], COND_BR);
+  EXPECT_NE(dut->top->branch_type[1], COND_BR);
   EXPECT_EQ(dut->top->rootp->branchPredictor__DOT__branch_state, branch_state_t::WEAK_NOT_TAKEN);
   pc = dut->top->next_pc;
 
   // 0x80000010
-  dut->fetch(pc, pc+4);
-  dut->do_posedge([](VbranchPredictor *brp) {
+  instr_0 = dut->read_imem(pc);
+  instr_1 = dut->read_imem(pc+4);
+  dut->do_posedge([&](VbranchPredictor *brp) {
+    fetch(brp, pc, instr_0, pc+4, instr_1);
     brp->branch_result_valid = 0;
     brp->branch_correct = 0;
   });
   EXPECT_TRUE(dut->top->instr_valid[0]);
   EXPECT_TRUE(dut->top->instr_valid[1]);
   EXPECT_EQ(dut->top->next_pc, pc + 8);
-  EXPECT_FALSE(dut->top->is_branch_instr[0]);
-  EXPECT_FALSE(dut->top->is_branch_instr[1]);
+  EXPECT_NE(dut->top->branch_type[0], COND_BR);
+  EXPECT_NE(dut->top->branch_type[1], COND_BR);
   EXPECT_EQ(dut->top->rootp->branchPredictor__DOT__branch_state, branch_state_t::WEAK_NOT_TAKEN);
   pc = dut->top->next_pc;
 
   // 0x80000018
-  dut->fetch(pc, pc+4);
-  dut->do_posedge([](VbranchPredictor *brp) {
+  instr_0 = dut->read_imem(pc);
+  instr_1 = dut->read_imem(pc+4);
+  dut->do_posedge([&](VbranchPredictor *brp) {
+    fetch(brp, pc, instr_0, pc+4, instr_1);
     brp->branch_result_valid = 1;
     brp->branch_correct = 1;
   });
   EXPECT_TRUE(dut->top->instr_valid[0]);
   EXPECT_TRUE(dut->top->instr_valid[1]);
   EXPECT_EQ(dut->top->next_pc, pc + 8);
-  EXPECT_FALSE(dut->top->is_branch_instr[0]);
-  EXPECT_FALSE(dut->top->is_branch_instr[1]);
+  EXPECT_NE(dut->top->branch_type[0], COND_BR);
+  EXPECT_NE(dut->top->branch_type[1], COND_BR);
   EXPECT_EQ(dut->top->rootp->branchPredictor__DOT__branch_state, branch_state_t::WEAK_NOT_TAKEN);
   pc = dut->top->next_pc;
 
   // 0x80000020
-  dut->fetch(pc, pc+4);
-  dut->do_posedge([](VbranchPredictor *brp) {
+  instr_0 = dut->read_imem(pc);
+  instr_1 = dut->read_imem(pc+4);
+  dut->do_posedge([&](VbranchPredictor *brp) {
+    fetch(brp, pc, instr_0, pc+4, instr_1);
     brp->branch_result_valid = 0;
     brp->branch_correct = 0;
   });
   EXPECT_TRUE(dut->top->instr_valid[0]);
   EXPECT_TRUE(dut->top->instr_valid[1]);
   EXPECT_EQ(dut->top->next_pc, pc + 4 - 0x24);
-  EXPECT_FALSE(dut->top->is_branch_instr[0]);
-  EXPECT_TRUE(dut->top->is_branch_instr[1]);
+  EXPECT_NE(dut->top->branch_type[0], COND_BR);
+  EXPECT_EQ(dut->top->branch_type[1], COND_BR);
   EXPECT_EQ(dut->top->rootp->branchPredictor__DOT__branch_state, branch_state_t::WEAK_TAKEN);
   pc = dut->top->next_pc;
 
   // 0x80000000
-  dut->fetch(pc, pc+4);
-  dut->do_posedge([](VbranchPredictor *brp) {
+  instr_0 = dut->read_imem(pc);
+  instr_1 = dut->read_imem(pc+4);
+  dut->do_posedge([&](VbranchPredictor *brp) {
+    fetch(brp, pc, instr_0, pc+4, instr_1);
     brp->branch_result_valid = 0;
     brp->branch_correct = 0;
   });
-  EXPECT_TRUE(dut->top->instr_valid[0]);
+  EXPECT_FALSE(dut->top->instr_valid[0]);
   EXPECT_FALSE(dut->top->instr_valid[1]);
   EXPECT_EQ(dut->top->next_pc, pc + 0x28);
-  EXPECT_TRUE(dut->top->is_branch_instr[0]);
-  EXPECT_FALSE(dut->top->is_branch_instr[1]);
+  EXPECT_EQ(dut->top->branch_type[0], COND_BR);
+  EXPECT_NE(dut->top->branch_type[1], COND_BR);
   EXPECT_EQ(dut->top->rootp->branchPredictor__DOT__branch_state, branch_state_t::WEAK_TAKEN);
   pc = dut->top->next_pc;
 
