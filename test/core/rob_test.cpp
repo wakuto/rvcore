@@ -720,73 +720,112 @@ TEST (ROBTest, FailedBranchPrediction) {
   auto dut = std::make_unique<ROBTester>("rob_failed_branch_prediction.vcd");
   auto instr_bank_addr = std::vector<typeof(dut->top->dispatch_bank_addr[0])>();
   auto instr_rob_addr = std::vector<typeof(dut->top->dispatch_rob_addr[0])>();
+  auto disp_phys_rd = 1;
+  auto wb_rob_addr = 0;
 
   dut->init();
 
   // ----------------------------
   // dispatch
   // ----------------------------
-  // バンク0にdispatch
-  dut->do_posedge([](Vrob *rob) {
-    for(auto i = 0; i < 2; i++) {
-      rob->dispatch_en[i] = 0;
-    }
-    if (!rob->dispatch_full) {
-      rob->dispatch_phys_rd[0] = 32;
-      rob->dispatch_arch_rd[0] = 0;
-      rob->dispatch_en[0] = 1;
-    }
+  // addi x2, x0, 0 / addi x3, x0, 0
+  dut->do_posedge([&](Vrob *rob) {
+    rob->dispatch_en[0] = 1;
+    rob->dispatch_phys_rd[0] = disp_phys_rd++;
+    rob->dispatch_arch_rd[0] = 2;
+    rob->dispatch_is_branch_instr[0] = 0;
+    rob->dispatch_en[1] = 1;
+    rob->dispatch_phys_rd[1] = disp_phys_rd++;
+    rob->dispatch_arch_rd[1] = 3;
+    rob->dispatch_is_branch_instr[1] = 0;
   });
 
-  // bank0 にdispatchした内容をテスト
-  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[0]);
-  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[0]);
-  EXPECT_EQ(dut->top->dispatch_bank_addr[0], 0);
-  EXPECT_EQ(dut->top->dispatch_rob_addr[0], 0);
-
-  // バンク1にdispatch
-  dut->do_posedge([](Vrob *rob) {
-    for(auto i = 0; i < 2; i++) {
-      rob->dispatch_en[i] = 0;
-    }
-    if (!rob->dispatch_full) {
-      rob->dispatch_phys_rd[1] = 33;
-      rob->dispatch_arch_rd[1] = 1;
-      rob->dispatch_en[1] = 1;
-    }
+  // addi x4, x0, 1 / addi x5, x0, 4
+  dut->do_posedge([&](Vrob *rob) {
+    rob->dispatch_en[0] = 1;
+    rob->dispatch_phys_rd[0] = disp_phys_rd++;
+    rob->dispatch_arch_rd[0] = 3;
+    rob->dispatch_is_branch_instr[0] = 0;
+    rob->dispatch_en[1] = 1;
+    rob->dispatch_phys_rd[1] = disp_phys_rd++;
+    rob->dispatch_arch_rd[1] = 5;
+    rob->dispatch_is_branch_instr[1] = 0;
   });
 
-  // bank1 にdispatchした内容をテスト
-  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[1]);
-  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[1]);
-
-  EXPECT_EQ(dut->top->dispatch_bank_addr[1], 1);
-  EXPECT_EQ(dut->top->dispatch_rob_addr[1], 1);
-
-  // バンク0, 1に同時にdispatch
-  dut->do_posedge([](Vrob *rob) {
-    for(auto i = 0; i < 2; i++) {
-      rob->dispatch_en[i] = 0;
-    }
-    if (!rob->dispatch_full) {
-      rob->dispatch_phys_rd[0] = 34;
-      rob->dispatch_arch_rd[0] = 2;
-      rob->dispatch_en[0] = 1;
-      rob->dispatch_phys_rd[1] = 35;
-      rob->dispatch_arch_rd[1] = 3;
-      rob->dispatch_en[1] = 1;
-    }
+  // addi x2, x3, 0 / addi x3, x4, 0
+  dut->do_posedge([&](Vrob *rob) {
+    rob->dispatch_en[0] = 1;
+    rob->dispatch_phys_rd[0] = disp_phys_rd++;
+    rob->dispatch_arch_rd[0] = 2;
+    rob->dispatch_is_branch_instr[0] = 0;
+    rob->dispatch_en[1] = 1;
+    rob->dispatch_phys_rd[1] = disp_phys_rd++;
+    rob->dispatch_arch_rd[1] = 3;
+    rob->dispatch_is_branch_instr[1] = 0;
   });
 
-  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[0]);
-  instr_bank_addr.push_back(dut->top->dispatch_bank_addr[1]);
-  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[0]);
-  instr_rob_addr.push_back(dut->top->dispatch_rob_addr[1]);
+  // addi x4, x2, 0 / addi x5, x5, -1
+  dut->do_posedge([&](Vrob *rob) {
+    rob->dispatch_en[0] = 1;
+    rob->dispatch_phys_rd[0] = disp_phys_rd++;
+    rob->dispatch_arch_rd[0] = 4;
+    rob->dispatch_is_branch_instr[0] = 0;
+    rob->dispatch_en[1] = 1;
+    rob->dispatch_phys_rd[1] = disp_phys_rd++;
+    rob->dispatch_arch_rd[1] = 5;
+    rob->dispatch_is_branch_instr[1] = 0;
+  });
+  
+  // bne x5, x0, .loop(-16) / 
+  dut->do_posedge([&](Vrob *rob) {
+    rob->dispatch_en[0] = 1;
+    rob->dispatch_phys_rd[0] = 0;
+    rob->dispatch_arch_rd[0] = 0;
+    rob->dispatch_is_branch_instr[0] = 1;
+    rob->dispatch_en[1] = 0;
+    rob->dispatch_phys_rd[1] = 0;
+    rob->dispatch_arch_rd[1] = 0;
+    rob->dispatch_is_branch_instr[1] = 0;
+  });
+  
+  // lui x6, 0xcafeb / addi x6, x6, 0xabe
+  dut->do_posedge([&](Vrob *rob) {
+    rob->dispatch_en[0] = 1;
+    rob->dispatch_phys_rd[0] = disp_phys_rd++;
+    rob->dispatch_arch_rd[0] = 6;
+    rob->dispatch_is_branch_instr[0] = 0;
+    rob->dispatch_en[1] = 1;
+    rob->dispatch_phys_rd[1] = disp_phys_rd++;
+    rob->dispatch_arch_rd[1] = 6;
+    rob->dispatch_is_branch_instr[1] = 0;
+    
+    rob->writeback_en[0] = 1;
+    rob->writeback_bank_addr[0] = 0;
+    rob->writeback_rob_addr[0] = wb_rob_addr;
+    rob->writeback_en[1] = 1;
+    rob->writeback_bank_addr[1] = 1;
+    rob->writeback_rob_addr[1] = wb_rob_addr++;
+  });
+  
+  // lui x7, 0xdeadb / addi x7, x7, 0xeaf
+  dut->do_posedge([&](Vrob *rob) {
+    rob->dispatch_en[0] = 1;
+    rob->dispatch_phys_rd[0] = disp_phys_rd++;
+    rob->dispatch_arch_rd[0] = 7;
+    rob->dispatch_is_branch_instr[0] = 0;
+    rob->dispatch_en[1] = 1;
+    rob->dispatch_phys_rd[1] = disp_phys_rd++;
+    rob->dispatch_arch_rd[1] = 7;
+    rob->dispatch_is_branch_instr[1] = 0;
+    
+    rob->writeback_en[0] = 1;
+    rob->writeback_bank_addr[0] = 0;
+    rob->writeback_rob_addr[0] = wb_rob_addr;
+    rob->writeback_en[1] = 1;
+    rob->writeback_bank_addr[1] = 1;
+    rob->writeback_rob_addr[1] = wb_rob_addr++;
+  });
 
-  EXPECT_EQ(dut->top->dispatch_bank_addr[0], 0);
-  EXPECT_EQ(dut->top->dispatch_bank_addr[1], 1);
-  EXPECT_EQ(dut->top->dispatch_rob_addr[0], 2);
-  EXPECT_EQ(dut->top->dispatch_rob_addr[1], 2);
 
   dut->do_posedge([](Vrob *rob) {
     for(auto i = 0; i < 2; i++) {
