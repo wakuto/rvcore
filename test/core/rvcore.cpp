@@ -8,7 +8,6 @@
 #include <filesystem>
 #include <verilated.h>       // Defines common routines
 #include <verilated_vcd_c.h> // VCD output
-#include <gtest/gtest.h>
 #include "../common/model_tester.hpp"
 
 #define UART0_BASE 0x10000000
@@ -26,7 +25,7 @@ private:
   std::ofstream log_file;
 
 public:
-  CoreTester(std::string dump_filename) : ModelTester("core_test_vcd", dump_filename) {}
+  CoreTester(std::string dump_filename) : ModelTester("rvcore_vcd", dump_filename) {}
   
   ~CoreTester() {
     delete[] this->memory;
@@ -204,9 +203,15 @@ public:
   
 };
 
-TEST (core_test, run_sample_program) {
-  auto dut = std::make_unique<CoreTester>("sample_program.vcd");
-  dut->read_program("../sample_src/program.bin");
+int main(int argc, char **argv) {
+  // 実行するファイル名を引数から取得
+  if (argc < 2) {
+    std::cout << "Usage: " << argv[0] << " <program file>" << std::endl;
+    return 1;
+  }
+
+  auto dut = std::make_unique<CoreTester>("rvcore.vcd");
+  dut->read_program(argv[1]);
   dut->init();
   
   uint32_t cycle = 0;
@@ -215,38 +220,4 @@ TEST (core_test, run_sample_program) {
     dut->run_one_cycle(4);
     if (cycle > 5000 || dut->top->debug_ebreak) break;
   }
-  // EXPECT_FALSE(cycle > 5000) << std::format("Test is too long. cycle = {}", cycle);
-  // EXPECT_TRUE(dut->top->debug_ebreak) << "Test wasn't done.";
 }
-
-// TODO: RISC-V Tests を実行するテストを書く
-/*
-TEST (core_test, run_riscv_test) {
-  std::string riscv_test_path = "../sample_src/riscv-tests/bin/";
-  std::vector<std::string> bin_files;
-
-  for (const auto& entry : std::filesystem::directory_iterator(riscv_test_path)) {
-    if (entry.is_regular_file() && entry.path().extension() == ".bin") {
-      bin_files.push_back(entry.path().filename().stem().string());
-    }
-  }
-  
-  for (const auto& bin_file : bin_files) {
-    auto dut = new CoreTester(bin_file + ".vcd");
-    dut->read_program(riscv_test_path + bin_file + ".bin");
-    dut->init();
-    
-    uint32_t cycle = 0;
-    while (1) {
-      cycle++;
-      dut->run_one_cycle(4);
-      if (cycle > 5000 || dut->top->debug_ecall) break;
-    }
-    EXPECT_FALSE(cycle > 5000) << std::format("[riscv-tests failed] {}, Test is too long. cycle = {}", bin_file, cycle);
-    if (dut->top->debug_reg[3] == 1) std::cout << std::format("[riscv-tests pass] {}", bin_file) << std::endl;
-    EXPECT_EQ(dut->top->debug_reg[3], 1) << std::format("[riscv-tests failed] {}", bin_file);
-
-    delete(dut);
-  }
-}
-*/

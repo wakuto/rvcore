@@ -25,6 +25,40 @@ set(COMMON_RTL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/rtl/common/)
 set(COMMON_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test/common/)
 set(OBJ_DIR ${CMAKE_CURRENT_SOURCE_DIR}/obj_dir)
 
+# run program
+add_executable(rvcore ${CORE_TEST_DIR}/rvcore.cpp)
+target_compile_options(rvcore PRIVATE -Wall -Wextra -Wno-unused-parameter)
+verilate(rvcore
+    SOURCES
+        ${CORE_RTL_DIR}/core.sv
+        ${CORE_RTL_DIR}/regfile.sv
+        ${CORE_RTL_DIR}/decoder.sv
+        ${CORE_RTL_DIR}/alu.sv
+        ${CORE_RTL_DIR}/issueQueue.sv
+        ${CORE_RTL_DIR}/isqDispatchIf.sv
+        ${CORE_RTL_DIR}/isqWbIf.sv
+        ${CORE_RTL_DIR}/isqIssueIf.sv
+        ${CORE_RTL_DIR}/rob.sv
+        ${CORE_RTL_DIR}/robDispatchIf.sv
+        ${CORE_RTL_DIR}/robWbIf.sv
+        ${CORE_RTL_DIR}/robCommitIf.sv
+        ${CORE_RTL_DIR}/robOpFetchIf.sv
+        ${CORE_RTL_DIR}/freelist.sv
+        ${CORE_RTL_DIR}/freelistIf.sv
+        ${CORE_RTL_DIR}/op2ValidLogic.sv
+        ${CORE_RTL_DIR}/hazard.sv
+    PREFIX Vcore
+    INCLUDE_DIRS
+        ${CORE_RTL_DIR}/include
+    DIRECTORY ${OBJ_DIR}
+    VERILATOR_ARGS
+        --trace
+        --trace-params
+        --trace-structs
+        --trace-underscore
+        --trace-max-array 128
+)
+
 # memory_test
 add_executable(memory_test ${CORE_TEST_DIR}/memory_test.cpp)
 target_compile_options(memory_test PRIVATE -Wall -Wextra -Wno-unused-parameter)

@@ -18,7 +18,7 @@ dump:
 	$(PREFIX)objdump -d -M no-aliases -M numeric ./start.elf | less
 
 commit_log: asm
-	-@ ../build/core_test
+	-@ ../build/rvcore ./program.bin
 	spike -l --log-commits --log=./commit_log_spike_raw.txt \
 		-d --debug-cmd=./spike.dbg \
 		--isa=RV32I \
