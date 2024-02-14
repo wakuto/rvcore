@@ -10,7 +10,7 @@ interface robWbIf;
   logic                             en        [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1: 0] phys_rd   [0:DISPATCH_WIDTH-1];
   logic                             is_branch_instr [0:DISPATCH_WIDTH-1];
-  logic                             branch_correct  [0:DISPATCH_WIDTH-1];
+  logic                             taken           [0:DISPATCH_WIDTH-1];
 
   modport out (
     output phys_rd,
@@ -18,7 +18,7 @@ interface robWbIf;
     output rob_addr,
     output en,
     output is_branch_instr,
-    output branch_correct
+    output taken
   );
 
   modport in (
@@ -27,7 +27,7 @@ interface robWbIf;
     input  rob_addr,
     input  en,
     input  is_branch_instr,
-    input  branch_correct
+    input  taken
   );
 endinterface
 
