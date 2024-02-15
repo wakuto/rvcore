@@ -11,6 +11,7 @@ module robWrapper(
   output logic [ROB_ADDR_WIDTH-1: 0]       dispatch_rob_addr   [0:DISPATCH_WIDTH-1],
   output logic                             dispatch_full,
   input  logic                             dispatch_is_branch_instr [0:DISPATCH_WIDTH-1],
+  input  logic                             dispatch_pred_taken [0:DISPATCH_WIDTH-1],
   input  logic [31:0]                      dispatch_pc         [0:DISPATCH_WIDTH-1],
   input  logic [31:0]                      dispatch_instr      [0:DISPATCH_WIDTH-1],
 
@@ -55,6 +56,7 @@ module robWrapper(
     dispatch_rob_addr =  dispatch_if.rob_addr;
     dispatch_full = dispatch_if.full;
     dispatch_if.is_branch_instr = dispatch_is_branch_instr;
+    dispatch_if.pred_taken = dispatch_pred_taken;
     dispatch_if.pc = dispatch_pc;
     dispatch_if.instr = dispatch_instr;
 

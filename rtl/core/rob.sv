@@ -26,11 +26,19 @@ module rob #(
   logic [ROB_ADDR_WIDTH-1:0] head; // dispatchする予定のアドレス
   logic [ROB_ADDR_WIDTH-1:0] tail; // 次にcommitするアドレス
   logic [ROB_ADDR_WIDTH-1:0] num_entry; // 現在のエントリ数
+  logic                      br_instr_exist; // 分岐命令が存在するかどうか
   logic [ROB_ADDR_WIDTH-1:0] br_instr_ptr; // 分岐命令が格納されているアドレス
   logic                      is_speculative; // 投機実行中かどうか
   logic [ROB_ADDR_WIDTH-1:0] num_speculative; // 投機実行中のエントリ数
+  logic                      pred_taken; // 予測方向
+  logic                      do_flush;   // 分岐予測失敗時のflushフラグ
+                                         // 分岐命令のcommitと同時にflush（それまでは待つ）
+  logic                      flush;      // 実際にflushをかける信号
 
+  // ---------------------------------
+  // OpFetch
   // dispatch_width個のバンク*rob_size個の中からrs1 == arch_rdとなるエントリを探す
+  // ---------------------------------
   // rs2 についても同様
   // dispatch_width分だけ繰り返す
   logic [DISPATCH_WIDTH-1:0][ROB_SIZE-1:0] hit_rs1 [0:DISPATCH_WIDTH-1];
@@ -107,13 +115,27 @@ module rob #(
   end
 
 
-  // reset
+  // reset / flush
   always_ff @(posedge clk) begin
-    if (rst) begin
+    if (rst || flush) begin
       for (int i = 0; i < ROB_SIZE; i++) begin
         for (int j = 0; j < DISPATCH_WIDTH; j++) begin
           rob_entry[i][j] <= 0;
         end
+      end
+      head <= 0;
+      tail <= 0;
+      num_entry <= 0;
+      br_instr_exist <= 0;
+      br_instr_ptr <= 0;
+      is_speculative <= 0;
+      num_speculative <= 0;
+      pred_taken <= 0;
+      do_flush <= 0;
+      
+      for (int w = 0; w < DISPATCH_WIDTH; w++) begin
+        dispatch_if.bank_addr[w] <= w[0];
+        dispatch_if.rob_addr[w] <= 0;
       end
     end
   end
@@ -124,61 +146,74 @@ module rob #(
   // ---------------------------------
   // 少なくとも１つのバンクにdispatchされるか
   logic dispatch_en, dispatch_is_branch_instr;
-  logic wb_en, wb_is_branch_instr, wb_branch_correct;
+  logic wb_en, wb_is_branch_instr, wb_branch_fail;
   always_comb begin
     dispatch_en = 0;
     dispatch_is_branch_instr = 0;
     wb_en = 0;
     wb_is_branch_instr = 0;
-    wb_branch_correct = 0;
+    wb_branch_fail = 0;
     for (int w = 0; w < DISPATCH_WIDTH; w++) begin
       dispatch_en |= dispatch_if.en[w];
       dispatch_is_branch_instr |= dispatch_if.is_branch_instr[w];
       wb_en |= wb_if.en[w];
       wb_is_branch_instr |= wb_if.is_branch_instr[w];
-      wb_branch_correct |= wb_if.branch_correct[w];
+      wb_branch_fail |= br_instr_exist && wb_if.is_branch_instr[w] && wb_if.is_branch_instr[w] && (wb_if.taken[w] != pred_taken);
     end
 
     // TODO: 条件があっているかの確認
     dispatch_if.full = num_entry == ROB_ADDR_WIDTH'(ROB_SIZE-1);
     
+    // 分岐予測失敗時は分岐命令の次のエントリにdispatchする
+    if (wb_branch_fail) begin
+      dispatch_addr = br_instr_ptr + 1;
+    // 通常時はheadにdispatchする
+    end else begin
+      dispatch_addr = head;
+    end
+
     for (int w = 0; w < DISPATCH_WIDTH; w++) begin
       dispatch_if.bank_addr[w] = DISPATCH_ADDR_WIDTH'(w);
       dispatch_if.rob_addr[w]  = head;
     end
   end
+
   // いずれかのバンクにdispatchされたら head を進める
   always_ff @(posedge clk) begin
-    if (dispatch_en) begin
-      // 予測失敗
-      if (wb_en && wb_is_branch_instr && !wb_branch_correct) begin
-        head <= br_instr_ptr + 2;
-      end else begin
-        head <= head + 1;
+    if (!rst && !flush) begin
+      if (dispatch_en) begin
+        // 予測失敗
+        if (wb_branch_fail) begin
+          head <= br_instr_ptr + 1;
+          do_flush <= 1;
+        end else begin
+          head <= head + 1;
+        end
+        if (dispatch_is_branch_instr) begin
+          is_speculative <= 1;
+          br_instr_exist <= 1;
+          br_instr_ptr <= head;
+          pred_taken <= dispatch_if.pred_taken[0];
+        end
       end
-      if (dispatch_is_branch_instr) begin
-        is_speculative <= 1;
-        br_instr_ptr <= head;
-      end
-    end
-  end
 
-  always_comb begin
-    if (wb_en && wb_is_branch_instr && !wb_branch_correct) begin
-      dispatch_addr = br_instr_ptr + 1;
-    end else begin
-      dispatch_addr = head;
-    end
-  end
-  always_ff @(posedge clk) begin
-    for (int w = 0; w < DISPATCH_WIDTH; w++) begin
-      if (dispatch_if.en[w]) begin
-        rob_entry[dispatch_addr][w].entry_valid <= 1;
-        rob_entry[dispatch_addr][w].phys_rd     <= dispatch_if.phys_rd[w];
-        rob_entry[dispatch_addr][w].arch_rd     <= dispatch_if.arch_rd[w];
-        rob_entry[dispatch_addr][w].commit_ready<= 0;
-        rob_entry[dispatch_addr][w].pc          <= dispatch_if.pc[w];
-        rob_entry[dispatch_addr][w].instr       <= dispatch_if.instr[w];
+      for (int w = 0; w < DISPATCH_WIDTH; w++) begin
+        // 予測失敗でない場合にdispatch
+        if (dispatch_if.en[w] && !wb_branch_fail) begin
+          rob_entry[dispatch_addr][w].entry_valid <= 1;
+          rob_entry[dispatch_addr][w].phys_rd     <= dispatch_if.phys_rd[w];
+          rob_entry[dispatch_addr][w].arch_rd     <= dispatch_if.arch_rd[w];
+          rob_entry[dispatch_addr][w].commit_ready<= 0;
+          rob_entry[dispatch_addr][w].pc          <= dispatch_if.pc[w];
+          rob_entry[dispatch_addr][w].instr       <= dispatch_if.instr[w];
+        end else begin
+          rob_entry[dispatch_addr][w].entry_valid <= 0;
+          rob_entry[dispatch_addr][w].phys_rd     <= 0;
+          rob_entry[dispatch_addr][w].arch_rd     <= 0;
+          rob_entry[dispatch_addr][w].commit_ready<= 0;
+          rob_entry[dispatch_addr][w].pc          <= 0;
+          rob_entry[dispatch_addr][w].instr       <= 0;
+        end
       end
     end
   end
@@ -189,13 +224,15 @@ module rob #(
   // ---------------------------------
   // 検討事項：同時にwritebackされうる命令数の最大値はDISPATCH_WIDTHとは限らなさそう
   always_ff @(posedge clk) begin
-    for (int w = 0; w < DISPATCH_WIDTH; w++) begin
-      if (wb_if.en[w]) begin
-        rob_entry[wb_if.rob_addr[w]][wb_if.bank_addr[w]].commit_ready <= 1;
+    if (!rst && !flush) begin
+      for (int w = 0; w < DISPATCH_WIDTH; w++) begin
+        if (wb_if.en[w]) begin
+          rob_entry[wb_if.rob_addr[w]][wb_if.bank_addr[w]].commit_ready <= 1;
+        end
       end
-    end
-    if (wb_en && wb_is_branch_instr) begin
-      is_speculative <= 0;
+      if (wb_en && wb_is_branch_instr) begin
+        is_speculative <= 0;
+      end
     end
   end
 
@@ -215,57 +252,72 @@ module rob #(
     for(int w = 0; w < DISPATCH_WIDTH; w++) begin
       tail_commit_ready &= rob_entry[tail][w].entry_valid ? rob_entry[tail][w].commit_ready : 1;
     end
+    
+    // do_flush かつ commit 対象が分岐命令の場合に flush をかける
+    flush = br_instr_exist && do_flush && tail == br_instr_ptr && tail_commit_ready;
   end
 
   // ↑が成立しているとき、validなエントリをcommitして、エントリを削除する
   always_ff @(posedge clk) begin
-    for (int w = 0; w < DISPATCH_WIDTH; w++) begin
-      if (tail_commit_ready) begin
-        if (rob_entry[tail][w].entry_valid) begin
-          commit_if.phys_rd[w] <= rob_entry[tail][w].phys_rd;
-          commit_if.arch_rd[w] <= rob_entry[tail][w].arch_rd;
-          commit_if.en[w] <= rob_entry[tail][w].commit_ready;
-          commit_if.pc[w] <= rob_entry[tail][w].pc;
-          commit_if.instr[w] <= rob_entry[tail][w].instr;
-          rob_entry[tail][w].entry_valid <= 0;
-          rob_entry[tail][w].commit_ready<= 0;
+    if (!rst) begin
+      for (int w = 0; w < DISPATCH_WIDTH; w++) begin
+        if (tail_commit_ready) begin
+          if (rob_entry[tail][w].entry_valid) begin
+            commit_if.phys_rd[w] <= rob_entry[tail][w].phys_rd;
+            commit_if.arch_rd[w] <= rob_entry[tail][w].arch_rd;
+            commit_if.en[w] <= rob_entry[tail][w].commit_ready;
+            commit_if.pc[w] <= rob_entry[tail][w].pc;
+            commit_if.instr[w] <= rob_entry[tail][w].instr;
+            rob_entry[tail][w].entry_valid <= 0;
+            rob_entry[tail][w].commit_ready<= 0;
+          end else begin
+            commit_if.phys_rd[w] <= 0;
+            commit_if.arch_rd[w] <= 0;
+            commit_if.en[w] <= 0;
+            commit_if.pc[w] <= 0;
+            commit_if.instr[w] <= 0;
+          end
+          if (!flush) tail <= tail + 1;
         end else begin
+          commit_if.phys_rd[w] <= 0;
+          commit_if.arch_rd[w] <= 0;
           commit_if.en[w] <= 0;
+          commit_if.pc[w] <= 0;
+          commit_if.instr[w] <= 0;
         end
-        tail <= tail + 1;
-      end else begin
-        commit_if.en[w] <= 0;
       end
     end
   end
 
   // num_entry logic
   always_ff @(posedge clk) begin
-    // 分岐予測失敗が発覚した場合
-    if (is_speculative && wb_en && wb_is_branch_instr && !wb_branch_correct) begin
-      if (!tail_commit_ready && dispatch_en) begin
-        num_entry <= num_entry + 1 - num_speculative;
-      end else if (tail_commit_ready && !dispatch_en) begin
-        num_entry <= num_entry - 1 - num_speculative;
-      end else begin
-        num_entry <= num_entry - num_speculative;
+    if (!rst && !flush) begin
+      // 分岐予測失敗が発覚した場合
+      if (is_speculative && wb_branch_fail) begin
+        if (!tail_commit_ready && dispatch_en) begin
+          num_entry <= num_entry + 1 - num_speculative;
+        end else if (tail_commit_ready && !dispatch_en) begin
+          num_entry <= num_entry - 1 - num_speculative;
+        end else begin
+          num_entry <= num_entry - num_speculative;
+        end
       end
-    end
-    // それ以外
-    else begin
-      if (!tail_commit_ready && dispatch_en) begin
-        num_entry <= num_entry + 1;
-      end else if (tail_commit_ready && !dispatch_en) begin
-        num_entry <= num_entry - 1;
+      // それ以外
+      else begin
+        if (!tail_commit_ready && dispatch_en) begin
+          num_entry <= num_entry + 1;
+        end else if (tail_commit_ready && !dispatch_en) begin
+          num_entry <= num_entry - 1;
+        end
       end
-    end
 
-    // 投機実行中のエントリ数をカウント
-    if (is_speculative) begin
-      if (wb_en && wb_is_branch_instr) begin
-        num_speculative <= 0;
-      end else if (dispatch_en) begin
-        num_speculative <= num_speculative + 1;
+      // 投機実行中のエントリ数をカウント
+      if (is_speculative) begin
+        if (wb_en && wb_is_branch_instr) begin
+          num_speculative <= 0;
+        end else if (dispatch_en) begin
+          num_speculative <= num_speculative + 1;
+        end
       end
     end
   end
