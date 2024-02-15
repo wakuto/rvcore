@@ -8,6 +8,7 @@ module issueQueueWrapper #(
 ) (
   input wire clk,
   input wire rst,
+  input wire flush,
 
   input  wire                            dispatch_en        [0:DISPATCH_WIDTH-1],
   output logic                           full,
@@ -22,6 +23,7 @@ module issueQueueWrapper #(
   input  wire [ROB_ADDR_WIDTH-1: 0]      dispatch_rob_addr  [0:DISPATCH_WIDTH-1],
   input  wire [31:0]                     dispatch_pc        [0:DISPATCH_WIDTH-1],
   input  wire [31:0]                     dispatch_instr     [0:DISPATCH_WIDTH-1],
+  input  wire                            dispatch_is_branch_instr [0:DISPATCH_WIDTH-1],
 
 // 他の命令の結果の適用
   input  wire                             wb_valid        [0:DISPATCH_WIDTH-1],
@@ -36,7 +38,8 @@ module issueQueueWrapper #(
   output logic [DISPATCH_ADDR_WIDTH-1: 0] issue_bank_addr [0:DISPATCH_WIDTH-1],
   output logic [ROB_ADDR_WIDTH-1: 0]      issue_rob_addr  [0:DISPATCH_WIDTH-1],
   output logic [31:0]                     issue_pc        [0:DISPATCH_WIDTH-1],
-  output logic [31:0]                     issue_instr     [0:DISPATCH_WIDTH-1]
+  output logic [31:0]                     issue_instr     [0:DISPATCH_WIDTH-1],
+  output logic                            issue_is_branch_instr [0:DISPATCH_WIDTH-1]
 );
   import parameters::*;
 
@@ -49,6 +52,7 @@ module issueQueueWrapper #(
   ) issue_queue_1 (
     .clk,
     .rst,
+    .flush,
     .dispatch_if(dispatch_if.in),
     .wb_if(wb_if.in),
     .issue_if(issue_if.out)
@@ -69,6 +73,7 @@ module issueQueueWrapper #(
       dispatch_if.rob_addr[bank]  = dispatch_rob_addr[bank];
       dispatch_if.pc[bank]        = dispatch_pc[bank];
       dispatch_if.instr[bank]     = dispatch_instr[bank];
+      dispatch_if.is_branch_instr[bank] = dispatch_is_branch_instr[bank];
     end
 
     wb_if.valid = wb_valid;
@@ -85,6 +90,7 @@ module issueQueueWrapper #(
       issue_rob_addr[bank]  = issue_if.rob_addr[bank];
       issue_pc[bank]        = issue_if.pc[bank];
       issue_instr[bank]     = issue_if.instr[bank];
+      issue_is_branch_instr[bank] = issue_if.is_branch_instr[bank];
     end
   end
 endmodule

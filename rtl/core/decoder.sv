@@ -11,7 +11,8 @@ module decoder (
 
     output logic [ 4:0] alu_cmd,
     output logic [31:0] imm,
-    output logic        op2_type
+    output logic        op2_type,
+    output logic [12:0] br_offset
 );
   logic [31:0] instr;
   assign instr = instr_valid ? instruction : common::BUBBLE;
@@ -48,7 +49,6 @@ module decoder (
       default: rs1 = instr[19:15];
     endcase
     rs2 = instr[24:20];
-    rd  = instr[11: 7];
 
     case(opcode)
       // I-type instr
@@ -57,6 +57,9 @@ module decoder (
       // R-type instr
       // add, sub, ...
       7'b0110011: _op2_type = common::REG;
+      // B-type instr
+      // beq, bne, ...
+      7'b1100011: _op2_type = common::REG;
       default: _op2_type = common::REG;
     endcase
     
@@ -66,6 +69,15 @@ module decoder (
       7'b0110111: imm = {instr[31:12], 12'h0};
       default: imm = 32'hdeadbeef;
     endcase
+    
+    // 分岐命令は rd = 0
+    if (opcode == 7'b1100011) begin
+      rd  = 0;
+      br_offset = {instr[31], instr[7], instr[30:25], instr[11:8], 1'b0};
+    end else begin
+      rd  = instr[11: 7];
+      br_offset = 0;
+    end
   end
 
   always_comb begin

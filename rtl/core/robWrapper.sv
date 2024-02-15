@@ -12,6 +12,7 @@ module robWrapper(
   output logic                             dispatch_full,
   input  logic                             dispatch_is_branch_instr [0:DISPATCH_WIDTH-1],
   input  logic                             dispatch_pred_taken [0:DISPATCH_WIDTH-1],
+  input  logic [12:0]                      dispatch_br_offset  [0:DISPATCH_WIDTH-1],
   input  logic [31:0]                      dispatch_pc         [0:DISPATCH_WIDTH-1],
   input  logic [31:0]                      dispatch_instr      [0:DISPATCH_WIDTH-1],
 
@@ -29,12 +30,18 @@ module robWrapper(
   output logic                             commit_en           [0:DISPATCH_WIDTH-1],
   output logic [31:0]                      commit_pc           [0:DISPATCH_WIDTH-1],
   output logic [31:0]                      commit_instr        [0:DISPATCH_WIDTH-1],
+  output logic                             commit_is_branch_instr [0:DISPATCH_WIDTH-1],
+  output logic                             commit_branch_correct  [0:DISPATCH_WIDTH-1],
+  output logic                             commit_branch_taken    [0:DISPATCH_WIDTH-1],
+  output logic [12:0]                      commit_br_offset    [0:DISPATCH_WIDTH-1],
 
   // operand fetch port
   input  logic [PHYS_REGS_ADDR_WIDTH-1: 0] op_fetch_phys_rs1  [0:DISPATCH_WIDTH-1],
   output logic                             op_fetch_rs1_valid [0:DISPATCH_WIDTH-1],
   input  logic [PHYS_REGS_ADDR_WIDTH-1: 0] op_fetch_phys_rs2  [0:DISPATCH_WIDTH-1],
-  output logic                             op_fetch_rs2_valid [0:DISPATCH_WIDTH-1]
+  output logic                             op_fetch_rs2_valid [0:DISPATCH_WIDTH-1],
+
+  output logic flush
 );
 
   import parameters::*;
@@ -45,7 +52,7 @@ module robWrapper(
   robCommitIf commit_if();
   robOpFetchIf op_fetch_if();
 
-  rob rob (.clk, .rst, .dispatch_if, .wb_if, .commit_if, .op_fetch_if);
+  rob rob (.clk, .rst, .dispatch_if, .wb_if, .commit_if, .op_fetch_if, .flush);
 
   always_comb begin
     // dispatch
@@ -57,6 +64,7 @@ module robWrapper(
     dispatch_full = dispatch_if.full;
     dispatch_if.is_branch_instr = dispatch_is_branch_instr;
     dispatch_if.pred_taken = dispatch_pred_taken;
+    dispatch_if.br_offset = dispatch_br_offset;
     dispatch_if.pc = dispatch_pc;
     dispatch_if.instr = dispatch_instr;
 
@@ -74,6 +82,10 @@ module robWrapper(
     commit_en = commit_if.en;
     commit_pc = commit_if.pc;
     commit_instr = commit_if.instr;
+    commit_is_branch_instr = commit_if.is_branch_instr;
+    commit_branch_correct = commit_if.branch_correct;
+    commit_branch_taken = commit_if.branch_taken;
+    commit_br_offset = commit_if.br_offset;
 
     // operand fetch
     op_fetch_if.phys_rs1 = op_fetch_phys_rs1;

@@ -15,6 +15,7 @@ typedef struct packed {
   logic [parameters::ROB_ADDR_WIDTH-1: 0]      rob_addr;
   logic [31:0]      pc;
   logic [31:0]      instr;
+  logic             is_branch_instr;
 } issue_queue_entry_t;
 
 module issueQueue #(
@@ -22,6 +23,7 @@ module issueQueue #(
 ) (
   input wire clk,
   input wire rst,
+  input wire flush,
   isqDispatchIf.in dispatch_if,
   isqWbIf.in wb_if,
   isqIssueIf.out issue_if
@@ -91,10 +93,11 @@ module issueQueue #(
     replace_entry.rob_addr    = entry.rob_addr;
     replace_entry.pc          = entry.pc;
     replace_entry.instr       = entry.instr;
+    replace_entry.is_branch_instr = entry.is_branch_instr;
   endfunction
   /* verilator lint_on UNUSED */
   always_ff @(posedge clk) begin
-    if (rst) begin
+    if (rst || flush) begin
       disp_tail <= 0;
     end else begin
       disp_tail <= disp_tail_next;
@@ -113,6 +116,7 @@ module issueQueue #(
         issue_queue[disp_tail_next - 2].rob_addr    <= dispatch_if.rob_addr[0];
         issue_queue[disp_tail_next - 2].pc          <= dispatch_if.pc[0];
         issue_queue[disp_tail_next - 2].instr       <= dispatch_if.instr[0];
+        issue_queue[disp_tail_next - 2].is_branch_instr <= dispatch_if.is_branch_instr[0];
 
         issue_queue[disp_tail_next - 1].entry_valid <= dispatch_if.en[1];
         issue_queue[disp_tail_next - 1].alu_cmd     <= dispatch_if.alu_cmd[1];
@@ -126,6 +130,7 @@ module issueQueue #(
         issue_queue[disp_tail_next - 1].rob_addr    <= dispatch_if.rob_addr[1];
         issue_queue[disp_tail_next - 1].pc          <= dispatch_if.pc[1];
         issue_queue[disp_tail_next - 1].instr       <= dispatch_if.instr[1];
+        issue_queue[disp_tail_next - 1].is_branch_instr <= dispatch_if.is_branch_instr[1];
       end else if(dispatch_enable_count == 1 && !dispatch_if.full) begin
         issue_queue[disp_tail_next - 1].entry_valid <= dispatch_if.en[0];
         issue_queue[disp_tail_next - 1].alu_cmd     <= dispatch_if.alu_cmd[0];
@@ -139,11 +144,13 @@ module issueQueue #(
         issue_queue[disp_tail_next - 1].rob_addr    <= dispatch_if.rob_addr[0];
         issue_queue[disp_tail_next - 1].pc          <= dispatch_if.pc[0];
         issue_queue[disp_tail_next - 1].instr       <= dispatch_if.instr[0];
+        issue_queue[disp_tail_next - 1].is_branch_instr <= dispatch_if.is_branch_instr[0];
         if (issue_ready_count >= 2) begin
           issue_queue[disp_tail_next].entry_valid <= 0;
           issue_queue[disp_tail_next].alu_cmd     <= common::alu_cmd_t'(0);
           issue_queue[disp_tail_next].op1_valid   <= 0;
           issue_queue[disp_tail_next].op2_valid   <= 0;
+          issue_queue[disp_tail_next].is_branch_instr <= 0;
         end
       end else begin
         if (issue_ready_count >= 2) begin
@@ -151,12 +158,14 @@ module issueQueue #(
           issue_queue[disp_tail - 2].alu_cmd     <= common::alu_cmd_t'(0);
           issue_queue[disp_tail - 2].op1_valid   <= 0;
           issue_queue[disp_tail - 2].op2_valid   <= 0;
+          issue_queue[disp_tail - 2].is_branch_instr <= 0;
         end
         if (issue_ready_count >= 1) begin
           issue_queue[disp_tail - 1].entry_valid <= 0;
           issue_queue[disp_tail - 1].alu_cmd     <= common::alu_cmd_t'(0);
           issue_queue[disp_tail - 1].op1_valid   <= 0;
           issue_queue[disp_tail - 1].op2_valid   <= 0;
+          issue_queue[disp_tail - 1].is_branch_instr <= 0;
         end
       end
       
@@ -177,7 +186,7 @@ module issueQueue #(
           if (issue_idx[0] <= ISSUE_QUEUE_ADDR_WIDTH'(i) && ISSUE_QUEUE_ADDR_WIDTH'(i) < disp_tail - 1) begin
             issue_queue[i] <= replace_entry(issue_queue[i+1], 
                                             forwarding_check(wb_if.valid, wb_if.phys_rd, PHYS_REGS_ADDR_WIDTH'(issue_queue[i+1].op1_data)) || issue_queue[i+1].op1_valid,
-                                            forwarding_check(wb_if.valid, wb_if.phys_rd, PHYS_REGS_ADDR_WIDTH'(issue_queue[i+1].op2_data)) || issue_queue[i+2].op1_valid);
+                                            forwarding_check(wb_if.valid, wb_if.phys_rd, PHYS_REGS_ADDR_WIDTH'(issue_queue[i+1].op2_data)) || issue_queue[i+1].op2_valid);
           end
         end
       end
@@ -220,7 +229,20 @@ module issueQueue #(
   end
   
   always_ff @(posedge clk) begin
-    if (rst) begin
+    if (rst || flush) begin
+      for(int i = 0; i < DISPATCH_WIDTH; i++) begin
+        issue_if.valid[i]     <= 0;
+        issue_if.alu_cmd[i]   <= common::alu_cmd_t'(0);
+        issue_if.op1[i]       <= 0;
+        issue_if.op2_type[i]  <= common::op_type_t'(0);
+        issue_if.op2[i]       <= 0;
+        issue_if.phys_rd[i]   <= 0;
+        issue_if.bank_addr[i] <= 0;
+        issue_if.rob_addr[i]  <= 0;
+        issue_if.pc[i]        <= 0;
+        issue_if.instr[i]     <= 0;
+        issue_if.is_branch_instr[i] <= 0;
+      end
     end else begin
       issue_if.valid[0]     <= issue_queue[issue_idx[0]].entry_valid && issue_ready_count != 0;
       issue_if.alu_cmd[0]   <= issue_queue[issue_idx[0]].alu_cmd;
@@ -232,6 +254,7 @@ module issueQueue #(
       issue_if.rob_addr[0]  <= issue_queue[issue_idx[0]].rob_addr;
       issue_if.pc[0]        <= issue_queue[issue_idx[0]].pc;
       issue_if.instr[0]     <= issue_queue[issue_idx[0]].instr;
+      issue_if.is_branch_instr[0] <= issue_queue[issue_idx[0]].is_branch_instr;
 
       issue_if.valid[1]     <= issue_queue[issue_idx[1]].entry_valid & issue_ready_count >= 2;
       issue_if.alu_cmd[1]   <= issue_queue[issue_idx[1]].alu_cmd;
@@ -243,6 +266,7 @@ module issueQueue #(
       issue_if.rob_addr[1]  <= issue_queue[issue_idx[1]].rob_addr;
       issue_if.pc[1]        <= issue_queue[issue_idx[1]].pc;
       issue_if.instr[1]     <= issue_queue[issue_idx[1]].instr;
+      issue_if.is_branch_instr[1] <= issue_queue[issue_idx[1]].is_branch_instr;
     end
   end
 
@@ -250,7 +274,7 @@ module issueQueue #(
 
   // Writeback
   always_ff @(posedge clk) begin
-    if (rst) begin
+    if (rst || flush) begin
       for (int i = 0; i < ISSUE_QUEUE_SIZE; i++) begin
         issue_queue[i] <= issue_queue_entry_t'(0);
       end

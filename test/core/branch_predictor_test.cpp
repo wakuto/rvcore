@@ -40,9 +40,9 @@ public:
       0x00000013,
       0x00000013,
       0x00000013,
+      0x00000013,
       0xfc009ee3,
       0x00100113,
-      0x00000013,
       0x00000013
     };
     for(uint32_t i = 0; i < mem.size(); i++) {
@@ -58,9 +58,9 @@ public:
         brp->pc[i] = 0;
         brp->instr[i] = 0;
         brp->fetch_valid[i] = 0;
+        brp->branch_result_valid[i] = 0;
+        brp->branch_taken[i] = 0;
       }
-      brp->branch_result_valid = 0;
-      brp->branch_correct = 0;
     });
 
     this->next_clock();
@@ -131,10 +131,10 @@ typedef enum {
 } branch_state_t;
 
 typedef enum {
+  NOT_BRANCH, // not a branch instruction
   PC_JMP,     // jal
   COND_BR,    // beq, bne, b**
-  REG_JMP,    // jalr
-  NOT_BRANCH  // not a branch instruction
+  REG_JMP     // jalr
 } branch_type_t;
 
 TEST (BranchPredictorTest, WithWriteBack) {
@@ -157,9 +157,9 @@ TEST (BranchPredictorTest, WithWriteBack) {
   // 0x18: nop
   // 0x1c: nop
   // 0x20: nop
-  // 0x24: bne x1, x0, -0x24
-  // 0x28: addi x2, x0, 0x1
-  // 0x2c: nop
+  // 0x24: nop
+  // 0x28: bne x1, x0, -0x24
+  // 0x2c: addi x2, x0, 0x1
   // 0x30: nop
   
   auto pc = 0x80000000;
@@ -171,24 +171,27 @@ TEST (BranchPredictorTest, WithWriteBack) {
   instr_1 = dut->read_imem(pc+4);
   dut->do_posedge([&](VbranchPredictor *brp) {
     fetch(brp, pc, instr_0, pc+4, instr_1);
-    brp->branch_result_valid = 0;
-    brp->branch_correct = 0;
+    for(int i = 0; i < 2; i++) {
+      brp->branch_result_valid[i] = 0;
+      brp->branch_taken[i] = 0;
+    }
   });
   EXPECT_TRUE(dut->top->instr_valid[0]);
-  EXPECT_TRUE(dut->top->instr_valid[1]);
-  EXPECT_EQ(dut->top->next_pc, pc + 8);
+  EXPECT_FALSE(dut->top->instr_valid[1]);
+  EXPECT_EQ(dut->top->next_pc, pc + 4);
   EXPECT_EQ(dut->top->branch_type[0], COND_BR);
-  EXPECT_NE(dut->top->branch_type[1], COND_BR);
   EXPECT_EQ(dut->top->rootp->branchPredictor__DOT__branch_state, branch_state_t::WEAK_NOT_TAKEN);
   pc = dut->top->next_pc;
   
-  // 0x80000008
+  // 0x80000004
   instr_0 = dut->read_imem(pc);
   instr_1 = dut->read_imem(pc+4);
   dut->do_posedge([&](VbranchPredictor *brp) {
     fetch(brp, pc, instr_0, pc+4, instr_1);
-    brp->branch_result_valid = 0;
-    brp->branch_correct = 0;
+    for(int i = 0; i < 2; i++) {
+      brp->branch_result_valid[i] = 0;
+      brp->branch_taken[i] = 0;
+    }
   });
   EXPECT_TRUE(dut->top->instr_valid[0]);
   EXPECT_TRUE(dut->top->instr_valid[1]);
@@ -198,13 +201,15 @@ TEST (BranchPredictorTest, WithWriteBack) {
   EXPECT_EQ(dut->top->rootp->branchPredictor__DOT__branch_state, branch_state_t::WEAK_NOT_TAKEN);
   pc = dut->top->next_pc;
 
-  // 0x80000010
+  // 0x8000000c
   instr_0 = dut->read_imem(pc);
   instr_1 = dut->read_imem(pc+4);
   dut->do_posedge([&](VbranchPredictor *brp) {
     fetch(brp, pc, instr_0, pc+4, instr_1);
-    brp->branch_result_valid = 0;
-    brp->branch_correct = 0;
+    for(int i = 0; i < 2; i++) {
+      brp->branch_result_valid[i] = 0;
+      brp->branch_taken[i] = 0;
+    }
   });
   EXPECT_TRUE(dut->top->instr_valid[0]);
   EXPECT_TRUE(dut->top->instr_valid[1]);
@@ -214,13 +219,15 @@ TEST (BranchPredictorTest, WithWriteBack) {
   EXPECT_EQ(dut->top->rootp->branchPredictor__DOT__branch_state, branch_state_t::WEAK_NOT_TAKEN);
   pc = dut->top->next_pc;
 
-  // 0x80000018
+  // 0x80000014
   instr_0 = dut->read_imem(pc);
   instr_1 = dut->read_imem(pc+4);
   dut->do_posedge([&](VbranchPredictor *brp) {
     fetch(brp, pc, instr_0, pc+4, instr_1);
-    brp->branch_result_valid = 1;
-    brp->branch_correct = 1;
+    brp->branch_result_valid[0] = 1;
+    brp->branch_taken[0] = 1;
+    brp->branch_result_valid[1] = 0;
+    brp->branch_taken[1] = 0;
   });
   EXPECT_TRUE(dut->top->instr_valid[0]);
   EXPECT_TRUE(dut->top->instr_valid[1]);
@@ -230,35 +237,39 @@ TEST (BranchPredictorTest, WithWriteBack) {
   EXPECT_EQ(dut->top->rootp->branchPredictor__DOT__branch_state, branch_state_t::WEAK_NOT_TAKEN);
   pc = dut->top->next_pc;
 
-  // 0x80000020
+  // 0x8000001c
   instr_0 = dut->read_imem(pc);
   instr_1 = dut->read_imem(pc+4);
   dut->do_posedge([&](VbranchPredictor *brp) {
     fetch(brp, pc, instr_0, pc+4, instr_1);
-    brp->branch_result_valid = 0;
-    brp->branch_correct = 0;
+    for(int i = 0; i < 2; i++) {
+      brp->branch_result_valid[i] = 0;
+      brp->branch_taken[i] = 0;
+    }
+  });
+  EXPECT_TRUE(dut->top->instr_valid[0]);
+  EXPECT_TRUE(dut->top->instr_valid[1]);
+  EXPECT_EQ(dut->top->next_pc, pc + 8);
+  EXPECT_NE(dut->top->branch_type[0], COND_BR);
+  EXPECT_NE(dut->top->branch_type[1], COND_BR);
+  EXPECT_EQ(dut->top->rootp->branchPredictor__DOT__branch_state, branch_state_t::WEAK_TAKEN);
+  pc = dut->top->next_pc;
+
+  // 0x80000024
+  instr_0 = dut->read_imem(pc);
+  instr_1 = dut->read_imem(pc+4);
+  dut->do_posedge([&](VbranchPredictor *brp) {
+    fetch(brp, pc, instr_0, pc+4, instr_1);
+    for(int i = 0; i < 2; i++) {
+      brp->branch_result_valid[i] = 0;
+      brp->branch_taken[i] = 0;
+    }
   });
   EXPECT_TRUE(dut->top->instr_valid[0]);
   EXPECT_TRUE(dut->top->instr_valid[1]);
   EXPECT_EQ(dut->top->next_pc, pc + 4 - 0x24);
   EXPECT_NE(dut->top->branch_type[0], COND_BR);
   EXPECT_EQ(dut->top->branch_type[1], COND_BR);
-  EXPECT_EQ(dut->top->rootp->branchPredictor__DOT__branch_state, branch_state_t::WEAK_TAKEN);
-  pc = dut->top->next_pc;
-
-  // 0x80000000
-  instr_0 = dut->read_imem(pc);
-  instr_1 = dut->read_imem(pc+4);
-  dut->do_posedge([&](VbranchPredictor *brp) {
-    fetch(brp, pc, instr_0, pc+4, instr_1);
-    brp->branch_result_valid = 0;
-    brp->branch_correct = 0;
-  });
-  EXPECT_FALSE(dut->top->instr_valid[0]);
-  EXPECT_FALSE(dut->top->instr_valid[1]);
-  EXPECT_EQ(dut->top->next_pc, pc + 0x28);
-  EXPECT_EQ(dut->top->branch_type[0], COND_BR);
-  EXPECT_NE(dut->top->branch_type[1], COND_BR);
   EXPECT_EQ(dut->top->rootp->branchPredictor__DOT__branch_state, branch_state_t::WEAK_TAKEN);
   pc = dut->top->next_pc;
 

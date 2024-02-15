@@ -14,10 +14,11 @@ module branchPredictor (
   output common::branch_type_t branch_type [0:DISPATCH_WIDTH-1],  // 分岐命令の種類
 
   output logic [31:0]  next_pc,
+  output logic         pred_taken          [0:DISPATCH_WIDTH-1],  // 分岐予測の方向
   output logic         is_speculative,
   
-  input  wire          branch_result_valid,
-  input  wire          branch_correct
+  input  wire          branch_result_valid [0:DISPATCH_WIDTH-1],
+  input  wire          branch_taken      [0:DISPATCH_WIDTH-1]
 );
 
   import parameters::*;
@@ -48,6 +49,16 @@ module branchPredictor (
   logic        taken;
   logic [31:0] target;
   
+  logic br_result_valid, br_taken, br_not_taken;
+  
+  always_comb begin
+    br_result_valid = branch_result_valid[0] || branch_result_valid[1];
+    br_taken = (branch_result_valid[0] && branch_taken[0]) ||
+                 (branch_result_valid[1] && branch_taken[1]);
+    br_not_taken = (branch_result_valid[0] && !branch_taken[0]) ||
+              (branch_result_valid[1] && !branch_taken[1]);
+  end
+  
   always_ff @(posedge clk) begin
     if (rst) begin
       is_speculative <= 0;
@@ -55,7 +66,7 @@ module branchPredictor (
     end else begin
       // is_speculative & is_branch_instr の場合、外部でストールする
       // 分岐命令が実行されるのは、!is_speculative & is_branch_instr の場合
-      if (branch_result_valid) begin
+      if (br_result_valid) begin
         is_speculative <= 0;
       end else if ((fetch_valid[0] && branch_type[0] == COND_BR) || (fetch_valid[1] && branch_type[1] == COND_BR)) begin
         is_speculative <= 1;
@@ -64,26 +75,26 @@ module branchPredictor (
       // 2bit 飽和カウンター による予測
       case(branch_state)
         STRONG_NOT_TAKEN: begin
-          if (branch_result_valid && branch_correct) begin
+          if (br_taken) begin
             branch_state <= WEAK_NOT_TAKEN;
           end
         end
         WEAK_NOT_TAKEN: begin
-          if (branch_result_valid && branch_correct) begin
+          if (br_taken) begin
             branch_state <= WEAK_TAKEN;
-          end else if (branch_result_valid && !branch_correct) begin
+          end else if (br_not_taken) begin
             branch_state <= STRONG_NOT_TAKEN;
           end
         end
         WEAK_TAKEN: begin
-          if (branch_result_valid && branch_correct) begin
+          if (br_taken) begin
             branch_state <= STRONG_TAKEN;
-          end else if (branch_result_valid && !branch_correct) begin
+          end else if (br_not_taken) begin
             branch_state <= WEAK_NOT_TAKEN;
           end
         end
         STRONG_TAKEN: begin
-          if (branch_result_valid && !branch_correct) begin
+          if (br_not_taken) begin
             branch_state <= WEAK_TAKEN;
           end
         end
@@ -157,49 +168,49 @@ module branchPredictor (
         target = 0;
       end
     endcase
-      
-    // next_pc_generator
-    // 投機実行なしの場合、taken なら分岐
-    //                     not taken なら 2つ目の分岐命令が出現するまで実行
-    if (!is_speculative) begin
-      if (taken) begin
-        next_pc = target;
-      end else begin
-        if (instr_type[0] == COND_BR && instr_type[1] == COND_BR) begin
-          next_pc = pc[1];
-        end else begin
-          next_pc = pc[1] + 4;
-        end
-      end
-    // 投機実行中の場合、taken なら分岐（分岐が b-type の場合は hazard unit でストール）
-    //                   not taken なら 次の命令を実行（分岐が b-type の場合は hazard unit でストール)
+    
+    // 分岐方向の書き込み
+    if (instr_type[0] == COND_BR) begin
+      pred_taken[0] = taken;
+      pred_taken[1] = 0;
+    end else if (instr_type[0] == NOT_BRANCH && instr_type[1] == COND_BR) begin
+      pred_taken[0] = 0;
+      pred_taken[1] = taken;
     end else begin
-      if (taken) begin
-        next_pc = target;
-      end else begin
-        if (fetch_valid[0] && fetch_valid[1]) begin
-          next_pc = pc[1] + 4;
-        end else if (fetch_valid[0]) begin
-          next_pc = pc[0] + 4;
-        end else if (fetch_valid[1]) begin
-          next_pc = pc[1] + 4;
-        end else begin
-          next_pc = pc[0];
-        end
-      end
+      pred_taken[0] = 0;
+      pred_taken[1] = 0;
     end
     
     // 分岐命令によって無効化されないか
     // また、 is_speculative == 1 ならば、新たな分岐命令を受け付けない
     if (!is_speculative) begin
       instr_valid[0] = fetch_valid[0];
-      instr_valid[1] = !(
-        (instr_type[0] == COND_BR && ((instr_type[1] == COND_BR) || taken))
-      ) & fetch_valid[1];
+      instr_valid[1] = fetch_valid[0] && (instr_type[0] == NOT_BRANCH) && fetch_valid[1];
     end else begin
       instr_valid[0] = fetch_valid[0] && branch_type[0] != COND_BR;
-      instr_valid[1] = fetch_valid[1] && branch_type[1] != COND_BR && instr_valid[0];
+      instr_valid[1] = fetch_valid[0] && (instr_type[0] == NOT_BRANCH) && fetch_valid[1] && branch_type[1] != COND_BR;
     end
+      
+    // next_pc_generator
+    // 投機実行中でない場合、taken なら分岐
+    //                     not taken なら 2つ目の分岐命令が出現するまで実行
+    case({instr_valid[1], instr_valid[0]})
+      2'b11 : begin
+        if (taken) begin
+          next_pc = target;
+        end else begin
+          next_pc = pc[1] + 4;
+        end
+      end
+      2'b01 : begin
+        if (taken) begin
+          next_pc = target;
+        end else begin
+          next_pc = pc[1];
+        end
+      end
+      default: next_pc = pc[0];
+    endcase
   end
 endmodule
 `default_nettype wire

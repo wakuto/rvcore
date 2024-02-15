@@ -14,6 +14,7 @@ interface isqIssueIf;
   logic [ROB_ADDR_WIDTH-1: 0]      rob_addr  [0:DISPATCH_WIDTH-1];
   logic [31:0]                     pc        [0:DISPATCH_WIDTH-1];
   logic [31:0]                     instr     [0:DISPATCH_WIDTH-1];
+  logic                            is_branch_instr [0:DISPATCH_WIDTH-1];
 
   // Issue queue ->
   modport out (
@@ -26,7 +27,8 @@ interface isqIssueIf;
     output bank_addr,
     output rob_addr,
     output pc,
-    output instr
+    output instr,
+    output is_branch_instr
   );
   // -> Executer
   modport in (
@@ -39,7 +41,8 @@ interface isqIssueIf;
     input bank_addr,
     input rob_addr,
     input pc,
-    input instr
+    input instr,
+    input is_branch_instr
   );
 endinterface
 

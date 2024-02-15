@@ -18,7 +18,7 @@ module op2ValidLogic(
       case (op2_type[bank])
         common::REG: begin
           op2[bank]       = 32'(rs2[bank]);
-          op2_valid[bank] = rs2_valid[bank];
+          op2_valid[bank] = (rs2[bank] == 0) || rs2_valid[bank];
         end
         common::IMM: begin
           op2[bank]       = imm[bank];

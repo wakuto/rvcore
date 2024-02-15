@@ -52,22 +52,24 @@ module core (
   logic             instr_valid_if     [0:DISPATCH_WIDTH-1];
   common::branch_type_t branch_type_if [0:DISPATCH_WIDTH-1];
   logic             is_speculative_if;
+  logic             pred_taken_if      [0:DISPATCH_WIDTH-1];
   
   // IF/ID regs
   logic             instr_valid_id     [0:DISPATCH_WIDTH-1];
   logic [31:0]      pc_id              [0:DISPATCH_WIDTH-1];
   logic [31:0]      instr_id           [0:DISPATCH_WIDTH-1];
-  common::branch_type_t     branch_type_id     [0:DISPATCH_WIDTH-1];
-  logic             is_speculative_id  [0:DISPATCH_WIDTH-1];
+  common::branch_type_t branch_type_id [0:DISPATCH_WIDTH-1];
+  logic                 pred_taken_id  [0:DISPATCH_WIDTH-1];
 
   // ID stage
-  logic             valid_id    [0:DISPATCH_WIDTH-1];
-  logic [4:0]       rs1_id      [0:DISPATCH_WIDTH-1];
-  logic [4:0]       rs2_id      [0:DISPATCH_WIDTH-1];
-  logic [4:0]       rd_id       [0:DISPATCH_WIDTH-1];
-  common::alu_cmd_t alu_cmd_id  [0:DISPATCH_WIDTH-1];
-  logic [31:0]      imm_id      [0:DISPATCH_WIDTH-1];
-  common::op_type_t op2_type_id [0:DISPATCH_WIDTH-1];
+  logic             valid_id     [0:DISPATCH_WIDTH-1];
+  logic [4:0]       rs1_id       [0:DISPATCH_WIDTH-1];
+  logic [4:0]       rs2_id       [0:DISPATCH_WIDTH-1];
+  logic [4:0]       rd_id        [0:DISPATCH_WIDTH-1];
+  common::alu_cmd_t alu_cmd_id   [0:DISPATCH_WIDTH-1];
+  logic [31:0]      imm_id       [0:DISPATCH_WIDTH-1];
+  common::op_type_t op2_type_id  [0:DISPATCH_WIDTH-1];
+  logic [12:0]      br_offset_id [0:DISPATCH_WIDTH-1];
 
   // ID/REN regs
   logic             valid_rn    [0:DISPATCH_WIDTH-1];
@@ -80,11 +82,16 @@ module core (
   common::op_type_t op2_type_rn [0:DISPATCH_WIDTH-1];
   logic [31:0]      pc_rn       [0:DISPATCH_WIDTH-1];
   logic [31:0]      instr_rn    [0:DISPATCH_WIDTH-1];
+  common::branch_type_t branch_type_rn [0:DISPATCH_WIDTH-1];
+  logic             pred_taken_rn      [0:DISPATCH_WIDTH-1];
+  logic [12:0]      br_offset_rn       [0:DISPATCH_WIDTH-1];
+  
 
   // REN stage
-  logic [PHYS_REGS_ADDR_WIDTH-1:0] rs1_data_rn [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REGS_ADDR_WIDTH-1:0] rs2_data_rn [0:DISPATCH_WIDTH-1];
-  logic [PHYS_REGS_ADDR_WIDTH-1:0] pop_reg_rn  [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] rs1_data_rn  [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] rs2_data_rn  [0:DISPATCH_WIDTH-1];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] pop_reg_rn   [0:DISPATCH_WIDTH-1];
+  logic                            need_phys_rd_rn [0:DISPATCH_WIDTH-1];
   freelistIf freelist_if_rn();
 
   // REN/DISP regs
@@ -98,8 +105,12 @@ module core (
   logic [4:0]                      arch_rd_disp  [0:DISPATCH_WIDTH-1];
   logic [31:0]                     pc_disp       [0:DISPATCH_WIDTH-1];
   logic [31:0]                     instr_disp    [0:DISPATCH_WIDTH-1];
+  common::branch_type_t            branch_type_disp [0:DISPATCH_WIDTH-1];
+  logic                            pred_taken_disp  [0:DISPATCH_WIDTH-1];
+  logic [12:0]                     br_offset_disp   [0:DISPATCH_WIDTH-1];
 
   // DISP stage
+  logic                            miss_predict_disp;
   logic [DISPATCH_ADDR_WIDTH-1:0]  bank_addr_disp      [0:DISPATCH_WIDTH-1];
   logic [ROB_ADDR_WIDTH-1:0]       rob_addr_disp       [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rs1_disp       [0:DISPATCH_WIDTH-1];
@@ -125,6 +136,8 @@ module core (
   logic [ROB_ADDR_WIDTH-1:0]       rob_addr_issue  [0:DISPATCH_WIDTH-1];
   logic [31:0]                     pc_issue        [0:DISPATCH_WIDTH-1];
   logic [31:0]                     instr_issue     [0:DISPATCH_WIDTH-1];
+  common::branch_type_t            branch_type_issue[0:DISPATCH_WIDTH-1];
+  logic [12:0]                     br_offset_issue  [0:DISPATCH_WIDTH-1];
 
   // ISSUE stage
   logic [31:0]                     op2_issue            [0:DISPATCH_WIDTH-1];
@@ -134,6 +147,7 @@ module core (
   isqIssueIf                       issue_if_issue();
 
   // REGREAD stage
+  logic [31:0]                     phys_reg_reset_data [0:PHYS_REGS-1];
   logic                            valid_rread     [0:DISPATCH_WIDTH-1];
   common::alu_cmd_t                alu_cmd_rread   [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] op1_rread       [0:DISPATCH_WIDTH-1];
@@ -146,6 +160,7 @@ module core (
   logic [31:0]                     rs2_data_rread  [0:DISPATCH_WIDTH-1];
   logic [31:0]                     pc_rread        [0:DISPATCH_WIDTH-1];
   logic [31:0]                     instr_rread     [0:DISPATCH_WIDTH-1];
+  logic                            is_br_instr_rread [0:DISPATCH_WIDTH-1];
 
   // REGREAD/EX regs
   logic                            valid_ex     [0:DISPATCH_WIDTH-1];
@@ -157,9 +172,11 @@ module core (
   logic [ROB_ADDR_WIDTH-1:0]       rob_addr_ex  [0:DISPATCH_WIDTH-1];
   logic [31:0]                     pc_ex        [0:DISPATCH_WIDTH-1];
   logic [31:0]                     instr_ex     [0:DISPATCH_WIDTH-1];
+  logic                            is_br_instr_ex [0:DISPATCH_WIDTH-1];
 
   // EX stage
   logic [31:0]               alu_out_ex   [0:DISPATCH_WIDTH-1];
+  logic                      taken_ex     [0:DISPATCH_WIDTH-1];
 
   // EX/WB regs
   logic                            valid_wb     [0:DISPATCH_WIDTH-1];
@@ -169,15 +186,21 @@ module core (
   logic [ROB_ADDR_WIDTH-1:0]       rob_addr_wb  [0:DISPATCH_WIDTH-1];
   logic [31:0]                     pc_wb        [0:DISPATCH_WIDTH-1];
   logic [31:0]                     instr_wb     [0:DISPATCH_WIDTH-1];
+  logic                            is_br_instr_wb [0:DISPATCH_WIDTH-1];
+  logic                            taken_wb     [0:DISPATCH_WIDTH-1];
 
   // COMMIT stage
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] commit_map_table_reset_data [0:31];
+  logic [PHYS_REGS_ADDR_WIDTH-1:0] commit_map_table_dump       [0:31];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd_commit [0:DISPATCH_WIDTH-1];
   logic [4:0]                      arch_rd_commit [0:DISPATCH_WIDTH-1];
   logic                            en_commit      [0:DISPATCH_WIDTH-1];
   logic [31:0]                     pc_commit      [0:DISPATCH_WIDTH-1];
   logic [31:0]                     instr_commit   [0:DISPATCH_WIDTH-1];
-  logic                            branch_result_valid_commit;
-  logic                            branch_correct_commit;
+  logic                            branch_result_valid_commit [0:DISPATCH_WIDTH-1];
+  logic                            branch_correct_commit [0:DISPATCH_WIDTH-1];
+  logic                            branch_taken_commit   [0:DISPATCH_WIDTH-1];
+  logic [12:0]                     br_offset_commit [0:DISPATCH_WIDTH-1];
   
   // hazard logic
   logic stall_if;
@@ -185,6 +208,13 @@ module core (
   logic stall_rn;
   logic stall_disp;
   logic stall_issue;
+  
+  logic [31:0] pc_pred [0:DISPATCH_WIDTH-1];
+
+  always_comb begin
+    pc_pred[0] = pc;
+    pc_pred[1] = pc + 4;
+  end
   
   // hazard unit
   hazard hazard(
@@ -205,20 +235,27 @@ module core (
   branchPredictor branchPredictor(
     .clk,
     .rst,
-    .pc('{pc, pc + 4}),
+    .pc(pc_pred),
     .instr(instruction),
     .fetch_valid(instr_valid),
     .instr_valid(instr_valid_if),
     .next_pc(next_pc_if),
+    .pred_taken(pred_taken_if),
     .is_speculative(is_speculative_if),
     .branch_type(branch_type_if),
     .branch_result_valid(branch_result_valid_commit),
-    .branch_correct(branch_correct_commit)
+    .branch_taken(branch_taken_commit)
   );
 
   always_ff @(posedge clk) begin
     if (rst) begin
       pc <= 32'h80000000;
+    end else if (miss_predict_disp) begin
+      if (branch_result_valid_commit[0] && !branch_correct_commit[0]) begin
+        pc <= pc_commit[0] + 32'(signed'(br_offset_commit[0]));
+      end else begin
+        pc <= pc_commit[1] + 32'(signed'(br_offset_commit[1]));
+      end
     end else begin
       if (!stall_id && !stall_if) begin
         pc <= next_pc_if;
@@ -228,37 +265,51 @@ module core (
 
   // IF/ID regs
   always_ff @(posedge clk) begin
-    if (rst) begin
+    if (rst || miss_predict_disp) begin
       for(int i = 0; i < DISPATCH_WIDTH; i++) begin
         instr_id[i]       <= 0;
         instr_valid_id[i] <= 0;
         pc_id[i]          <= 0;
+        branch_type_id[i] <= common::branch_type_t'(0);
+        pred_taken_id[i]  <= 0;
       end
     end else begin
       if (!stall_id) begin
         // bank 0 に優先的に投入
-        case({instr_valid[1], instr_valid[0]})
+        case({instr_valid_if[1], instr_valid_if[0]})
           2'b11: begin
             instr_id <= instruction;
-            instr_valid_id <= instr_valid;
+            instr_valid_id <= instr_valid_if;
             pc_id[0] <= pc;
             pc_id[1] <= pc + 4;
+            branch_type_id[0] <= branch_type_if[0];
+            pred_taken_id[0] <= pred_taken_if[0];
+            branch_type_id[1] <= branch_type_if[1];
+            pred_taken_id[1] <= pred_taken_if[1];
           end
           2'b10: begin
             instr_id[0] <= instruction[1];
-            instr_valid_id[0] <= instr_valid[1];
+            instr_valid_id[0] <= instr_valid_if[1];
             pc_id[0] <= pc;
             instr_id[1] <= 0;
             instr_valid_id[1] <= 0;
             pc_id[1] <= 0;
+            branch_type_id[0] <= branch_type_if[1];
+            pred_taken_id[0] <= pred_taken_if[1];
+            branch_type_id[1] <= common::branch_type_t'(0);
+            pred_taken_id[1] <= 0;
           end
           2'b01: begin
             instr_id[0] <= instruction[0];
-            instr_valid_id[0] <= instr_valid[0];
+            instr_valid_id[0] <= instr_valid_if[0];
             pc_id[0] <= pc;
             instr_id[1] <= 0;
             instr_valid_id[1] <= 0;
             pc_id[1] <= 0;
+            branch_type_id[0] <= branch_type_if[0];
+            pred_taken_id[0] <= pred_taken_if[0];
+            branch_type_id[1] <= common::branch_type_t'(0);
+            pred_taken_id[1] <= 0;
           end
           default: begin
             instr_valid_id[0] <= 0;
@@ -267,6 +318,10 @@ module core (
             instr_id[1] <= 0;
             pc_id[0] <= 0;
             pc_id[1] <= 0;
+            branch_type_id[0] <= common::branch_type_t'(0);
+            pred_taken_id[0] <= 0;
+            branch_type_id[1] <= common::branch_type_t'(0);
+            pred_taken_id[1] <= 0;
           end
         endcase
       end
@@ -285,20 +340,25 @@ module core (
         .rd(rd_id[bank]),
         .alu_cmd(alu_cmd_id[bank]),
         .imm(imm_id[bank]),
-        .op2_type(op2_type_id[bank])
+        .op2_type(op2_type_id[bank]),
+        .br_offset(br_offset_id[bank])
       );
     end
   endgenerate
 
   always_comb begin
     for(int i = 0; i < DISPATCH_WIDTH; i++) begin
-      valid_id[i] = instr_valid[i] & (rd_id[i] != 0);
+      if (instr_valid_id[i] && branch_type_id[i] == common::COND_BR) begin
+        valid_id[i] = 1;
+      end else begin
+        valid_id[i] = instr_valid_id[i] & (rd_id[i] != 0);
+      end
     end
   end
 
   // ID/REN regs
   always_ff @(posedge clk) begin
-    if (rst) begin
+    if (rst || miss_predict_disp) begin
       for(int i = 0; i < DISPATCH_WIDTH; i++) begin
         valid_rn[i]    <= 0;
         rs1_rn[i]      <= 0;
@@ -309,6 +369,9 @@ module core (
         op2_type_rn[i] <= common::op_type_t'(0);
         pc_rn[i]       <= 0;
         instr_rn[i]    <= 0;
+        branch_type_rn[i] <= common::branch_type_t'(0);
+        pred_taken_rn[i]  <= 0;
+        br_offset_rn[i]   <= 0;
       end
     end else begin
       if (!stall_rn) begin
@@ -321,6 +384,9 @@ module core (
         op2_type_rn <= op2_type_id;
         pc_rn       <= pc_id;
         instr_rn    <= instr_id;
+        branch_type_rn <= branch_type_id;
+        pred_taken_rn  <= pred_taken_id;
+        br_offset_rn   <= br_offset_id;
       end
     end
   end
@@ -333,13 +399,16 @@ module core (
   rename_map_table(
     .clk,
     .rst,
+    .flush(miss_predict_disp),
+    .reset_data(commit_map_table_dump),
     .addr_rs1(rs1_rn),
     .addr_rs2(rs2_rn),
     .addr_rd(rd_rn),
     .rd_data(pop_reg_rn),
     .rd_wen(rd_wen_rn),
     .rs1_data(rs1_data_rn),
-    .rs2_data(rs2_data_rn)
+    .rs2_data(rs2_data_rn),
+    .reg_dump()
   );
 
   freelist freelist(
@@ -350,10 +419,12 @@ module core (
   
   always_comb begin
     freelist_if_rn.push_reg = phys_rd_commit;
+
     for(int i = 0; i < DISPATCH_WIDTH; i++) begin
       freelist_if_rn.push_en[i]  = en_commit[i];
-      freelist_if_rn.pop_en[i]   = valid_rn[i] & !stall_rn;
-      rd_wen_rn[i]               = valid_rn[i] & !stall_rn;
+      need_phys_rd_rn[i]            = valid_rn[i] && (branch_type_rn[i] != common::COND_BR);
+      freelist_if_rn.pop_en[i]   = need_phys_rd_rn[i] & !stall_rn;
+      rd_wen_rn[i]               = need_phys_rd_rn[i] & !stall_rn;
     end
 
     pop_reg_rn = freelist_if_rn.pop_reg;
@@ -361,7 +432,7 @@ module core (
 
   // REN/DISP regs
   always_ff @(posedge clk) begin
-    if (rst) begin
+    if (rst || miss_predict_disp) begin
       for(int i = 0; i < DISPATCH_WIDTH; i++) begin
         valid_disp[i]    <= 0;
         alu_cmd_disp[i]  <= common::alu_cmd_t'(0);
@@ -373,6 +444,9 @@ module core (
         arch_rd_disp[i]  <= 0;
         pc_disp[i]       <= 0;
         instr_disp[i]    <= 0;
+        branch_type_disp[i] <= common::branch_type_t'(0);
+        pred_taken_disp[i]  <= 0;
+        br_offset_disp[i]   <= 0;
       end
     end else begin
       if (!stall_disp) begin
@@ -388,6 +462,9 @@ module core (
         arch_rd_disp  <= rd_rn;
         pc_disp       <= pc_rn;
         instr_disp    <= instr_rn;
+        branch_type_disp <= branch_type_rn;
+        pred_taken_disp  <= pred_taken_rn;
+        br_offset_disp   <= br_offset_rn;
       end
     end
   end
@@ -396,6 +473,7 @@ module core (
   rob #() rob (
     .clk,
     .rst,
+    .flush(miss_predict_disp),
     .dispatch_if(dispatch_if_disp),
     .wb_if(wb_if_disp),
     .commit_if(commit_if_disp),
@@ -405,11 +483,14 @@ module core (
   always_comb begin
     for(int i = 0; i < DISPATCH_WIDTH; i++) begin
       dispatch_if_disp.en[i] = valid_disp[i] & !stall_disp;
+      dispatch_if_disp.is_branch_instr[i] = branch_type_disp[i] == common::COND_BR;
     end
     dispatch_if_disp.phys_rd = phys_rd_disp;
     dispatch_if_disp.arch_rd = arch_rd_disp;
     dispatch_if_disp.pc      = pc_disp;
     dispatch_if_disp.instr   = instr_disp;
+    dispatch_if_disp.pred_taken = pred_taken_disp;
+    dispatch_if_disp.br_offset = br_offset_disp;
     bank_addr_disp = dispatch_if_disp.bank_addr;
     rob_addr_disp  = dispatch_if_disp.rob_addr;
 
@@ -417,12 +498,19 @@ module core (
     wb_if_disp.phys_rd   = phys_rd_wb;
     wb_if_disp.bank_addr = bank_addr_wb;
     wb_if_disp.rob_addr  = rob_addr_wb;
+    wb_if_disp.is_branch_instr = is_br_instr_wb;
+    wb_if_disp.taken     = taken_wb;
 
     arch_rd_commit = commit_if_disp.arch_rd;
     phys_rd_commit = commit_if_disp.phys_rd;
     en_commit      = commit_if_disp.en;
     pc_commit      = commit_if_disp.pc;
     instr_commit   = commit_if_disp.instr;
+    branch_result_valid_commit[0] = en_commit[0] && commit_if_disp.is_branch_instr[0];
+    branch_result_valid_commit[1] = en_commit[1] && commit_if_disp.is_branch_instr[1];
+    branch_correct_commit = commit_if_disp.branch_correct;
+    branch_taken_commit = commit_if_disp.branch_taken;
+    br_offset_commit = commit_if_disp.br_offset;
 
     op_fetch_if_disp.phys_rs1 = rs1_disp;
     op_fetch_if_disp.phys_rs2 = rs2_disp;
@@ -433,7 +521,7 @@ module core (
 
   // DISP/ISSUE regs
   always_ff @(posedge clk) begin
-    if (rst) begin
+    if (rst || miss_predict_disp) begin
       for(int i = 0; i < DISPATCH_WIDTH; i++) begin
         valid_issue[i]     <= 0;
         alu_cmd_issue[i]   <= common::alu_cmd_t'(0);
@@ -448,6 +536,7 @@ module core (
         rob_addr_issue[i]  <= 0;
         pc_issue[i]        <= 0;
         instr_issue[i]     <= 0;
+        branch_type_issue[i] <= common::branch_type_t'(0);
       end
     end else begin
       if (!stall_issue) begin
@@ -456,18 +545,19 @@ module core (
         end
         alu_cmd_issue   <= alu_cmd_disp;
         rs1_issue       <= rs1_disp;
-        rs1_valid_issue[0] <= phys_rs1_valid_disp[0];
-        rs1_valid_issue[1] <= phys_rd_disp[0] == rs1_disp[1] ? 0 : phys_rs1_valid_disp[1];
+        rs1_valid_issue[0] <= (rs1_disp[0] == 0) || phys_rs1_valid_disp[0];
+        rs1_valid_issue[1] <= (rs1_disp[1] == 0) || (phys_rd_disp[0] == rs1_disp[1] ? 0 : phys_rs1_valid_disp[1]);
         op2_type_issue  <= op2_type_disp;
         rs2_issue       <= rs2_disp;
-        rs2_valid_issue[0] <= phys_rs2_valid_disp[0];
-        rs2_valid_issue[1] <= phys_rd_disp[0] == rs2_disp[1] ? 0 : phys_rs2_valid_disp[1];
+        rs2_valid_issue[0] <= (rs2_disp[0] == 0) || phys_rs2_valid_disp[0];
+        rs2_valid_issue[1] <= (rs2_disp[1] == 0) || (phys_rd_disp[0] == rs2_disp[1] ? 0 : phys_rs2_valid_disp[1]);
         imm_issue       <= imm_disp;
         phys_rd_issue   <= phys_rd_disp;
         bank_addr_issue <= bank_addr_disp;
         rob_addr_issue  <= rob_addr_disp;
         pc_issue        <= pc_disp;
         instr_issue     <= instr_disp;
+        branch_type_issue <= branch_type_disp;
       end
     end
   end
@@ -486,6 +576,7 @@ module core (
   ) issue_queue (
     .clk,
     .rst,
+    .flush(miss_predict_disp),
     .dispatch_if(dispatch_if_issue.in),
     .wb_if(wb_if_issue.in),
     .issue_if(issue_if_issue.out)
@@ -494,6 +585,7 @@ module core (
   always_comb begin
     for(int i = 0; i < DISPATCH_WIDTH; i++) begin
       dispatch_if_issue.en[i]   = valid_issue[i] & !stall_issue;
+      dispatch_if_issue.is_branch_instr[i] = branch_type_issue[i] == common::COND_BR;
     end
     dispatch_if_issue.alu_cmd   = alu_cmd_issue;
     dispatch_if_issue.op1       = rs1_issue;
@@ -520,12 +612,16 @@ module core (
     rob_addr_rread  = issue_if_issue.rob_addr;
     pc_rread        = issue_if_issue.pc;
     instr_rread     = issue_if_issue.instr;
+    is_br_instr_rread = issue_if_issue.is_branch_instr;
   end
 
   logic [PHYS_REGS_ADDR_WIDTH-1:0] op2_rread_bit_cast [0:DISPATCH_WIDTH-1];
   always_comb begin
     for(int i = 0; i < DISPATCH_WIDTH; i++) begin
       op2_rread_bit_cast[i] = PHYS_REGS_ADDR_WIDTH'(op2_rread[i]);
+    end
+    for(int i = 0; i < PHYS_REGS; i++) begin
+      phys_reg_reset_data[i] = 32'h0;
     end
   end
 
@@ -535,18 +631,21 @@ module core (
   ) phys_regfile(
     .clk,
     .rst,
+    .flush(0),
+    .reset_data(phys_reg_reset_data),
     .addr_rs1(op1_rread),
     .addr_rs2(op2_rread_bit_cast),
     .addr_rd(phys_rd_wb),
     .rd_data(result_wb),
     .rd_wen(valid_wb),
     .rs1_data(rs1_data_rread),
-    .rs2_data(rs2_data_rread)
+    .rs2_data(rs2_data_rread),
+    .reg_dump()
   );
 
   // RREAD/EX regs
   always_ff @(posedge clk) begin
-    if (rst) begin
+    if (rst || miss_predict_disp) begin
       for(int i = 0; i < DISPATCH_WIDTH; i++) begin
         valid_ex[i]     <= 0;
         alu_cmd_ex[i]   <= common::alu_cmd_t'(0);
@@ -557,6 +656,7 @@ module core (
         rob_addr_ex[i]  <= 0;
         pc_ex[i]        <= 0;
         instr_ex[i]     <= 0;
+        is_br_instr_ex[i] <= 0;
       end
     end else begin
       valid_ex     <= valid_rread;
@@ -574,6 +674,7 @@ module core (
       rob_addr_ex  <= rob_addr_rread;
       pc_ex        <= pc_rread;
       instr_ex     <= instr_rread;
+      is_br_instr_ex <= is_br_instr_rread;
     end
   end
 
@@ -587,9 +688,19 @@ module core (
       );
     end
   endgenerate
+  
+  always_comb begin
+    for(int i = 0; i < 2; i++) begin
+      if (valid_ex[i] && is_br_instr_ex[i]) begin
+        taken_ex[i] = alu_out_ex[i][0];
+      end else begin
+        taken_ex[i] = 0;
+      end
+    end
+  end
 
   always_ff @(posedge clk) begin
-    if (rst) begin
+    if (rst || miss_predict_disp) begin
       for(int i = 0; i < DISPATCH_WIDTH; i++) begin
         valid_wb[i]     <= 0;
         result_wb[i]    <= 0;
@@ -598,6 +709,8 @@ module core (
         rob_addr_wb[i]  <= 0;
         pc_wb[i]        <= 0;
         instr_wb[i]     <= 0;
+        is_br_instr_wb[i] <= 0;
+        taken_wb[i]     <= 0;
       end
     end else begin
       valid_wb     <= valid_ex;
@@ -607,6 +720,15 @@ module core (
       rob_addr_wb  <= rob_addr_ex;
       pc_wb        <= pc_ex;
       instr_wb     <= instr_ex;
+      is_br_instr_wb <= is_br_instr_ex;
+      taken_wb     <= taken_ex;
+    end
+  end
+  
+  // commit stage
+  always_comb begin
+    for(int i = 0; i < 32; i++) begin
+      commit_map_table_reset_data[i] = 0;
     end
   end
 
@@ -616,13 +738,16 @@ module core (
   ) commit_map_table(
     .clk,
     .rst,
+    .flush(0),
+    .reset_data(commit_map_table_reset_data),
     .addr_rs1(),
     .addr_rs2(),
     .addr_rd(arch_rd_commit),
     .rd_data(phys_rd_commit),
     .rd_wen(en_commit),
     .rs1_data(),
-    .rs2_data()
+    .rs2_data(),
+    .reg_dump(commit_map_table_dump)
   );
 
 endmodule

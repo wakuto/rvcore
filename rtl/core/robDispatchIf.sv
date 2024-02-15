@@ -13,6 +13,7 @@ interface robDispatchIf;
   logic                             full;
   logic                             is_branch_instr [0:DISPATCH_WIDTH-1];
   logic                             pred_taken[0:DISPATCH_WIDTH-1];
+  logic [12:0]                      br_offset [0:DISPATCH_WIDTH-1];
   logic [31:0]                      pc        [0:DISPATCH_WIDTH-1];
   logic [31:0]                      instr     [0:DISPATCH_WIDTH-1];
 
@@ -25,6 +26,7 @@ interface robDispatchIf;
     input  full,
     output is_branch_instr,
     output pred_taken,
+    output br_offset,
     output pc,
     output instr
   );
@@ -38,6 +40,7 @@ interface robDispatchIf;
     output full,
     input  is_branch_instr,
     input  pred_taken,
+    input  br_offset,
     input  pc,
     input  instr
   );

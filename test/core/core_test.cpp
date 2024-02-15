@@ -14,7 +14,8 @@
 #define UART0_BASE 0x10000000
 #define UART0_SIZE 0x100
 #define DRAM_BASE  0x80000000
-#define DRAM_SIZE  0x40000
+// #define DRAM_SIZE  0x40000
+#define DRAM_SIZE  0x38
 
 class CoreTester : public ModelTester<Vcore> {
 private:
@@ -143,10 +144,12 @@ public:
 
   void run_one_cycle(uint32_t mem_delay) {
     static uint32_t delay_counter = 0;
+    static bool wait = false;
     for(auto i = 0; i < 2; i++) {
       this->top->instruction[i] = this->read_imem(this->top->pc + 4*i);
-      this->top->instr_valid[i] = this->top->instruction[i] != 0xdeadbeef;
+      this->top->instr_valid[i] = wait && this->top->instruction[i] != 0xdeadbeef;
     }
+    wait = !wait;
       
     this->do_posedge([&](Vcore *core) {
       // delay_counter = 0 -> read_valid = write_ready = 0
@@ -188,15 +191,25 @@ public:
       auto phys_rd_1 = this->top->__PVT__core__DOT__commit_if_disp->phys_rd[1];
       auto rd_val_0 = this->top->rootp->core__DOT__phys_regfile__DOT__regfile[phys_rd_0];
       auto rd_val_1 = this->top->rootp->core__DOT__phys_regfile__DOT__regfile[phys_rd_1];
+      auto is_branch = this->top->__PVT__core__DOT__commit_if_disp->is_branch_instr;
+      auto branch_correct = this->top->__PVT__core__DOT__commit_if_disp->branch_correct;
 
       switch(commit) {
       case 1:
         // bank0 のコミットログを表示
-        this->log_file << std::format("core{:>4}: {:>1} {:#010x} ({:#010x}) x{:<2} {:#010x}", 0, 3, pc_0, instr_0, arch_rd_0, rd_val_0) << std::endl;
+        if (is_branch[0])
+          this->log_file << std::format("core{:>4}: {:>1} {:#010x} ({:#010x})", 0, 3, pc_0, instr_0) << std::endl;
+        else
+          this->log_file << std::format("core{:>4}: {:>1} {:#010x} ({:#010x}) x{:<2} {:#010x}", 0, 3, pc_0, instr_0, arch_rd_0, rd_val_0) << std::endl;
         break;
       case 2:
-        this->log_file << std::format("core{:>4}: {:>1} {:#010x} ({:#010x}) x{:<2} {:#010x}", 0, 3, pc_0, instr_0, arch_rd_0, rd_val_0) << std::endl;
-        this->log_file << std::format("core{:>4}: {:>1} {:#010x} ({:#010x}) x{:<2} {:#010x}", 0, 3, pc_1, instr_1, arch_rd_1, rd_val_1) << std::endl;
+        if (is_branch[1]) {
+          this->log_file << std::format("core{:>4}: {:>1} {:#010x} ({:#010x}) x{:<2} {:#010x}", 0, 3, pc_0, instr_0, arch_rd_0, rd_val_0) << std::endl;
+          this->log_file << std::format("core{:>4}: {:>1} {:#010x} ({:#010x})", 0, 3, pc_1, instr_1) << std::endl;
+        } else {
+          this->log_file << std::format("core{:>4}: {:>1} {:#010x} ({:#010x}) x{:<2} {:#010x}", 0, 3, pc_0, instr_0, arch_rd_0, rd_val_0) << std::endl;
+          this->log_file << std::format("core{:>4}: {:>1} {:#010x} ({:#010x}) x{:<2} {:#010x}", 0, 3, pc_1, instr_1, arch_rd_1, rd_val_1) << std::endl;
+        }
         break;
       }
     }

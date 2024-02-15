@@ -4,10 +4,10 @@
 
 package common;
   typedef enum logic [1:0] {
+    NOT_BRANCH, // not a branch instruction
     PC_JMP,     // jal
     COND_BR,    // beq, bne, b**
-    REG_JMP,    // jalr
-    NOT_BRANCH  // not a branch instruction
+    REG_JMP     // jalr
   } branch_type_t;
   typedef struct packed {
     logic [6:0] opcode;

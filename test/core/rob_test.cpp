@@ -150,6 +150,12 @@ TEST (ROBTest, OrderdWriteback) {
     rob->writeback_en[1] = 1;
   });
 
+  // 1クロック遅れてコミットされるかをテスト
+  EXPECT_EQ(dut->top->commit_phys_rd[0], 32);
+  EXPECT_EQ(dut->top->commit_arch_rd[0], 0);
+  EXPECT_EQ(dut->top->commit_en[0], 1);
+  EXPECT_EQ(dut->top->commit_en[1], 0);
+
   // (0, 2), (1, 2)を同時にwriteback
   dut->do_posedge([](Vrob *rob) {
     for(auto i = 0; i < 2; i++) {
@@ -163,24 +169,16 @@ TEST (ROBTest, OrderdWriteback) {
     rob->writeback_en[1] = 1;
   });
 
-  // 2クロック遅れてコミットされるかをテスト
-  EXPECT_EQ(dut->top->commit_phys_rd[0], 32);
-  EXPECT_EQ(dut->top->commit_arch_rd[0], 0);
-  EXPECT_EQ(dut->top->commit_en[0], 1);
-  EXPECT_EQ(dut->top->commit_en[1], 0);
+  EXPECT_EQ(dut->top->commit_phys_rd[1], 33);
+  EXPECT_EQ(dut->top->commit_arch_rd[1], 1);
+  EXPECT_EQ(dut->top->commit_en[0], 0);
+  EXPECT_EQ(dut->top->commit_en[1], 1);
 
   dut->do_posedge([](Vrob *rob) {
     for(auto i = 0; i < 2; i++) {
       rob->writeback_en[i] = 0;
     }
   });
-
-  EXPECT_EQ(dut->top->commit_phys_rd[1], 33);
-  EXPECT_EQ(dut->top->commit_arch_rd[1], 1);
-  EXPECT_EQ(dut->top->commit_en[0], 0);
-  EXPECT_EQ(dut->top->commit_en[1], 1);
-
-  dut->next_clock();
 
   EXPECT_EQ(dut->top->commit_phys_rd[0], 34);
   EXPECT_EQ(dut->top->commit_arch_rd[0], 2);
@@ -316,9 +314,8 @@ TEST (ROBTest, UnOrderedWriteback) {
       rob->writeback_en[i] = 0;
     }
   });
-  dut->next_clock();
 
-  // 2クロック遅れてコミットされるかをテスト
+  // 1クロック遅れてコミットされるかをテスト
   EXPECT_EQ(dut->top->commit_phys_rd[0], 32);
   EXPECT_EQ(dut->top->commit_arch_rd[0], 0);
   EXPECT_EQ(dut->top->commit_en[0], 1);
@@ -679,11 +676,7 @@ TEST (ROBTest, BranchPrediction) {
     {  1, 29,  4,  0,  7,  0,  0,  0,  0,  0,  0,  0,  1, 25,  4,  1, 30,  5,  1,  7,  0,  0,  0,  0,  0,  0,  1, 26,  5}
   };
   int i = 0;
-  struct RobOutput expected, output, buf;
-  // なんかcommit0,1 の出力が1サイクル遅れて出てくるのでバッファを噛ませる
-  // 多分svでテストを書けば直る（posedgeが再現できてない）
-  buf.commit0_en = 0;
-  buf.commit1_en = 0;
+  struct RobOutput expected, output;
   for (auto v: test_vector) {
     dut->do_posedge([&](Vrob *rob) {
       output = step(rob,
@@ -696,22 +689,15 @@ TEST (ROBTest, BranchPrediction) {
       expected.disp0_en = v[0];
       expected.disp0_bank_addr = v[3];
       expected.disp0_rob_addr = v[4];
-      expected.commit0_en = buf.commit0_en;
-      expected.commit0_phys_rd = buf.commit0_phys_rd;
-      expected.commit0_arch_rd = buf.commit0_arch_rd;
+      expected.commit0_en = v[12];
+      expected.commit0_phys_rd = v[13];
+      expected.commit0_arch_rd = v[14];
       expected.disp1_en = v[15];
       expected.disp1_bank_addr = v[18];
       expected.disp1_rob_addr = v[19];
-      expected.commit1_en = buf.commit1_en;
-      expected.commit1_phys_rd = buf.commit1_phys_rd;
-      expected.commit1_arch_rd = buf.commit1_arch_rd;
-
-      buf.commit0_en = v[12];
-      buf.commit0_phys_rd = v[13];
-      buf.commit0_arch_rd = v[14];
-      buf.commit1_en = v[26];
-      buf.commit1_phys_rd = v[27];
-      buf.commit1_arch_rd = v[28];
+      expected.commit1_en = v[26];
+      expected.commit1_phys_rd = v[27];
+      expected.commit1_arch_rd = v[28];
     });
     test_roboutput(i, &output, &expected);
     i++;
