@@ -23,7 +23,6 @@ module rob #(
 );
   import parameters::*;
   rob_entry_t rob_entry [0:ROB_SIZE-1][0:DISPATCH_WIDTH-1];
-  logic [ROB_ADDR_WIDTH-1:0] dispatch_addr; // 実際にdispatchするアドレス(投機実行を考慮)
   logic [ROB_ADDR_WIDTH-1:0] head; // dispatchする予定のアドレス
   logic [ROB_ADDR_WIDTH-1:0] tail; // 次にcommitするアドレス
   logic [ROB_ADDR_WIDTH-1:0] num_entry; // 現在のエントリ数
@@ -168,14 +167,6 @@ module rob #(
 
     // TODO: 条件があっているかの確認
     dispatch_if.full = num_entry == ROB_ADDR_WIDTH'(ROB_SIZE-1);
-    
-    // 分岐予測失敗時は分岐命令の次のエントリにdispatchする
-    if (wb_branch_fail[0] || wb_branch_fail[1]) begin
-      dispatch_addr = br_instr_ptr + 1;
-    // 通常時はheadにdispatchする
-    end else begin
-      dispatch_addr = head;
-    end
 
     for (int w = 0; w < DISPATCH_WIDTH; w++) begin
       dispatch_if.bank_addr[w] = DISPATCH_ADDR_WIDTH'(w);
@@ -211,19 +202,19 @@ module rob #(
 
       for (int w = 0; w < DISPATCH_WIDTH; w++) begin
         if (dispatch_if.en[w]) begin
-          rob_entry[dispatch_addr][w].entry_valid <= 1;
-          rob_entry[dispatch_addr][w].phys_rd     <= dispatch_if.phys_rd[w];
-          rob_entry[dispatch_addr][w].arch_rd     <= dispatch_if.arch_rd[w];
-          rob_entry[dispatch_addr][w].commit_ready<= 0;
-          rob_entry[dispatch_addr][w].pc          <= dispatch_if.pc[w];
-          rob_entry[dispatch_addr][w].instr       <= dispatch_if.instr[w];
+          rob_entry[head][w].entry_valid <= 1;
+          rob_entry[head][w].phys_rd     <= dispatch_if.phys_rd[w];
+          rob_entry[head][w].arch_rd     <= dispatch_if.arch_rd[w];
+          rob_entry[head][w].commit_ready<= 0;
+          rob_entry[head][w].pc          <= dispatch_if.pc[w];
+          rob_entry[head][w].instr       <= dispatch_if.instr[w];
         end else begin
-          rob_entry[dispatch_addr][w].entry_valid <= 0;
-          rob_entry[dispatch_addr][w].phys_rd     <= 0;
-          rob_entry[dispatch_addr][w].arch_rd     <= 0;
-          rob_entry[dispatch_addr][w].commit_ready<= 0;
-          rob_entry[dispatch_addr][w].pc          <= 0;
-          rob_entry[dispatch_addr][w].instr       <= 0;
+          rob_entry[head][w].entry_valid <= 0;
+          rob_entry[head][w].phys_rd     <= 0;
+          rob_entry[head][w].arch_rd     <= 0;
+          rob_entry[head][w].commit_ready<= 0;
+          rob_entry[head][w].pc          <= 0;
+          rob_entry[head][w].instr       <= 0;
         end
       end
     end

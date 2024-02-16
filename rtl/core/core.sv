@@ -188,6 +188,9 @@ module core (
   logic [31:0]                     instr_wb     [0:DISPATCH_WIDTH-1];
   logic                            is_br_instr_wb [0:DISPATCH_WIDTH-1];
   logic                            taken_wb     [0:DISPATCH_WIDTH-1];
+  
+  // WB stage
+  logic                            phys_rd_wen_wb [0:DISPATCH_WIDTH-1];
 
   // COMMIT stage
   logic [PHYS_REGS_ADDR_WIDTH-1:0] commit_map_table_reset_data [0:31];
@@ -252,9 +255,17 @@ module core (
       pc <= 32'h80000000;
     end else if (miss_predict_disp) begin
       if (branch_result_valid_commit[0] && !branch_correct_commit[0]) begin
-        pc <= pc_commit[0] + 32'(signed'(br_offset_commit[0]));
+        if (branch_taken_commit[0]) begin
+          pc <= pc_commit[0] + 32'(signed'(br_offset_commit[0]));
+        end else begin
+          pc <= pc_commit[0] + 4;
+        end
       end else begin
-        pc <= pc_commit[1] + 32'(signed'(br_offset_commit[1]));
+        if (branch_taken_commit[1]) begin
+          pc <= pc_commit[1] + 32'(signed'(br_offset_commit[1]));
+        end else begin
+          pc <= pc_commit[1] + 4;
+        end
       end
     end else begin
       if (!stall_id && !stall_if) begin
@@ -637,7 +648,7 @@ module core (
     .addr_rs2(op2_rread_bit_cast),
     .addr_rd(phys_rd_wb),
     .rd_data(result_wb),
-    .rd_wen(valid_wb),
+    .rd_wen(phys_rd_wen_wb),
     .rs1_data(rs1_data_rread),
     .rs2_data(rs2_data_rread),
     .reg_dump()
@@ -698,7 +709,8 @@ module core (
       end
     end
   end
-
+  
+  // EX/WB regs
   always_ff @(posedge clk) begin
     if (rst || miss_predict_disp) begin
       for(int i = 0; i < DISPATCH_WIDTH; i++) begin
@@ -722,6 +734,13 @@ module core (
       instr_wb     <= instr_ex;
       is_br_instr_wb <= is_br_instr_ex;
       taken_wb     <= taken_ex;
+    end
+  end
+  
+  // WB stage
+  always_comb begin
+    for(int i = 0; i < DISPATCH_WIDTH; i++) begin
+      phys_rd_wen_wb[i] = valid_wb[i] && !is_br_instr_wb[i];
     end
   end
   
