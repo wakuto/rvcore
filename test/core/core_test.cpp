@@ -14,8 +14,7 @@
 #define UART0_BASE 0x10000000
 #define UART0_SIZE 0x100
 #define DRAM_BASE  0x80000000
-// #define DRAM_SIZE  0x40000
-#define DRAM_SIZE  0x38
+#define DRAM_SIZE  0x40000
 
 class CoreTester : public ModelTester<Vcore> {
 private:
@@ -144,7 +143,7 @@ public:
 
   void run_one_cycle(uint32_t mem_delay) {
     static uint32_t delay_counter = 0;
-    static bool wait = false;
+    static bool wait = true;
     for(auto i = 0; i < 2; i++) {
       this->top->instruction[i] = this->read_imem(this->top->pc + 4*i);
       this->top->instr_valid[i] = wait && this->top->instruction[i] != 0xdeadbeef;
