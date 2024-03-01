@@ -11,7 +11,8 @@ module decoder (
 
     output logic [ 4:0] alu_cmd,
     output logic [31:0] imm,
-    output logic        op2_type,
+    output common::op_type_t        op1_type,
+    output common::op_type_t        op2_type,
     output logic [12:0] br_offset
 );
   logic [31:0] instr;
@@ -52,8 +53,8 @@ module decoder (
 
     case(opcode)
       // I-type instr
-      // addi, slti, ..., load, lui
-      7'b0010011, 7'b0000011, 7'b0110111: _op2_type = common::IMM;
+      // addi, slti, ..., load, lui, jal
+      7'b0010011, 7'b0000011, 7'b0110111, 7'b1101111: _op2_type = common::IMM;
       // R-type instr
       // add, sub, ...
       7'b0110011: _op2_type = common::REG;
@@ -64,9 +65,16 @@ module decoder (
     endcase
     
     case(opcode)
+      7'b1101111: op1_type = common::PC;
+      default: op1_type = common::REG;
+    endcase
+    
+    case(opcode)
       7'b0010011, 7'b0000011: imm = 32'(signed'(instr[31:20]));
       // LUI
       7'b0110111: imm = {instr[31:12], 12'h0};
+      // jal
+      7'b1101111: imm = 32'h4;
       default: imm = 32'hdeadbeef;
     endcase
     

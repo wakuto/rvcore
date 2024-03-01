@@ -68,6 +68,7 @@ module core (
   logic [4:0]       rd_id        [0:DISPATCH_WIDTH-1];
   common::alu_cmd_t alu_cmd_id   [0:DISPATCH_WIDTH-1];
   logic [31:0]      imm_id       [0:DISPATCH_WIDTH-1];
+  common::op_type_t op1_type_id  [0:DISPATCH_WIDTH-1];
   common::op_type_t op2_type_id  [0:DISPATCH_WIDTH-1];
   logic [12:0]      br_offset_id [0:DISPATCH_WIDTH-1];
 
@@ -79,6 +80,7 @@ module core (
   logic [4:0]       rd_rn       [0:DISPATCH_WIDTH-1];
   common::alu_cmd_t alu_cmd_rn  [0:DISPATCH_WIDTH-1];
   logic [31:0]      imm_rn      [0:DISPATCH_WIDTH-1];
+  common::op_type_t op1_type_rn [0:DISPATCH_WIDTH-1];
   common::op_type_t op2_type_rn [0:DISPATCH_WIDTH-1];
   logic [31:0]      pc_rn       [0:DISPATCH_WIDTH-1];
   logic [31:0]      instr_rn    [0:DISPATCH_WIDTH-1];
@@ -98,6 +100,7 @@ module core (
   logic                            valid_disp    [0:DISPATCH_WIDTH-1];
   common::alu_cmd_t                alu_cmd_disp  [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] rs1_disp      [0:DISPATCH_WIDTH-1];
+  common::op_type_t                op1_type_disp [0:DISPATCH_WIDTH-1];
   common::op_type_t                op2_type_disp [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] rs2_disp      [0:DISPATCH_WIDTH-1];
   logic [31:0]                     imm_disp      [0:DISPATCH_WIDTH-1];
@@ -127,6 +130,7 @@ module core (
   common::alu_cmd_t                alu_cmd_issue   [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] rs1_issue       [0:DISPATCH_WIDTH-1];
   logic                            rs1_valid_issue [0:DISPATCH_WIDTH-1];
+  common::op_type_t                op1_type_issue  [0:DISPATCH_WIDTH-1];
   common::op_type_t                op2_type_issue  [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] rs2_issue       [0:DISPATCH_WIDTH-1];
   logic                            rs2_valid_issue [0:DISPATCH_WIDTH-1];
@@ -151,6 +155,7 @@ module core (
   logic                            valid_rread     [0:DISPATCH_WIDTH-1];
   common::alu_cmd_t                alu_cmd_rread   [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] op1_rread       [0:DISPATCH_WIDTH-1];
+  common::op_type_t                op1_type_rread  [0:DISPATCH_WIDTH-1];
   common::op_type_t                op2_type_rread  [0:DISPATCH_WIDTH-1];
   logic [31:0]                     op2_rread       [0:DISPATCH_WIDTH-1];
   logic [PHYS_REGS_ADDR_WIDTH-1:0] phys_rd_rread   [0:DISPATCH_WIDTH-1];
@@ -351,6 +356,7 @@ module core (
         .rd(rd_id[bank]),
         .alu_cmd(alu_cmd_id[bank]),
         .imm(imm_id[bank]),
+        .op1_type(op1_type_id[bank]),
         .op2_type(op2_type_id[bank]),
         .br_offset(br_offset_id[bank])
       );
@@ -377,6 +383,7 @@ module core (
         rd_rn[i]       <= 0;
         alu_cmd_rn[i]  <= common::alu_cmd_t'(0);
         imm_rn[i]      <= 0;
+        op1_type_rn[i] <= common::op_type_t'(0);
         op2_type_rn[i] <= common::op_type_t'(0);
         pc_rn[i]       <= 0;
         instr_rn[i]    <= 0;
@@ -392,6 +399,7 @@ module core (
         rd_rn       <= rd_id;
         alu_cmd_rn  <= alu_cmd_id;
         imm_rn      <= imm_id;
+        op1_type_rn <= op1_type_id;
         op2_type_rn <= op2_type_id;
         pc_rn       <= pc_id;
         instr_rn    <= instr_id;
@@ -448,6 +456,7 @@ module core (
         valid_disp[i]    <= 0;
         alu_cmd_disp[i]  <= common::alu_cmd_t'(0);
         rs1_disp[i]      <= 0;
+        op1_type_disp[i] <= common::op_type_t'(0);
         op2_type_disp[i] <= common::op_type_t'(0);
         rs2_disp[i]      <= 0;
         imm_disp[i]      <= 0;
@@ -465,6 +474,7 @@ module core (
         alu_cmd_disp  <= alu_cmd_rn;
         rs1_disp[0]   <= rs1_data_rn[0];
         rs1_disp[1]   <= rd_rn[0] == rs1_rn[1] ? pop_reg_rn[0] : rs1_data_rn[1];
+        op1_type_disp <= op1_type_rn;
         op2_type_disp <= op2_type_rn;
         rs2_disp[0]   <= rs2_data_rn[0];
         rs2_disp[1]   <= rd_rn[0] == rs2_rn[1] ? pop_reg_rn[0] : rs2_data_rn[1];
@@ -538,6 +548,7 @@ module core (
         alu_cmd_issue[i]   <= common::alu_cmd_t'(0);
         rs1_issue[i]       <= 0;
         rs1_valid_issue[i] <= 0;
+        op1_type_issue[i]  <= common::op_type_t'(0);
         op2_type_issue[i]  <= common::op_type_t'(0);
         rs2_issue[i]       <= 0;
         rs2_valid_issue[i] <= 0;
@@ -558,6 +569,7 @@ module core (
         rs1_issue       <= rs1_disp;
         rs1_valid_issue[0] <= (rs1_disp[0] == 0) || phys_rs1_valid_disp[0];
         rs1_valid_issue[1] <= (rs1_disp[1] == 0) || (phys_rd_disp[0] == rs1_disp[1] ? 0 : phys_rs1_valid_disp[1]);
+        op1_type_issue  <= op1_type_disp;
         op2_type_issue  <= op2_type_disp;
         rs2_issue       <= rs2_disp;
         rs2_valid_issue[0] <= (rs2_disp[0] == 0) || phys_rs2_valid_disp[0];
@@ -600,6 +612,7 @@ module core (
     end
     dispatch_if_issue.alu_cmd   = alu_cmd_issue;
     dispatch_if_issue.op1       = rs1_issue;
+    dispatch_if_issue.op1_type  = op1_type_issue;
     dispatch_if_issue.op1_valid = rs1_valid_issue;
     dispatch_if_issue.op2       = op2_issue;
     dispatch_if_issue.op2_valid = op2_valid_issue;
@@ -616,6 +629,7 @@ module core (
     valid_rread     = issue_if_issue.valid;
     alu_cmd_rread   = issue_if_issue.alu_cmd;
     op1_rread       = issue_if_issue.op1;
+    op1_type_rread  = issue_if_issue.op1_type;
     op2_rread       = issue_if_issue.op2;
     op2_type_rread  = issue_if_issue.op2_type;
     phys_rd_rread   = issue_if_issue.phys_rd;
@@ -672,12 +686,16 @@ module core (
     end else begin
       valid_ex     <= valid_rread;
       alu_cmd_ex   <= alu_cmd_rread;
-      op1_ex       <= rs1_data_rread;
+      // op1_ex       <= rs1_data_rread;
       for (int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
         case(op2_type_rread[bank])
           common::IMM: op2_ex[bank] <= op2_rread[bank];
           common::REG: op2_ex[bank] <= rs2_data_rread[bank];
           default: op2_ex[bank] <= 32'hcafebabe;
+        endcase
+        case(op1_type_rread[bank])
+          common::PC: op1_ex[bank] <= pc_rread[bank];
+          default: op1_ex[bank] <= rs1_data_rread[bank];
         endcase
       end
       phys_rd_ex   <= phys_rd_rread;

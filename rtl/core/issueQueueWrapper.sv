@@ -16,6 +16,7 @@ module issueQueueWrapper #(
   input  wire                            dispatch_op1_valid [0:DISPATCH_WIDTH-1],
   input  wire                            dispatch_op2_valid [0:DISPATCH_WIDTH-1],
   input  wire [PHYS_REGS_ADDR_WIDTH-1:0] dispatch_op1       [0:DISPATCH_WIDTH-1],
+  input  common::op_type_t               dispatch_op1_type  [0:DISPATCH_WIDTH-1],
   input  wire [31:0]                     dispatch_op2       [0:DISPATCH_WIDTH-1],
   input  common::op_type_t               dispatch_op2_type  [0:DISPATCH_WIDTH-1],
   input  wire [PHYS_REGS_ADDR_WIDTH-1:0] dispatch_phys_rd   [0:DISPATCH_WIDTH-1],
@@ -31,6 +32,7 @@ module issueQueueWrapper #(
 
   output logic                            issue_valid     [0:DISPATCH_WIDTH-1],
   output common::alu_cmd_t                issue_alu_cmd   [0:DISPATCH_WIDTH-1],
+  output common::op_type_t                issue_op1_type  [0:DISPATCH_WIDTH-1],
   output logic [PHYS_REGS_ADDR_WIDTH-1:0] issue_op1       [0:DISPATCH_WIDTH-1],
   output common::op_type_t                issue_op2_type  [0:DISPATCH_WIDTH-1],
   output logic [31:0]                     issue_op2       [0:DISPATCH_WIDTH-1],
@@ -66,6 +68,7 @@ module issueQueueWrapper #(
       dispatch_if.op1[bank]       = dispatch_op1[bank];
       dispatch_if.op2[bank]       = dispatch_op2[bank];
       dispatch_if.op1_valid[bank] = dispatch_op1_valid[bank];
+      dispatch_if.op1_type[bank]  = dispatch_op1_type[bank];
       dispatch_if.op2_valid[bank] = dispatch_op2_valid[bank];
       dispatch_if.op2_type[bank]  = dispatch_op2_type[bank];
       dispatch_if.phys_rd[bank]   = dispatch_phys_rd[bank];
@@ -82,6 +85,7 @@ module issueQueueWrapper #(
     for (int bank = 0; bank < DISPATCH_WIDTH; bank++) begin
       issue_valid[bank]     = issue_if.valid[bank];
       issue_alu_cmd[bank]   = issue_if.alu_cmd[bank];
+      issue_op1_type[bank]  = issue_if.op1_type[bank];
       issue_op1[bank]       = issue_if.op1[bank];
       issue_op2_type[bank]  = issue_if.op2_type[bank];
       issue_op2[bank]       = issue_if.op2[bank];
